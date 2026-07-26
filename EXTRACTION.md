@@ -15,7 +15,9 @@ TotemAlchemy owns the Alchemy Cauldron, Pig Manure and Cherry Brew gameplay:
 Existing `deadrecall:*` registry, recipe, effect, block-entity and persistent
 cauldron recipe IDs remain readable throughout the compatibility window. The
 cauldron block entity already contains a legacy-state reader and this behavior
-must move unchanged.
+must move unchanged. Version `0.1.1` adds the module-owned
+`deadrecall:alchemy_root` advancement parent so the preserved advancement IDs
+also load when DeadRecall is intentionally absent.
 
 ## Verified seams and exclusions
 

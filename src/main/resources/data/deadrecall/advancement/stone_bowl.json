@@ -1,5 +1,5 @@
 {
-  "parent": "deadrecall:root",
+  "parent": "deadrecall:alchemy_root",
   "criteria": {
     "crafted_stone_bowl": {
       "conditions": {

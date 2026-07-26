@@ -1,0 +1,26 @@
+{
+  "criteria": {
+    "ready": {
+      "trigger": "minecraft:tick"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "minecraft:textures/gui/advancements/backgrounds/stone.png",
+    "description": {
+      "text": "Alchemy Cauldron, Pig Manure and Cherry Brew gameplay"
+    },
+    "icon": {
+      "id": "minecraft:brewing_stand"
+    },
+    "show_toast": false,
+    "title": {
+      "text": "Totem Alchemy"
+    }
+  },
+  "requirements": [
+    [
+      "ready"
+    ]
+  ]
+}
