@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "totem-alchemy-gametest",
+  "version": "1.0.0",
+  "name": "TotemAlchemy GameTests",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-gametest": [
+      "dev.totem.alchemy.gametest.AlchemyCauldronPersistenceGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": "*",
+    "fabric-api": "*",
+    "minecraft": "*",
+    "totem-alchemy": "*"
+  }
+}
