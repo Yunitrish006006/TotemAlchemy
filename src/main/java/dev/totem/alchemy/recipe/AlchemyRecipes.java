@@ -12,6 +12,11 @@ public final class AlchemyRecipes {
             Identifier.fromNamespaceAndPath("deadrecall", "cocoa_powder"),
             CocoaPowderRecipe.SERIALIZER);
 
+    public static final RecipeSerializer<FlintFromBowlRecipe> FLINT_FROM_BOWL =
+        Registry.register(BuiltInRegistries.RECIPE_SERIALIZER,
+            Identifier.fromNamespaceAndPath("deadrecall", "flint_from_bowl"),
+            FlintFromBowlRecipe.SERIALIZER);
+
     private AlchemyRecipes() {
     }
 

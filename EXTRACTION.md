@@ -7,6 +7,8 @@ TotemAlchemy owns the Alchemy Cauldron, Pig Manure and Cherry Brew gameplay:
 - `alchemy/**`, the Alchemy Cauldron block/entity and its reloadable recipes;
 - the `saltpeter`, `pig_manure`, `wood_ash`, `cocoa_powder`, `hot_cocoa`,
   `cherry_brew`, `stone_bowl` and `sulfur_bowl` item identifiers;
+- the `deadrecall:flint_from_bowl` recipe and serializer, which preserve the
+  Alchemy-owned Stone Bowl as a crafting remainder;
 - the `pig_manure_*` blocks, `stinky` and `cherry_bloom` effects, and the two
   Pig Manure advancement criteria;
 - the Pig/Snowball Mixins, Pig Manure goal and recipe/data/texture assets
@@ -28,9 +30,9 @@ The legacy owner is currently split across `ModBlocks`, `ModBlockEntities`,
 external module replaces these as one registration path; DeadRecall must gate
 the matching legacy path when `totem-alchemy` is present.
 
-`CocoaPowderRecipe` moves with Alchemy because it creates an Alchemy ingredient.
-The general Flint-from-Bowl recipe is reserved for TotemVanillaTweaks. Portable
-container policy belongs to TotemRemnant and must not be copied here. The
+`CocoaPowderRecipe` and Flint-from-Bowl move with Alchemy because they use
+Alchemy-owned ingredients. Portable container policy belongs to TotemRemnant
+and must not be copied here. The
 shared `deadrecall` locale files remain in the compatibility bundle until they
 are separated without duplicate resource paths.
 

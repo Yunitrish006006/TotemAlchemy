@@ -6,7 +6,8 @@
   "environment": "server",
   "entrypoints": {
     "fabric-gametest": [
-      "dev.totem.alchemy.gametest.AlchemyCauldronPersistenceGameTest"
+      "dev.totem.alchemy.gametest.AlchemyCauldronPersistenceGameTest",
+      "dev.totem.alchemy.gametest.FlintFromBowlRecipeGameTest"
     ]
   },
   "depends": {
