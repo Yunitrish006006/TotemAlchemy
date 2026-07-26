@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "deadrecall:item/cherry_brew",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": -10521
+      }
+    ]
+  }
+}

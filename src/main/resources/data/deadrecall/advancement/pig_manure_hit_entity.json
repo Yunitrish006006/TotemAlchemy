@@ -1,0 +1,25 @@
+{
+  "parent": "deadrecall:root",
+  "criteria": {
+    "hit_entity": {
+      "trigger": "deadrecall:pig_manure_hit_entity"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.deadrecall.pig_manure_hit_entity.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "id": "deadrecall:pig_manure"
+    },
+    "title": {
+      "translate": "advancements.deadrecall.pig_manure_hit_entity.title"
+    }
+  },
+  "requirements": [
+    [
+      "hit_entity"
+    ]
+  ]
+}

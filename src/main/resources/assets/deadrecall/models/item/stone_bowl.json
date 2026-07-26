@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "deadrecall:item/stone_bowl/stone_bowl_back",
+    "layer2": "deadrecall:item/stone_bowl/stone_bowl_front"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "gui_light": "front",
+  "textures": {
+    "particle": "deadrecall:item/stone_bowl/stone_bowl_back",
+    "back": "deadrecall:item/stone_bowl/stone_bowl_back",
+    "content": "minecraft:item/cocoa_beans",
+    "front": "deadrecall:item/stone_bowl/stone_bowl_front"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 7.5],
+      "to": [16, 16, 7.52],
+      "faces": {
+        "north": { "texture": "#back" },
+        "south": { "texture": "#back" }
+      }
+    },
+    {
+      "from": [2, 4, 7.53],
+      "to": [14, 12, 7.54],
+      "faces": {
+        "north": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#content"
+        },
+        "south": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#content"
+        }
+      }
+    },
+    {
+      "from": [2, 4, 7.541],
+      "to": [14, 12, 7.542],
+      "faces": {
+        "north": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#content"
+        },
+        "south": {
+          "uv": [0, 0, 16, 16],
+          "texture": "#content"
+        }
+      }
+    },
+    {
+      "from": [0, 0, 7.56],
+      "to": [16, 16, 7.57],
+      "faces": {
+        "north": { "texture": "#front" },
+        "south": { "texture": "#front" }
+      }
+    }
+  ]
+}

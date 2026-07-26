@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SFS",
+    " S "
+  ],
+  "key": {
+    "S": [
+      "minecraft:stone",
+      "minecraft:cobblestone",
+      "minecraft:andesite",
+      "minecraft:diorite",
+      "minecraft:granite",
+      "minecraft:blackstone",
+      "minecraft:cobbled_deepslate"
+    ],
+    "F": "minecraft:flint"
+  },
+  "result": {
+    "id": "deadrecall:stone_bowl",
+    "count": 1
+  }
+}

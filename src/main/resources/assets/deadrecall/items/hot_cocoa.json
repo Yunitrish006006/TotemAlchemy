@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "deadrecall:item/hot_cocoa",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": -9751268
+      }
+    ]
+  }
+}

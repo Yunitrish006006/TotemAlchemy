@@ -1,0 +1,44 @@
+{
+  "start": "empty_cauldron",
+  "initial_level": 3,
+  "requires_lit_campfire": true,
+  "cook_mode": "after_all_inputs",
+  "cook_ticks": 200,
+  "consume_level_per_cook": false,
+  "complete_sound": "minecraft:block.note_block.bell",
+  "ingredients": [
+    {
+      "id": "milk",
+      "item": "minecraft:milk_bucket",
+      "remainder": "minecraft:bucket",
+      "can_start": true,
+      "message": "message.deadrecall.alchemy.milk_added",
+      "sound": "minecraft:item.bucket.empty"
+    },
+    {
+      "id": "cocoa",
+      "item": "deadrecall:cocoa_powder",
+      "remainder": "deadrecall:stone_bowl",
+      "can_start": false,
+      "message": "message.deadrecall.alchemy.cocoa_added",
+      "sound": "minecraft:block.brewing_stand.brew"
+    },
+    {
+      "id": "sugar",
+      "item": "minecraft:sugar",
+      "allow_right_click": false,
+      "allow_dropped": true,
+      "can_start": false,
+      "message": "message.deadrecall.alchemy.sugar_added",
+      "sound": "minecraft:block.brewing_stand.brew"
+    }
+  ],
+  "result": {
+    "type": "bottled_item",
+    "item": "deadrecall:hot_cocoa",
+    "count": 1,
+    "container_item": "minecraft:glass_bottle",
+    "message": "message.deadrecall.alchemy.hot_cocoa_bottled",
+    "sound": "minecraft:item.bottle.fill"
+  }
+}

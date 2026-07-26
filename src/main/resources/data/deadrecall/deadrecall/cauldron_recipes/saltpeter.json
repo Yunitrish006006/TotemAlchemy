@@ -1,0 +1,32 @@
+{
+  "start": "full_water_cauldron",
+  "initial_level": 3,
+  "requires_lit_campfire": true,
+  "cook_mode": "per_ingredient",
+  "cook_ticks": 200,
+  "consume_level_per_cook": true,
+  "ingredient_message": "message.deadrecall.alchemy.ingredient_added",
+  "ingredient_sound": "minecraft:block.brewing_stand.brew",
+  "ingredients": [
+    {
+      "id": "wood_ash",
+      "item": "deadrecall:wood_ash"
+    },
+    {
+      "id": "mushroom",
+      "items": [
+        "minecraft:brown_mushroom",
+        "minecraft:red_mushroom"
+      ]
+    },
+    {
+      "id": "pig_manure",
+      "item": "deadrecall:pig_manure"
+    }
+  ],
+  "result": {
+    "type": "drop_item",
+    "item": "deadrecall:saltpeter",
+    "count": 1
+  }
+}

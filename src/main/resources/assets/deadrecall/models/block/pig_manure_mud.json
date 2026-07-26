@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "bottom": "minecraft:block/mud",
+    "side": "minecraft:block/mud",
+    "top": "minecraft:block/brown_concrete_powder",
+    "particle": "minecraft:block/mud"
+  }
+}

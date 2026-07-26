@@ -1,9 +1,13 @@
 # TotemAlchemy
 
-TotemAlchemy is the future Totem module for Alchemy Cauldron gameplay. It will
-depend on TotemCore and Fabric API, not on another feature module.
+TotemAlchemy owns the Alchemy Cauldron, Pig Manure and Cherry Brew gameplay.
+It depends on TotemCore and Fabric API only; it has no DeadRecall implementation
+dependency.
 
-This repository is an approved extraction boundary only. No DeadRecall
-implementation has been transferred yet; the compatibility bundle remains the
-live owner until inventory, standalone validation and reversible cutover are
-complete.
+`0.1.0` is the first Java 25 cutover-capable artifact. It preserves the legacy
+`deadrecall:*` identifiers and is selected by DeadRecall only when installed in
+the exact compatibility bundle. The old implementation remains source-visible
+as a rollback path during the observation window.
+
+See [EXTRACTION.md](EXTRACTION.md) for the ownership, compatibility and
+validation contract.

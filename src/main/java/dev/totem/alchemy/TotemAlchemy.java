@@ -1,0 +1,35 @@
+package dev.totem.alchemy;
+
+import dev.totem.alchemy.alchemy.AlchemyHandler;
+import dev.totem.alchemy.alchemy.CherryBrewInteractions;
+import dev.totem.alchemy.alchemy.PigManureInteractions;
+import dev.totem.alchemy.block.AlchemyBlocks;
+import dev.totem.alchemy.block.entity.AlchemyBlockEntities;
+import dev.totem.alchemy.effect.AlchemyMobEffects;
+import dev.totem.alchemy.recipe.AlchemyRecipes;
+import dev.totem.alchemy.registry.AlchemyCriteria;
+import dev.totem.alchemy.registry.AlchemyItemGroups;
+import dev.totem.alchemy.registry.AlchemyItems;
+import net.fabricmc.api.ModInitializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** The sole registration owner for Alchemy gameplay outside the compatibility bundle. */
+public final class TotemAlchemy implements ModInitializer {
+    public static final Logger LOGGER = LoggerFactory.getLogger("TotemAlchemy");
+
+    @Override
+    public void onInitialize() {
+        AlchemyBlocks.register();
+        AlchemyBlockEntities.register();
+        AlchemyMobEffects.register();
+        AlchemyCriteria.register();
+        AlchemyItems.register();
+        AlchemyRecipes.register();
+        AlchemyItemGroups.register();
+        AlchemyHandler.register();
+        CherryBrewInteractions.register();
+        PigManureInteractions.register();
+        LOGGER.info("TotemAlchemy initialized without DeadRecall implementation dependency");
+    }
+}

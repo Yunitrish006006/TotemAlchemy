@@ -1,0 +1,35 @@
+{
+  "start": "full_water_cauldron",
+  "initial_level": 3,
+  "requires_lit_campfire": true,
+  "cook_mode": "after_all_inputs",
+  "cook_ticks": 240,
+  "consume_level_per_cook": false,
+  "complete_sound": "minecraft:block.note_block.chime",
+  "ingredients": [
+    {
+      "id": "sugar",
+      "item": "minecraft:sugar"
+    },
+    {
+      "id": "cherry_leaves",
+      "item": "minecraft:cherry_leaves"
+    },
+    {
+      "id": "glow_berries",
+      "item": "minecraft:glow_berries"
+    },
+    {
+      "id": "sweet_berries",
+      "item": "minecraft:sweet_berries"
+    }
+  ],
+  "result": {
+    "type": "bottled_item",
+    "item": "deadrecall:cherry_brew",
+    "count": 1,
+    "container_item": "minecraft:glass_bottle",
+    "message": "message.deadrecall.alchemy.cherry_brew_bottled",
+    "sound": "minecraft:item.bottle.fill"
+  }
+}

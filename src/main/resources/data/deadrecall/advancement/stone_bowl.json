@@ -1,0 +1,27 @@
+{
+  "parent": "deadrecall:root",
+  "criteria": {
+    "crafted_stone_bowl": {
+      "conditions": {
+        "recipe_id": "deadrecall:stone_bowl"
+      },
+      "trigger": "minecraft:recipe_crafted"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.deadrecall.stone_bowl.description"
+    },
+    "icon": {
+      "id": "deadrecall:stone_bowl"
+    },
+    "title": {
+      "translate": "advancements.deadrecall.stone_bowl.title"
+    }
+  },
+  "requirements": [
+    [
+      "crafted_stone_bowl"
+    ]
+  ]
+}

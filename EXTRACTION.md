@@ -1,11 +1,41 @@
 # Extraction contract
 
-TotemAlchemy will own the Alchemy Cauldron block and block entity, the
-`alchemy/**` interactions and recipes, related items, payloads, Mixins and data
-resources. Existing `deadrecall:*` registry and recipe identifiers must remain
-readable throughout the compatibility window.
+## Approved authority
 
-Before code moves, inventory every server/client registration, resource,
-GameTest, persistent identifier and direct dependency. The initial module must
-start with Core alone; optional cross-feature behavior uses a versioned Core
-event or consumer-owned adapter.
+TotemAlchemy owns the Alchemy Cauldron, Pig Manure and Cherry Brew gameplay:
+
+- `alchemy/**`, the Alchemy Cauldron block/entity and its reloadable recipes;
+- the `saltpeter`, `pig_manure`, `wood_ash`, `cocoa_powder`, `hot_cocoa`,
+  `cherry_brew`, `stone_bowl` and `sulfur_bowl` item identifiers;
+- the `pig_manure_*` blocks, `stinky` and `cherry_bloom` effects, and the two
+  Pig Manure advancement criteria;
+- the Pig/Snowball Mixins, Pig Manure goal and recipe/data/texture assets
+  required by that gameplay.
+
+Existing `deadrecall:*` registry, recipe, effect, block-entity and persistent
+cauldron recipe IDs remain readable throughout the compatibility window. The
+cauldron block entity already contains a legacy-state reader and this behavior
+must move unchanged.
+
+## Verified seams and exclusions
+
+The legacy owner is currently split across `ModBlocks`, `ModBlockEntities`,
+`ModMobEffects`, `LegacyGameplayItemRegistration`,
+`LegacyGameplayCriteriaRegistration`, `LegacyGameplayItemGroupRegistration`,
+`LegacyGameplayBootstrap` and `deadrecall.legacy.mixins.json`. The first
+external module replaces these as one registration path; DeadRecall must gate
+the matching legacy path when `totem-alchemy` is present.
+
+`CocoaPowderRecipe` moves with Alchemy because it creates an Alchemy ingredient.
+The general Flint-from-Bowl recipe is reserved for TotemVanillaTweaks. Portable
+container policy belongs to TotemRemnant and must not be copied here. The
+shared `deadrecall` locale files remain in the compatibility bundle until they
+are separated without duplicate resource paths.
+
+## Dependency and validation rules
+
+The module may depend on TotemCore and Fabric API only. It must not import
+DeadRecall or another feature implementation. Before cutover it needs Java 25
+unit tests, standalone Dedicated Server startup, cauldron persistence/restart
+coverage, and an assembled compatibility-bundle proof with exactly one owner
+for every preserved registration, resource and Mixin.
