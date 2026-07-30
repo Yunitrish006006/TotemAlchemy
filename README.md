@@ -5,10 +5,9 @@ Stone-Bowl Flint recipe gameplay.
 It depends on TotemCore and Fabric API only; it has no DeadRecall implementation
 dependency.
 
-`0.1.3` is the current Java 25 cutover-capable artifact. It preserves the legacy
-`deadrecall:*` identifiers and is selected by DeadRecall only when installed in
-the exact compatibility bundle. The old implementation remains source-visible
-as a rollback path during the observation window. Dedicated-server GameTests
+`0.1.4` is the current candidate built against TotemCore `0.2.0`. It preserves
+the legacy `deadrecall:*` identifiers and all current ownership resources.
+`0.1.3` remains the immutable rollback artifact. Dedicated-server GameTests
 cover current cauldron NBT round-trips, legacy `HOT_COCOA` state migration and
 the externally owned Flint-from-Bowl recipe.
 

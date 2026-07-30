@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/snow_block",
+  "textures": {
+    "all": "minecraft:block/brown_concrete_powder",
+    "particle": "minecraft:block/dirt"
+  }
+}

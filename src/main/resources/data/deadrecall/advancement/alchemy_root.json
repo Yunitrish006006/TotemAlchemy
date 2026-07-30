@@ -1,4 +1,5 @@
 {
+  "parent": "deadrecall:root",
   "criteria": {
     "ready": {
       "trigger": "minecraft:tick"
@@ -6,16 +7,16 @@
   },
   "display": {
     "announce_to_chat": false,
-    "background": "minecraft:textures/gui/advancements/backgrounds/stone.png",
+    "background": "minecraft:gui/advancements/backgrounds/stone",
     "description": {
-      "text": "Alchemy Cauldron, Pig Manure and Cherry Brew gameplay"
+      "translate": "advancements.deadrecall.alchemy_root.description"
     },
     "icon": {
       "id": "minecraft:brewing_stand"
     },
     "show_toast": false,
     "title": {
-      "text": "Totem Alchemy"
+      "translate": "advancements.deadrecall.alchemy_root.title"
     }
   },
   "requirements": [

@@ -24,6 +24,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
+import net.minecraft.world.level.block.SnowLayerBlock;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -84,8 +86,10 @@ public final class AlchemyHandler {
 
     private static InteractionResult tryHarvestPigManure(Player player, Level world, net.minecraft.world.InteractionHand hand,
                                                         ItemStack stack, BlockPos pos) {
-        BlockState cleanState = AlchemyBlocks.getCleanState(world.getBlockState(pos));
-        if (cleanState == null || !stack.is(ItemTags.SHOVELS)) {
+        BlockState targetState = world.getBlockState(pos);
+        BlockState cleanState = AlchemyBlocks.getCleanState(targetState);
+        boolean layeredManure = targetState.is(AlchemyBlocks.PIG_MANURE_LAYER);
+        if ((!layeredManure && cleanState == null) || !stack.is(ItemTags.SHOVELS)) {
             return InteractionResult.PASS;
         }
 
@@ -93,8 +97,9 @@ public final class AlchemyHandler {
             return InteractionResult.SUCCESS;
         }
 
-        world.setBlock(pos, cleanState, 3);
-        ItemStack manure = new ItemStack(AlchemyItems.PIG_MANURE);
+        int manureCount = layeredManure ? targetState.getValue(SnowLayerBlock.LAYERS) : 1;
+        world.setBlock(pos, layeredManure ? Blocks.AIR.defaultBlockState() : cleanState, 3);
+        ItemStack manure = new ItemStack(AlchemyItems.PIG_MANURE, manureCount);
         if (!player.addItem(manure)) {
             player.drop(manure, false);
         }

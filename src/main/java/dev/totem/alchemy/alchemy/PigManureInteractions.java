@@ -43,12 +43,9 @@ public final class PigManureInteractions {
             return false;
         }
 
-        BlockState manureState = AlchemyBlocks.getPigManureState(state);
-        if (manureState == null) {
+        if (!AlchemyBlocks.addPigManureLayer(level, hitResult.getBlockPos().above())) {
             return false;
         }
-
-        level.setBlock(hitResult.getBlockPos(), manureState, 3);
         level.playSound(null, hitResult.getBlockPos(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.BLOCKS, 0.8F, 0.9F);
         return true;
     }

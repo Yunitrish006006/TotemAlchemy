@@ -2,90 +2,68 @@ package dev.totem.alchemy.entity.ai;
 
 import dev.totem.alchemy.block.AlchemyBlocks;
 import net.minecraft.core.BlockPos;
-import net.minecraft.tags.BlockTags;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gamerules.GameRules;
 
-import java.util.EnumSet;
-
-public class PigManureGoal extends Goal {
-    private static final int EAT_ANIMATION_TICKS = 40;
+/**
+ * Queues one delayed manure deposit for every successful player feeding. The
+ * queue spaces multiple deposits apart so a pile builds one snow-like layer at
+ * a time instead of appearing as a full block.
+ */
+public final class PigManureGoal extends Goal {
+    private static final int FIRST_DEPOSIT_DELAY_TICKS = 40;
+    private static final int FOLLOW_UP_DEPOSIT_DELAY_TICKS = 20;
 
     private final Mob mob;
     private final Level level;
-    private int eatAnimationTick;
+    private int pendingDeposits;
+    private int depositDelayTicks;
 
     public PigManureGoal(Mob mob) {
         this.mob = mob;
         this.level = mob.level();
-        setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK, Flag.JUMP));
+    }
+
+    public void queueAfterFeeding() {
+        pendingDeposits++;
+        if (depositDelayTicks == 0) {
+            depositDelayTicks = adjustedTickDelay(FIRST_DEPOSIT_DELAY_TICKS);
+        }
     }
 
     @Override
     public boolean canUse() {
-        int chance = mob.isBaby() ? 50 : 1000;
-        if (mob.getRandom().nextInt(adjustedTickDelay(chance)) != 0) {
-            return false;
-        }
-
-        BlockPos pos = mob.blockPosition();
-        if (level.getBlockState(pos).is(BlockTags.EDIBLE_FOR_SHEEP)) {
-            return true;
-        }
-        return AlchemyBlocks.getPigManureState(level.getBlockState(pos.below())) != null;
-    }
-
-    @Override
-    public void start() {
-        eatAnimationTick = adjustedTickDelay(EAT_ANIMATION_TICKS);
-        level.broadcastEntityEvent(mob, (byte) 10);
-        mob.getNavigation().stop();
-    }
-
-    @Override
-    public void stop() {
-        eatAnimationTick = 0;
+        return pendingDeposits > 0;
     }
 
     @Override
     public boolean canContinueToUse() {
-        return eatAnimationTick > 0;
+        return pendingDeposits > 0;
     }
 
     @Override
     public void tick() {
-        eatAnimationTick = Math.max(0, eatAnimationTick - 1);
-        if (eatAnimationTick != adjustedTickDelay(4)) {
+        if (--depositDelayTicks > 0) {
             return;
         }
 
-        BlockPos pos = mob.blockPosition();
-        BlockState currentState = level.getBlockState(pos);
-        boolean ate = false;
-        if (currentState.is(BlockTags.EDIBLE_FOR_SHEEP)) {
+        if (!mobGriefing() || AlchemyBlocks.addPigManureLayer(level, mob.blockPosition())) {
+            pendingDeposits--;
             if (mobGriefing()) {
-                level.destroyBlock(pos, false);
+                BlockPos pos = mob.blockPosition();
+                level.playSound(null, pos, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.BLOCKS, 0.7F, 0.8F);
             }
-            ate = true;
-        }
-
-        BlockPos groundPos = pos.below();
-        BlockState groundState = level.getBlockState(groundPos);
-        BlockState manureState = AlchemyBlocks.getPigManureState(groundState);
-        if (manureState != null) {
-            if (mobGriefing()) {
-                level.levelEvent(2001, groundPos, Block.getId(groundState));
-                level.setBlock(groundPos, manureState, 2);
-            }
-            ate = true;
-        }
-
-        if (ate) {
-            mob.ate();
+            depositDelayTicks = pendingDeposits > 0
+                    ? adjustedTickDelay(FOLLOW_UP_DEPOSIT_DELAY_TICKS)
+                    : 0;
+        } else {
+            // The pig is standing in an unsuitable block (for example water).
+            // Keep the already-earned deposit queued and try again shortly.
+            depositDelayTicks = adjustedTickDelay(FOLLOW_UP_DEPOSIT_DELAY_TICKS);
         }
     }
 

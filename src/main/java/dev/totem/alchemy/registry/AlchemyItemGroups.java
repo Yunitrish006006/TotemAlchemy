@@ -24,7 +24,8 @@ public final class AlchemyItemGroups {
     }
 
     public static void register() {
-        if (!FabricLoader.getInstance().isModLoaded("deadrecall")) {
+        if (!FabricLoader.getInstance().isModLoaded("deadrecall")
+                && BuiltInRegistries.CREATIVE_MODE_TAB.getOptional(TAB_KEY).isEmpty()) {
             Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, TAB_KEY,
                     FabricCreativeModeTab.builder()
                             .title(Component.translatable("itemGroup.deadrecall.main"))
