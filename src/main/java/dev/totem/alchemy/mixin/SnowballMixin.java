@@ -18,7 +18,7 @@ public abstract class SnowballMixin {
     @Inject(method = "onHitEntity", at = @At("HEAD"), cancellable = true)
     private void deadrecall$applyPigManureStink(EntityHitResult hitResult, CallbackInfo ci) {
         Snowball snowball = (Snowball) (Object) this;
-        if (!snowball.getItem().is(AlchemyItems.PIG_MANURE)) {
+        if (!AlchemyItems.isPigManure(snowball.getItem())) {
             return;
         }
 
@@ -32,7 +32,7 @@ public abstract class SnowballMixin {
     @Inject(method = "onHit", at = @At("HEAD"))
     private void deadrecall$spreadPigManureOnGrass(HitResult hitResult, CallbackInfo ci) {
         Snowball snowball = (Snowball) (Object) this;
-        if (!snowball.getItem().is(AlchemyItems.PIG_MANURE)
+        if (!AlchemyItems.isPigManure(snowball.getItem())
                 || !(snowball.level() instanceof ServerLevel serverLevel)
                 || !(hitResult instanceof BlockHitResult blockHitResult)) {
             return;

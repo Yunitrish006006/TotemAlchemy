@@ -13,11 +13,12 @@ final class AlchemyItemRegistrar {
     private AlchemyItemRegistrar() {
     }
 
-    static Item register(String name, Function<Item.Properties, Item> itemFactory) {
-        Identifier id = Identifier.fromNamespaceAndPath("deadrecall", name);
+    static Item register(String namespace, String path, Function<Item.Properties, Item> itemFactory) {
+        Identifier id = Identifier.fromNamespaceAndPath(namespace, path);
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, id);
         Item.Properties props = new Item.Properties().setId(itemKey);
         Item item = itemFactory.apply(props);
-        return Registry.register(BuiltInRegistries.ITEM, id, item);
+        return BuiltInRegistries.ITEM.getOptional(itemKey).orElseGet(() ->
+                Registry.register(BuiltInRegistries.ITEM, id, item));
     }
 }

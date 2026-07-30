@@ -1,8 +1,8 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    "deadrecall:sulfur_bowl",
-    "deadrecall:saltpeter",
+    "#totem:alchemy/sulfur_bowls",
+    "#totem:alchemy/saltpeters",
     [
       "minecraft:coal",
       "minecraft:charcoal"

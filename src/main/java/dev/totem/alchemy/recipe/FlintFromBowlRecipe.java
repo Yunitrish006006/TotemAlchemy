@@ -37,7 +37,7 @@ public final class FlintFromBowlRecipe extends CustomRecipe {
                 hasGravel = true;
                 continue;
             }
-            if (stack.is(AlchemyItems.STONE_BOWL)) {
+            if (AlchemyItems.isStoneBowl(stack)) {
                 hasStoneBowl = true;
                 continue;
             }
@@ -56,7 +56,7 @@ public final class FlintFromBowlRecipe extends CustomRecipe {
     public NonNullList<ItemStack> getRemainingItems(CraftingInput input) {
         NonNullList<ItemStack> remaining = NonNullList.withSize(input.size(), ItemStack.EMPTY);
         for (int index = 0; index < input.size(); index++) {
-            if (input.getItem(index).is(AlchemyItems.STONE_BOWL)) {
+            if (AlchemyItems.isStoneBowl(input.getItem(index))) {
                 remaining.set(index, new ItemStack(AlchemyItems.STONE_BOWL));
             }
         }

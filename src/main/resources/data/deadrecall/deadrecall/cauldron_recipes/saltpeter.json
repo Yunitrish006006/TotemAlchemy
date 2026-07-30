@@ -10,7 +10,10 @@
   "ingredients": [
     {
       "id": "wood_ash",
-      "item": "deadrecall:wood_ash"
+      "items": [
+        "totem:alchemy/wood_ash",
+        "deadrecall:wood_ash"
+      ]
     },
     {
       "id": "mushroom",
@@ -21,12 +24,15 @@
     },
     {
       "id": "pig_manure",
-      "item": "deadrecall:pig_manure"
+      "items": [
+        "totem:alchemy/pig_manure",
+        "deadrecall:pig_manure"
+      ]
     }
   ],
   "result": {
     "type": "drop_item",
-    "item": "deadrecall:saltpeter",
+    "item": "totem:alchemy/saltpeter",
     "count": 1
   }
 }

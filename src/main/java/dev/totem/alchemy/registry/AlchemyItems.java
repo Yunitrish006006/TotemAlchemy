@@ -8,28 +8,29 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.food.Foods;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.Consumables;
 import net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect;
 
 public final class AlchemyItems {
-    public static final Item SALTPETER = AlchemyItemRegistrar.register("saltpeter", Item::new);
+    public static final Item SALTPETER = canonical("saltpeter", Item::new);
 
-    public static final Item PIG_MANURE = AlchemyItemRegistrar.register("pig_manure", PigManureItem::new);
+    public static final Item PIG_MANURE = canonical("pig_manure", PigManureItem::new);
 
-    public static final Item WOOD_ASH = AlchemyItemRegistrar.register("wood_ash", Item::new);
+    public static final Item WOOD_ASH = canonical("wood_ash", Item::new);
 
-    public static final Item COCOA_POWDER = AlchemyItemRegistrar.register("cocoa_powder",
+    public static final Item COCOA_POWDER = canonical("cocoa_powder",
             props -> new Item(props.stacksTo(1)));
 
-    public static final Item HOT_COCOA = AlchemyItemRegistrar.register("hot_cocoa",
+    public static final Item HOT_COCOA = canonical("hot_cocoa",
             props -> new Item(props.stacksTo(16)
                     .food(Foods.HONEY_BOTTLE, Consumables.defaultDrink()
                             .sound(SoundEvents.GENERIC_DRINK)
                             .build())
                     .usingConvertsTo(Items.GLASS_BOTTLE)));
 
-    public static final Item CHERRY_BREW = AlchemyItemRegistrar.register("cherry_brew",
+    public static final Item CHERRY_BREW = canonical("cherry_brew",
             props -> new Item(props.stacksTo(16)
                     .food(new FoodProperties.Builder()
                                     .nutrition(4)
@@ -45,10 +46,41 @@ public final class AlchemyItems {
                                     .build())
                     .usingConvertsTo(Items.GLASS_BOTTLE)));
 
-    public static final Item STONE_BOWL = AlchemyItemRegistrar.register("stone_bowl",
+    public static final Item STONE_BOWL = canonical("stone_bowl",
             props -> new StoneBowlItem(props.stacksTo(1)));
 
-    public static final Item SULFUR_BOWL = AlchemyItemRegistrar.register("sulfur_bowl",
+    public static final Item SULFUR_BOWL = canonical("sulfur_bowl",
+            props -> new Item(props.stacksTo(1).craftRemainder(STONE_BOWL)));
+
+    public static final Item LEGACY_SALTPETER = legacy("saltpeter", Item::new);
+    public static final Item LEGACY_PIG_MANURE = legacy("pig_manure", PigManureItem::new);
+    public static final Item LEGACY_WOOD_ASH = legacy("wood_ash", Item::new);
+    public static final Item LEGACY_COCOA_POWDER = legacy("cocoa_powder",
+            props -> new Item(props.stacksTo(1)));
+    public static final Item LEGACY_HOT_COCOA = legacy("hot_cocoa",
+            props -> new Item(props.stacksTo(16)
+                    .food(Foods.HONEY_BOTTLE, Consumables.defaultDrink()
+                            .sound(SoundEvents.GENERIC_DRINK)
+                            .build())
+                    .usingConvertsTo(Items.GLASS_BOTTLE)));
+    public static final Item LEGACY_CHERRY_BREW = legacy("cherry_brew",
+            props -> new Item(props.stacksTo(16)
+                    .food(new FoodProperties.Builder()
+                                    .nutrition(4)
+                                    .saturationModifier(0.4F)
+                                    .alwaysEdible()
+                                    .build(),
+                            Consumables.defaultDrink()
+                                    .sound(SoundEvents.GENERIC_DRINK)
+                                    .onConsume(new ApplyStatusEffectsConsumeEffect(
+                                            new MobEffectInstance(AlchemyMobEffects.CHERRY_BLOOM, 20 * 180, 0),
+                                            1.0F
+                                    ))
+                                    .build())
+                    .usingConvertsTo(Items.GLASS_BOTTLE)));
+    public static final Item LEGACY_STONE_BOWL = legacy("stone_bowl",
+            props -> new StoneBowlItem(props.stacksTo(1)));
+    public static final Item LEGACY_SULFUR_BOWL = legacy("sulfur_bowl",
             props -> new Item(props.stacksTo(1).craftRemainder(STONE_BOWL)));
 
     private AlchemyItems() {
@@ -56,5 +88,49 @@ public final class AlchemyItems {
 
     public static void register() {
         // Class loading registers this owner's items.
+    }
+
+    public static boolean isStoneBowl(ItemStack stack) {
+        return matches(stack, STONE_BOWL, LEGACY_STONE_BOWL);
+    }
+
+    public static boolean isPigManure(ItemStack stack) {
+        return matches(stack, PIG_MANURE, LEGACY_PIG_MANURE);
+    }
+
+    public static ItemStack migrateLegacy(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return stack;
+        Item canonical = canonicalItem(stack.getItem());
+        return canonical == null ? stack : stack.transmuteCopy(canonical, stack.getCount());
+    }
+
+    public static Item canonicalItem(Item item) {
+        if (item == LEGACY_SALTPETER) return SALTPETER;
+        if (item == LEGACY_PIG_MANURE) return PIG_MANURE;
+        if (item == LEGACY_WOOD_ASH) return WOOD_ASH;
+        if (item == LEGACY_COCOA_POWDER) return COCOA_POWDER;
+        if (item == LEGACY_HOT_COCOA) return HOT_COCOA;
+        if (item == LEGACY_CHERRY_BREW) return CHERRY_BREW;
+        if (item == LEGACY_STONE_BOWL) return STONE_BOWL;
+        if (item == LEGACY_SULFUR_BOWL) return SULFUR_BOWL;
+        return null;
+    }
+
+    private static boolean matches(ItemStack stack, Item canonical, Item legacy) {
+        return stack != null && !stack.isEmpty() && (stack.is(canonical) || stack.is(legacy));
+    }
+
+    private static Item canonical(
+            String path,
+            java.util.function.Function<Item.Properties, Item> factory
+    ) {
+        return AlchemyItemRegistrar.register("totem", "alchemy/" + path, factory);
+    }
+
+    private static Item legacy(
+            String path,
+            java.util.function.Function<Item.Properties, Item> factory
+    ) {
+        return AlchemyItemRegistrar.register("deadrecall", path, factory);
     }
 }

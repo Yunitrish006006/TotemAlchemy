@@ -17,8 +17,11 @@
     },
     {
       "id": "cocoa",
-      "item": "deadrecall:cocoa_powder",
-      "remainder": "deadrecall:stone_bowl",
+      "items": [
+        "totem:alchemy/cocoa_powder",
+        "deadrecall:cocoa_powder"
+      ],
+      "remainder": "totem:alchemy/stone_bowl",
       "can_start": false,
       "message": "message.deadrecall.alchemy.cocoa_added",
       "sound": "minecraft:block.brewing_stand.brew"
@@ -35,7 +38,7 @@
   ],
   "result": {
     "type": "bottled_item",
-    "item": "deadrecall:hot_cocoa",
+    "item": "totem:alchemy/hot_cocoa",
     "count": 1,
     "container_item": "minecraft:glass_bottle",
     "message": "message.deadrecall.alchemy.hot_cocoa_bottled",

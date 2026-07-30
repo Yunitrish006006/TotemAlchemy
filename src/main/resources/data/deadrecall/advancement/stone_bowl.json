@@ -13,7 +13,7 @@
       "translate": "advancements.deadrecall.stone_bowl.description"
     },
     "icon": {
-      "id": "deadrecall:stone_bowl"
+      "id": "totem:alchemy/stone_bowl"
     },
     "title": {
       "translate": "advancements.deadrecall.stone_bowl.title"

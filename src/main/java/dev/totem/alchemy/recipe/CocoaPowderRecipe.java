@@ -42,7 +42,7 @@ public class CocoaPowderRecipe extends CustomRecipe {
                 hasSugar = true;
                 continue;
             }
-            if (stack.is(AlchemyItems.STONE_BOWL)) {
+            if (AlchemyItems.isStoneBowl(stack)) {
                 hasBowl = true;
                 continue;
             }

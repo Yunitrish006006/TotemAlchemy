@@ -11,7 +11,7 @@
     },
     "frame": "goal",
     "icon": {
-      "id": "deadrecall:pig_manure"
+      "id": "totem:alchemy/pig_manure"
     },
     "title": {
       "translate": "advancements.deadrecall.pig_manure_got_hit.title"
