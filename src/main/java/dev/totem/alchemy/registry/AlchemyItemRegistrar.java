@@ -18,7 +18,9 @@ final class AlchemyItemRegistrar {
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, id);
         Item.Properties props = new Item.Properties().setId(itemKey);
         Item item = itemFactory.apply(props);
-        return BuiltInRegistries.ITEM.getOptional(itemKey).orElseGet(() ->
-                Registry.register(BuiltInRegistries.ITEM, id, item));
+        if (BuiltInRegistries.ITEM.containsKey(id)) {
+            return BuiltInRegistries.ITEM.getValue(id);
+        }
+        return Registry.register(BuiltInRegistries.ITEM, id, item);
     }
 }

@@ -17,10 +17,7 @@
     },
     {
       "id": "cocoa",
-      "items": [
-        "totem:alchemy/cocoa_powder",
-        "deadrecall:cocoa_powder"
-      ],
+      "item": "totem:alchemy/cocoa_powder",
       "remainder": "totem:alchemy/stone_bowl",
       "can_start": false,
       "message": "message.deadrecall.alchemy.cocoa_added",

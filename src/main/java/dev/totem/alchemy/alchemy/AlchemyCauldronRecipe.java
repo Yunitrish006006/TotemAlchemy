@@ -1,5 +1,6 @@
 package dev.totem.alchemy.alchemy;
 
+import dev.totem.core.api.v1.migration.LegacyItemMigrationRegistry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
@@ -82,7 +83,7 @@ public record AlchemyCauldronRecipe(
     ) {
         public boolean matches(ItemStack stack) {
             for (Item item : items) {
-                if (stack.is(item)) {
+                if (LegacyItemMigrationRegistry.matches(stack, item)) {
                     return true;
                 }
             }
