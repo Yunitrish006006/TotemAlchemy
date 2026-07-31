@@ -7,7 +7,6 @@
   "entrypoints": {
     "fabric-gametest": [
       "dev.totem.alchemy.gametest.AlchemyCauldronPersistenceGameTest",
-      "dev.totem.alchemy.gametest.AlchemyItemIdMigrationGameTest",
       "dev.totem.alchemy.gametest.FlintFromBowlRecipeGameTest",
       "dev.totem.alchemy.gametest.PigManureLayerGameTest"
     ]

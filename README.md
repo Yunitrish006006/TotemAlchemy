@@ -3,25 +3,28 @@
 TotemAlchemy 是 Totem 系列的生存煉金模組，包含豬糞、缽、木灰、硝石、
 火藥、熱可可、櫻花釀與資料驅動煉藥鍋。
 
-目前版本為 **0.1.5**，精確搭配 TotemCore **0.2.0**。
+目前版本為 **0.1.7**，精確搭配 TotemCore **0.4.0**。
 
 ## 安裝
 
 Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
-2. TotemCore `0.2.0`
-3. TotemAlchemy `0.1.5`
+2. TotemCore `0.4.0`
+3. TotemAlchemy `0.1.7`
 
 | 項目 | 需求 |
 | --- | --- |
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core =0.2.0` |
+| 必要 Totem 模組 | `totem-core =0.4.0` |
 
-Alchemy 不依賴其他功能模組。使用 DeadRecall 2.4.5 整合 JAR 時不要再
+Alchemy 不依賴其他功能模組。使用 DeadRecall 2.4.7 整合 JAR 時不要再
 安裝獨立 TotemAlchemy。
+
+獨立安裝只註冊 `totem:alchemy/*` canonical 物品；舊
+`deadrecall:*` 物品 ID 的解碼與轉換只由 DeadRecall 相容整合包提供。
 
 ## 入門材料
 
@@ -99,13 +102,10 @@ ticks、容器返還、完成音效與掉落／裝瓶結果。
 
 新取得的八個煉金物品使用 `totem:alchemy/<物品名稱>` canonical ID，例如
 `totem:alchemy/stone_bowl` 與 `totem:alchemy/cherry_brew`。模組仍註冊全部
-既有 `deadrecall:*` IDs，並能讀取舊版煉藥鍋 NBT，包括舊 `HOT_COCOA`
-狀態。
-
-合成、硫磺缽 remainder 與煉藥鍋材料入口同時接受新舊物品，結果只產生
-canonical ID；未參與轉換流程的舊飲品、豬糞與材料仍保持原功能，不會被
-啟動掃描改寫。升級前請先備份世界；不要同時安裝會註冊相同 mod ID 的
-DeadRecall 整合 JAR。
+舊版煉藥鍋 NBT（包括舊 `HOT_COCOA` 狀態）仍由 Alchemy 自己讀取。
+`deadrecall:*` 物品 ID 則由 DeadRecall 整合包註冊；Core 遷移表讓配方與
+煉藥鍋接受舊堆疊並只產生 canonical 結果。升級前請先備份世界；不要同時
+安裝整合 JAR 與獨立功能 JAR。
 
 ## 開發與驗證
 
@@ -113,6 +113,7 @@ DeadRecall 整合 JAR。
 ./gradlew build
 ```
 
-0.1.5 已通過 11/11 required Dedicated Server GameTests，包含 cauldron NBT
-round-trip、legacy migration、豬糞堆疊與 Flint-from-Bowl。所有權與
+0.1.7 已通過 6/6 required Dedicated Server GameTests，包含 cauldron NBT
+round-trip、豬糞堆疊與 Flint-from-Bowl。舊物品遷移改由 DeadRecall
+整合啟動測試驗證。所有權與
 驗證契約見 [EXTRACTION.md](EXTRACTION.md)。
