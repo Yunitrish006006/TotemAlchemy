@@ -3,24 +3,24 @@
 TotemAlchemy 是 Totem 系列的生存煉金模組，包含豬糞、缽、木灰、硝石、
 火藥、熱可可、櫻花釀與資料驅動煉藥鍋。
 
-目前版本為 **0.1.5**，精確搭配 TotemCore **0.2.0**。
+目前版本為 **0.1.6**，精確搭配 TotemCore **0.3.0**。
 
 ## 安裝
 
 Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
-2. TotemCore `0.2.0`
-3. TotemAlchemy `0.1.5`
+2. TotemCore `0.3.0`
+3. TotemAlchemy `0.1.6`
 
 | 項目 | 需求 |
 | --- | --- |
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core =0.2.0` |
+| 必要 Totem 模組 | `totem-core =0.3.0` |
 
-Alchemy 不依賴其他功能模組。使用 DeadRecall 2.4.5 整合 JAR 時不要再
+Alchemy 不依賴其他功能模組。使用 DeadRecall 2.4.6 整合 JAR 時不要再
 安裝獨立 TotemAlchemy。
 
 ## 入門材料
@@ -113,6 +113,6 @@ DeadRecall 整合 JAR。
 ./gradlew build
 ```
 
-0.1.5 已通過 11/11 required Dedicated Server GameTests，包含 cauldron NBT
+0.1.6 已通過 11/11 required Dedicated Server GameTests，包含 cauldron NBT
 round-trip、legacy migration、豬糞堆疊與 Flint-from-Bowl。所有權與
 驗證契約見 [EXTRACTION.md](EXTRACTION.md)。
