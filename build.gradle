@@ -19,7 +19,7 @@ fabricApi {
         createSourceSet = true
         modId = "totem-alchemy-gametest"
         enableGameTests = true
-        enableClientGameTests = false
+        enableClientGameTests = true
         eula = true
     }
 }
@@ -118,9 +118,20 @@ tasks.register("normalizeFabricApiTweakersForNamedDevRuntime") {
 }
 
 tasks.matching { task ->
-    task.name in ["runClient", "runServer", "runDatagen", "runGameTest"]
+    task.name in ["runClient", "runServer", "runDatagen", "runGameTest", "runClientGameTest"]
 }.configureEach {
     dependsOn("normalizeFabricApiTweakersForNamedDevRuntime")
+}
+
+tasks.matching { task -> task.name == "runClientGameTest" }.configureEach {
+    doLast {
+        copy {
+            from(file("${buildDir}/run/clientGameTest/screenshots"))
+            include("*_totem-alchemy-creative-showcase.png")
+            rename { name -> name.replaceFirst(/^\d+_/, "") }
+            into(file("test-artifacts/screenshots/modrinth-gallery"))
+        }
+    }
 }
 
 java {

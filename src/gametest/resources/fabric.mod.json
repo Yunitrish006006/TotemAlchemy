@@ -3,12 +3,15 @@
   "id": "totem-alchemy-gametest",
   "version": "1.0.0",
   "name": "TotemAlchemy GameTests",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
       "dev.totem.alchemy.gametest.AlchemyCauldronPersistenceGameTest",
       "dev.totem.alchemy.gametest.FlintFromBowlRecipeGameTest",
       "dev.totem.alchemy.gametest.PigManureLayerGameTest"
+    ],
+    "fabric-client-gametest": [
+      "dev.totem.alchemy.client.AlchemyCreativeTabVisualGameTest"
     ]
   },
   "depends": {
