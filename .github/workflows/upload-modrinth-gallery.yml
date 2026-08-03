@@ -1,0 +1,55 @@
+name: Upload Modrinth Gallery
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Validate the configured project and gallery assets without uploading.
+        required: true
+        type: boolean
+        default: true
+      confirm_upload:
+        description: Confirm a non-dry-run gallery upload.
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    env:
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+      MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate project and gallery assets
+        run: |
+          set -euo pipefail
+          : "${MODRINTH_TOKEN:?Missing MODRINTH_TOKEN secret}"
+          : "${MODRINTH_PROJECT_ID:?Missing MODRINTH_PROJECT_ID secret}"
+          test -f docs/modrinth-gallery/creative-showcase.png
+          test "$(stat -c%s docs/modrinth-gallery/creative-showcase.png)" -le 5242880
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer ${MODRINTH_TOKEN}" \
+            -H "User-Agent: TotemModrinthGalleryUploader/1.0 (GitHub Actions)" \
+            "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}" > /dev/null
+
+      - name: Upload gallery image
+        if: ${{ inputs.dry_run == false && inputs.confirm_upload == true }}
+        run: |
+          set -euo pipefail
+          title='Standalone Alchemy Creative tab'
+          description='All eight Totem Alchemy items in the standalone Creative tab: saltpeter, pig manure, wood ash, cocoa powder, hot cocoa, cherry brew, stone bowl, and sulfur bowl. The legacy tab key remains for compatible worlds; standalone items use totem:alchemy/*.'
+          encoded_title="$(jq -rn --arg value "$title" '$value | @uri')"
+          encoded_description="$(jq -rn --arg value "$description" '$value | @uri')"
+          curl --fail-with-body --silent --show-error --retry 3 --retry-all-errors \
+            -X POST \
+            -H "Authorization: Bearer ${MODRINTH_TOKEN}" \
+            -H "Content-Type: image/png" \
+            -H "User-Agent: TotemModrinthGalleryUploader/1.0 (GitHub Actions)" \
+            --data-binary @docs/modrinth-gallery/creative-showcase.png \
+            "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}/gallery?ext=png&featured=true&title=${encoded_title}&description=${encoded_description}"
