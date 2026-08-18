@@ -1,8 +1,11 @@
 {
   "parent": "deadrecall:root",
   "criteria": {
-    "ready": {
-      "trigger": "minecraft:tick"
+    "crafted_brewing_stand": {
+      "conditions": {
+        "recipe_id": "minecraft:brewing_stand"
+      },
+      "trigger": "minecraft:recipe_crafted"
     }
   },
   "display": {
@@ -14,14 +17,14 @@
     "icon": {
       "id": "minecraft:brewing_stand"
     },
-    "show_toast": false,
+    "show_toast": true,
     "title": {
       "translate": "advancements.deadrecall.alchemy_root.title"
     }
   },
   "requirements": [
     [
-      "ready"
+      "crafted_brewing_stand"
     ]
   ]
 }

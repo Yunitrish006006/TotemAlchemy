@@ -20,12 +20,22 @@ public record AlchemyCauldronRecipe(
         CookMode cookMode,
         int cookTicks,
         boolean consumeLevelPerCook,
+        double successChance,
+        String successMessageKey,
+        String failureMessageKey,
+        Identifier failureSound,
         List<IngredientStep> ingredients,
         Result result,
         String defaultMessageKey,
         Identifier defaultAddSound,
         Identifier completeSound
 ) {
+    public boolean isIngredientSuccessful(IngredientStep ingredient, float randomRoll) {
+        return ingredient != null
+                && randomRoll >= 0.0F
+                && randomRoll < ingredient.successChance();
+    }
+
     public boolean canStartFrom(BlockState state) {
         return switch (startState) {
             case EMPTY_CAULDRON -> state.is(Blocks.CAULDRON);
@@ -78,6 +88,7 @@ public record AlchemyCauldronRecipe(
             boolean allowRightClick,
             boolean allowDropped,
             boolean canStartRecipe,
+            double successChance,
             String messageKey,
             Identifier sound
     ) {

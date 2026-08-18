@@ -12,7 +12,7 @@ public class CherryBloomMobEffect extends MobEffect {
         addAttributeModifier(
                 Attributes.MOVEMENT_SPEED,
                 Identifier.fromNamespaceAndPath("deadrecall", "cherry_bloom_movement_speed"),
-                0.05D,
+                0.22D,
                 AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
         );
     }

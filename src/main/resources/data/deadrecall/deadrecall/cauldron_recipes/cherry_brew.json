@@ -5,23 +5,28 @@
   "cook_mode": "after_all_inputs",
   "cook_ticks": 240,
   "consume_level_per_cook": false,
+  "success_chance": 0.8,
   "complete_sound": "minecraft:block.note_block.chime",
   "ingredients": [
     {
       "id": "sugar",
-      "item": "minecraft:sugar"
+      "item": "minecraft:sugar",
+      "success_chance": 0.9
     },
     {
       "id": "cherry_leaves",
-      "item": "minecraft:cherry_leaves"
+      "item": "minecraft:cherry_leaves",
+      "success_chance": 0.8
     },
     {
       "id": "glow_berries",
-      "item": "minecraft:glow_berries"
+      "item": "minecraft:glow_berries",
+      "success_chance": 0.75
     },
     {
       "id": "sweet_berries",
-      "item": "minecraft:sweet_berries"
+      "item": "minecraft:sweet_berries",
+      "success_chance": 0.85
     }
   ],
   "result": {

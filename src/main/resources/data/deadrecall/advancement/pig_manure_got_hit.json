@@ -1,5 +1,5 @@
 {
-  "parent": "deadrecall:alchemy_root",
+  "parent": "deadrecall:alchemy_manual",
   "criteria": {
     "got_hit": {
       "trigger": "deadrecall:pig_manure_got_hit"

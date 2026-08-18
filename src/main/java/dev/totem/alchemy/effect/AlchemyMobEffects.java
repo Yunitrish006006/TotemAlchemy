@@ -12,6 +12,10 @@ import net.minecraft.world.effect.MobEffect;
 public final class AlchemyMobEffects {
     public static final Holder.Reference<MobEffect> STINKY = register("stinky", new StinkyMobEffect());
     public static final Holder.Reference<MobEffect> CHERRY_BLOOM = register("cherry_bloom", new CherryBloomMobEffect());
+    public static final Holder.Reference<MobEffect> FIREFLY_STRENGTH = register(
+            "firefly_strength",
+            new FireflyStrengthMobEffect()
+    );
 
     private AlchemyMobEffects() {
     }

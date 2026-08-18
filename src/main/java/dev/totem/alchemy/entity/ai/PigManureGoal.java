@@ -31,7 +31,9 @@ public final class PigManureGoal extends Goal {
     public void queueAfterFeeding() {
         pendingDeposits++;
         if (depositDelayTicks == 0) {
-            depositDelayTicks = adjustedTickDelay(FIRST_DEPOSIT_DELAY_TICKS);
+            // GoalSelector may begin ticking this goal on the feeding tick.
+            // Keep the advertised delay stable regardless of that tick's parity.
+            depositDelayTicks = adjustedTickDelay(FIRST_DEPOSIT_DELAY_TICKS) + 1;
         }
     }
 

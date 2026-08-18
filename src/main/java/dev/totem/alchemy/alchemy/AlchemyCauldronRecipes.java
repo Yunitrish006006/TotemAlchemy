@@ -104,6 +104,23 @@ public final class AlchemyCauldronRecipes {
         AlchemyCauldronRecipe.CookMode cookMode = parseCookMode(getString(json, "cook_mode"));
         int cookTicks = getInt(json, "cook_ticks", 200);
         boolean consumeLevelPerCook = getBoolean(json, "consume_level_per_cook", false);
+        double successChance = getDouble(json, "success_chance", 0.8D);
+        if (!Double.isFinite(successChance) || successChance < 0.0D || successChance > 1.0D) {
+            throw new JsonParseException("success_chance must be between 0.0 and 1.0");
+        }
+        String successMessageKey = getString(
+                json,
+                "success_message",
+                "message.deadrecall.alchemy.brew_success"
+        );
+        String failureMessageKey = getString(
+                json,
+                "failure_message",
+                "message.deadrecall.alchemy.brew_failure"
+        );
+        Identifier failureSound = json.has("failure_sound")
+                ? getOptionalIdentifier(json, "failure_sound")
+                : Identifier.parse("minecraft:block.fire.extinguish");
         String defaultMessageKey = getString(json, "ingredient_message", "message.deadrecall.alchemy.ingredient_added");
         Identifier defaultAddSound = getOptionalIdentifier(json, "ingredient_sound");
         Identifier completeSound = getOptionalIdentifier(json, "complete_sound");
@@ -114,7 +131,7 @@ public final class AlchemyCauldronRecipes {
             if (!element.isJsonObject()) {
                 throw new JsonParseException("ingredient must be an object");
             }
-            ingredients.add(parseIngredient(element.getAsJsonObject()));
+            ingredients.add(parseIngredient(element.getAsJsonObject(), successChance));
         }
         if (ingredients.isEmpty()) {
             throw new JsonParseException("ingredients must not be empty");
@@ -129,6 +146,10 @@ public final class AlchemyCauldronRecipes {
                 cookMode,
                 cookTicks,
                 consumeLevelPerCook,
+                successChance,
+                successMessageKey,
+                failureMessageKey,
+                failureSound,
                 List.copyOf(ingredients),
                 result,
                 defaultMessageKey,
@@ -137,13 +158,19 @@ public final class AlchemyCauldronRecipes {
         );
     }
 
-    private static AlchemyCauldronRecipe.IngredientStep parseIngredient(JsonObject json) {
+    private static AlchemyCauldronRecipe.IngredientStep parseIngredient(JsonObject json, double defaultSuccessChance) {
         String id = getString(json, "id");
         List<Item> items = parseItems(json);
         Item remainder = getOptionalItem(json, "remainder");
         boolean allowRightClick = getBoolean(json, "allow_right_click", true);
         boolean allowDropped = getBoolean(json, "allow_dropped", true);
         boolean canStartRecipe = getBoolean(json, "can_start", true);
+        double ingredientSuccessChance = getDouble(json, "success_chance", defaultSuccessChance);
+        if (!Double.isFinite(ingredientSuccessChance)
+                || ingredientSuccessChance < 0.0D
+                || ingredientSuccessChance > 1.0D) {
+            throw new JsonParseException("ingredient " + id + " success_chance must be between 0.0 and 1.0");
+        }
         String messageKey = getString(json, "message", null);
         Identifier sound = getOptionalIdentifier(json, "sound");
 
@@ -158,6 +185,7 @@ public final class AlchemyCauldronRecipes {
                 allowRightClick,
                 allowDropped,
                 canStartRecipe,
+                ingredientSuccessChance,
                 messageKey,
                 sound
         );
@@ -278,6 +306,10 @@ public final class AlchemyCauldronRecipes {
 
     private static int getInt(JsonObject json, String key, int fallback) {
         return json.has(key) ? json.get(key).getAsInt() : fallback;
+    }
+
+    private static double getDouble(JsonObject json, String key, double fallback) {
+        return json.has(key) ? json.get(key).getAsDouble() : fallback;
     }
 
     private static boolean getBoolean(JsonObject json, String key, boolean fallback) {
