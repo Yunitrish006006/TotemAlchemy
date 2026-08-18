@@ -1,7 +1,6 @@
 package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.manual.AlchemyManual;
-import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryKey;
 import dev.totem.alchemy.discovery.AlchemyDiscoverySavedData;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
@@ -113,16 +112,13 @@ public final class AlchemyManualGameTest {
         try {
             ItemStack ingredient = new ItemStack(Items.SPIDER_EYE);
             ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
-            MultiOutcomeBrewing.Outcome poison = new MultiOutcomeBrewing.Outcome(
-                    Potions.POISON,
-                    "message.deadrecall.alchemy.outcome.poison"
-            );
+            ItemStack brewedPoison = PotionContents.createItemStack(Items.POTION, Potions.POISON);
             AlchemyDiscoveryService.recordSuccessfulBrew(
                     player.level(),
                     player.blockPosition(),
                     ingredient,
                     java.util.List.of(awkward),
-                    poison
+                    java.util.List.of(brewedPoison)
             );
 
             AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
