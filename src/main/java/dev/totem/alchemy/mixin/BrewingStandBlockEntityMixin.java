@@ -1,7 +1,7 @@
 package dev.totem.alchemy.mixin;
 
-import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
@@ -15,15 +15,17 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
-import java.util.List;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
+
 @Mixin(BrewingStandBlockEntity.class)
 public abstract class BrewingStandBlockEntityMixin {
     private static final int INGREDIENT_SLOT = 3;
+    private static final ThreadLocal<SuccessfulBrewContext> SUCCESSFUL_BREW = new ThreadLocal<>();
 
     @Inject(method = "doBrew", at = @At("HEAD"), cancellable = true)
     private static void totemAlchemy$rollIngredientSuccess(
@@ -32,29 +34,21 @@ public abstract class BrewingStandBlockEntityMixin {
             NonNullList<ItemStack> slots,
             CallbackInfo ci
     ) {
+        SUCCESSFUL_BREW.remove();
         MultiOutcomeBrewing.clearBatch();
+
         ItemStack ingredient = slots.get(INGREDIENT_SLOT);
         List<ItemStack> potionInputs = slots.subList(0, INGREDIENT_SLOT);
         double successChance = VanillaBrewingChance.chanceFor(ingredient, potionInputs);
         int chancePercent = (int) Math.round(successChance * 100.0D);
         if (VanillaBrewingChance.isSuccessful(ingredient, potionInputs, level.getRandom().nextFloat())) {
             MultiOutcomeBrewing.beginBatch(level.getRandom(), ingredient, potionInputs);
-            MultiOutcomeBrewing.Outcome outcome = MultiOutcomeBrewing.activeOutcome();
-            if (level instanceof ServerLevel serverLevel) {
-                AlchemyDiscoveryService.recordSuccessfulBrew(
-                        serverLevel, pos, ingredient, List.copyOf(potionInputs), outcome);
-            }
-            if (outcome == null) {
-                notifyNearbyPlayers(level, pos, "message.deadrecall.alchemy.vanilla_brew_success", chancePercent);
-            } else {
-                notifyNearbyPlayers(
-                        level,
-                        pos,
-                        "message.deadrecall.alchemy.multi_outcome_success",
-                        chancePercent,
-                        Component.translatable(outcome.messageKey())
-                );
-            }
+            SUCCESSFUL_BREW.set(new SuccessfulBrewContext(
+                    ingredient.copy(),
+                    potionInputs.stream().map(ItemStack::copy).toList(),
+                    chancePercent,
+                    MultiOutcomeBrewing.activeOutcome()
+            ));
             return;
         }
 
@@ -78,13 +72,46 @@ public abstract class BrewingStandBlockEntityMixin {
     }
 
     @Inject(method = "doBrew", at = @At("RETURN"))
-    private static void totemAlchemy$clearBatchOutcome(
+    private static void totemAlchemy$recordCompletedBrew(
             Level level,
             BlockPos pos,
             NonNullList<ItemStack> slots,
             CallbackInfo ci
     ) {
-        MultiOutcomeBrewing.clearBatch();
+        SuccessfulBrewContext context = SUCCESSFUL_BREW.get();
+        try {
+            if (context == null) {
+                return;
+            }
+            if (level instanceof ServerLevel serverLevel) {
+                AlchemyDiscoveryService.recordSuccessfulBrew(
+                        serverLevel,
+                        pos,
+                        context.ingredient(),
+                        context.inputs(),
+                        slots.subList(0, INGREDIENT_SLOT).stream().map(ItemStack::copy).toList()
+                );
+            }
+            if (context.outcome() == null) {
+                notifyNearbyPlayers(
+                        level,
+                        pos,
+                        "message.deadrecall.alchemy.vanilla_brew_success",
+                        context.chancePercent()
+                );
+            } else {
+                notifyNearbyPlayers(
+                        level,
+                        pos,
+                        "message.deadrecall.alchemy.multi_outcome_success",
+                        context.chancePercent(),
+                        Component.translatable(context.outcome().messageKey())
+                );
+            }
+        } finally {
+            SUCCESSFUL_BREW.remove();
+            MultiOutcomeBrewing.clearBatch();
+        }
     }
 
     private static void consumeIngredient(Level level, BlockPos pos, NonNullList<ItemStack> slots) {
@@ -120,6 +147,18 @@ public abstract class BrewingStandBlockEntityMixin {
             if (player.distanceToSqr(x, y, z) <= 64.0D) {
                 player.sendOverlayMessage(Component.translatable(messageKey, arguments));
             }
+        }
+    }
+
+    private record SuccessfulBrewContext(
+            ItemStack ingredient,
+            List<ItemStack> inputs,
+            int chancePercent,
+            MultiOutcomeBrewing.Outcome outcome
+    ) {
+        private SuccessfulBrewContext {
+            ingredient = ingredient.copy();
+            inputs = inputs.stream().map(ItemStack::copy).toList();
         }
     }
 }
