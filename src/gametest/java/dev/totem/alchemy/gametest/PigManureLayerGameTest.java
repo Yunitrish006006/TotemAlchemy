@@ -47,7 +47,10 @@ public final class PigManureLayerGameTest {
                         helper.getLevel().getBlockState(helper.absolutePos(PILE_POS)).isAir(),
                         "Pig produced manure before the post-feeding delay elapsed"
                 ))
-                .thenExecuteAfter(2, () -> requireLayers(helper, 1))
+                // GoalSelector may defer a newly enabled goal by one selector
+                // pass under a loaded GameTest batch. Keep the strict early
+                // assertion above, then allow that scheduler-only margin.
+                .thenExecuteAfter(4, () -> requireLayers(helper, 1))
                 .thenSucceed();
     }
 

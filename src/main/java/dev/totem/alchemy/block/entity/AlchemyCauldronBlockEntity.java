@@ -4,6 +4,7 @@ import dev.totem.alchemy.alchemy.AlchemyCauldronRecipe;
 import dev.totem.alchemy.alchemy.AlchemyCauldronRecipes;
 import dev.totem.alchemy.alchemy.AlchemyHandler;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -165,6 +166,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
 
     private void completeRecipe(Level level, BlockPos pos, AlchemyCauldronRecipe recipe) {
         playSound(level, pos, recipe.completeSound(), 1.0F, 1.0F);
+        notifyNearbyPlayers(level, pos, recipe.successMessageKey());
 
         if (recipe.result().type() == AlchemyCauldronRecipe.ResultType.BOTTLED_ITEM) {
             readyForExtraction = true;
@@ -180,6 +182,20 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
             level.addFreshEntity(result);
         }
         level.setBlock(pos, Blocks.CAULDRON.defaultBlockState(), 3);
+    }
+
+    private static void notifyNearbyPlayers(Level level, BlockPos pos, String messageKey) {
+        if (messageKey == null || messageKey.isBlank()) {
+            return;
+        }
+        double x = pos.getX() + 0.5D;
+        double y = pos.getY() + 0.5D;
+        double z = pos.getZ() + 0.5D;
+        for (net.minecraft.world.entity.player.Player player : level.players()) {
+            if (player.distanceToSqr(x, y, z) <= 64.0D) {
+                player.sendOverlayMessage(Component.translatable(messageKey));
+            }
+        }
     }
 
     private String nextCookableIngredient(AlchemyCauldronRecipe recipe) {

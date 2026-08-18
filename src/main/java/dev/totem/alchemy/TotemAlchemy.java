@@ -2,10 +2,14 @@ package dev.totem.alchemy;
 
 import dev.totem.alchemy.alchemy.AlchemyHandler;
 import dev.totem.alchemy.alchemy.CherryBrewInteractions;
+import dev.totem.alchemy.alchemy.FireflyStrengthInteractions;
 import dev.totem.alchemy.alchemy.PigManureInteractions;
+import dev.totem.alchemy.alchemy.AlchemyPotions;
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyBlockEntities;
 import dev.totem.alchemy.effect.AlchemyMobEffects;
+import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
+import dev.totem.alchemy.manual.AlchemyManual;
 import dev.totem.alchemy.recipe.AlchemyRecipes;
 import dev.totem.alchemy.registry.AlchemyCriteria;
 import dev.totem.alchemy.registry.AlchemyItemGroups;
@@ -23,12 +27,16 @@ public final class TotemAlchemy implements ModInitializer {
         AlchemyBlocks.register();
         AlchemyBlockEntities.register();
         AlchemyMobEffects.register();
+        AlchemyPotions.register();
         AlchemyCriteria.register();
         AlchemyItems.register();
         AlchemyRecipes.register();
         AlchemyItemGroups.register();
         AlchemyHandler.register();
+        AlchemyDiscoveryService.register();
+        AlchemyManual.register();
         CherryBrewInteractions.register();
+        FireflyStrengthInteractions.register();
         PigManureInteractions.register();
         LOGGER.info("TotemAlchemy initialized without DeadRecall implementation dependency");
     }

@@ -5,13 +5,16 @@
   "name": "TotemAlchemy",
   "icon": "assets/totem-alchemy/icon.png",
   "environment": "*",
-  "entrypoints": { "main": ["dev.totem.alchemy.TotemAlchemy"] },
+  "entrypoints": {
+    "main": ["dev.totem.alchemy.TotemAlchemy"],
+    "client": ["dev.totem.alchemy.client.TotemAlchemyClient"]
+  },
   "mixins": ["totem-alchemy.mixins.json"],
   "depends": {
     "fabricloader": ">=0.19.3",
     "fabric-api": "*",
     "minecraft": "~26.2",
     "java": ">=25",
-    "totem-core": "=0.4.0"
+    "totem-core": "=0.6.0"
   }
 }

@@ -70,8 +70,8 @@ public final class AlchemyHandler {
             }
 
             replaceConsumedItem(player, hand, stack, action.output());
-            if (action.messageKey() != null && !action.messageKey().isBlank()) {
-                player.sendOverlayMessage(Component.translatable(action.messageKey()));
+            if (action.message() != null) {
+                player.sendOverlayMessage(action.message());
             }
             return InteractionResult.SUCCESS;
         });
@@ -178,13 +178,21 @@ public final class AlchemyHandler {
             if (blockEntity instanceof AlchemyCauldronBlockEntity cauldron
                     && cauldron.extractBottledResult(extractionRecipe, level, pos, level.getBlockState(pos), stack)) {
                 playSound(level, pos, extractionRecipe.result().sound(), 1.0F, 1.0F);
-                return new CauldronAction(extractionRecipe.createResultStack(), extractionRecipe.result().messageKey());
+                return new CauldronAction(
+                        extractionRecipe.createResultStack(),
+                        translatedOrNull(extractionRecipe.result().messageKey())
+                );
             }
         }
 
         IngredientMatch match = findIngredientMatch(level, pos, stack, dropped);
         if (match == null) {
             return null;
+        }
+
+        if (!match.recipe().isIngredientSuccessful(match.ingredient(), level.getRandom().nextFloat())) {
+            showIngredientFailure(level, pos, match.recipe(), match.ingredient());
+            return new CauldronAction(match.ingredient().createRemainderStack(), null);
         }
 
         AlchemyCauldronBlockEntity cauldron = ensureAlchemyCauldron(level, pos, match.recipe());
@@ -195,8 +203,49 @@ public final class AlchemyHandler {
         playSound(level, pos, match.ingredient().soundOrDefault(match.recipe().defaultAddSound()), 0.8F, 1.0F);
         return new CauldronAction(
                 match.ingredient().createRemainderStack(),
-                match.ingredient().messageOrDefault(match.recipe().defaultMessageKey())
+                Component.translatable(match.ingredient().messageOrDefault(match.recipe().defaultMessageKey()))
+                        .append(Component.literal(" "))
+                        .append(Component.translatable(
+                                "message.deadrecall.alchemy.ingredient_success_chance",
+                                chancePercent(match.ingredient().successChance())
+                        ))
         );
+    }
+
+    private static void showIngredientFailure(
+            ServerLevel level,
+            BlockPos pos,
+            AlchemyCauldronRecipe recipe,
+            AlchemyCauldronRecipe.IngredientStep ingredient
+    ) {
+        playSound(level, pos, recipe.failureSound(), 1.0F, 0.8F);
+        level.sendParticles(
+                net.minecraft.core.particles.ParticleTypes.LARGE_SMOKE,
+                pos.getX() + 0.5D,
+                pos.getY() + 1.05D,
+                pos.getZ() + 0.5D,
+                8,
+                0.22D,
+                0.12D,
+                0.22D,
+                0.02D
+        );
+        for (net.minecraft.server.level.ServerPlayer player : level.players()) {
+            if (player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) <= 64.0D) {
+                player.sendOverlayMessage(Component.translatable(
+                        recipe.failureMessageKey(),
+                        chancePercent(ingredient.successChance())
+                ));
+            }
+        }
+    }
+
+    private static Component translatedOrNull(String messageKey) {
+        return messageKey == null || messageKey.isBlank() ? null : Component.translatable(messageKey);
+    }
+
+    private static int chancePercent(double chance) {
+        return (int) Math.round(chance * 100.0D);
     }
 
     private static AlchemyCauldronBlockEntity ensureAlchemyCauldron(ServerLevel level, BlockPos pos, AlchemyCauldronRecipe recipe) {
@@ -307,6 +356,6 @@ public final class AlchemyHandler {
     private record IngredientMatch(AlchemyCauldronRecipe recipe, AlchemyCauldronRecipe.IngredientStep ingredient) {
     }
 
-    private record CauldronAction(ItemStack output, String messageKey) {
+    private record CauldronAction(ItemStack output, Component message) {
     }
 }

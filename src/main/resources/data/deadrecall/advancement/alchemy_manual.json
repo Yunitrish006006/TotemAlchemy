@@ -1,0 +1,24 @@
+{
+  "parent": "deadrecall:alchemy_root",
+  "criteria": {
+    "has_manual": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.deadrecall.alchemy_manual.description"
+    },
+    "icon": {
+      "id": "minecraft:written_book"
+    },
+    "title": {
+      "translate": "advancements.deadrecall.alchemy_manual.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_manual"
+    ]
+  ]
+}
