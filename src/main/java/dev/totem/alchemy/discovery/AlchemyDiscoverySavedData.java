@@ -9,7 +9,6 @@ import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -71,10 +70,13 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     }
 
     private List<PlayerDiscoveries> playerList() {
-        List<PlayerDiscoveries> players = new ArrayList<>(discoveriesByPlayer.size());
-        discoveriesByPlayer.forEach((player, discoveries) ->
-                players.add(new PlayerDiscoveries(player, List.copyOf(discoveries))));
-        return players;
+        return discoveriesByPlayer.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> new PlayerDiscoveries(
+                        entry.getKey(),
+                        entry.getValue().stream().sorted().toList()
+                ))
+                .toList();
     }
 
     private record PlayerDiscoveries(UUID player, List<String> discoveries) {
