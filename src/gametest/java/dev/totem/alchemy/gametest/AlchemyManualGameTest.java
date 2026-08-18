@@ -6,6 +6,7 @@ import dev.totem.alchemy.discovery.AlchemyDiscoveryKey;
 import dev.totem.alchemy.discovery.AlchemyDiscoverySavedData;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import dev.totem.core.api.v1.manual.TotemManualAssembler;
+import dev.totem.core.api.v1.manual.TotemManualOnboarding;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -16,6 +17,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.component.WrittenBookContent;
+
+import java.util.List;
 
 public final class AlchemyManualGameTest {
     @GameTest(maxTicks = 20)
@@ -62,6 +65,40 @@ public final class AlchemyManualGameTest {
             if (advancement == null
                     || !player.getAdvancements().getOrStartProgress(advancement).isDone()) {
                 helper.fail("Obtaining the Alchemy guide did not award its module advancement");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
+    }
+
+    @GameTest(maxTicks = 20)
+    public void alchemySourceMergesIntoHeldTotemManual(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        try {
+            TotemManualOnboarding.register();
+            ItemStack manual = TotemManualAssembler.create(List.of(TotemManualOnboarding.SECTION));
+            player.setItemInHand(InteractionHand.MAIN_HAND, manual);
+
+            if (!AlchemyManual.grant(player, InteractionHand.MAIN_HAND)) {
+                helper.fail("Alchemy manual source did not handle an existing Totem manual");
+                return;
+            }
+            if (player.getMainHandItem() != manual) {
+                helper.fail("Alchemy manual source replaced the held manual instead of updating it");
+                return;
+            }
+            List<String> sectionIds = TotemManualAssembler.sections(manual).stream()
+                    .map(section -> section.id().toString())
+                    .toList();
+            if (!sectionIds.contains(TotemManualOnboarding.SECTION_ID.toString())
+                    || !sectionIds.contains("totem:alchemy/manual")) {
+                helper.fail("Alchemy chapter was not merged into the held Totem manual: " + sectionIds);
+                return;
+            }
+            if (sectionIds.size() != 2) {
+                helper.fail("Merging the Alchemy chapter duplicated or dropped manual sections: " + sectionIds);
                 return;
             }
             helper.succeed();
