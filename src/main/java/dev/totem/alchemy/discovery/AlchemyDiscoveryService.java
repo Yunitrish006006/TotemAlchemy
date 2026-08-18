@@ -1,6 +1,5 @@
 package dev.totem.alchemy.discovery;
 
-import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.network.AlchemyDiscoveriesPayload;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -40,12 +39,13 @@ public final class AlchemyDiscoveryService {
         ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) -> send(player));
     }
 
+    /** Records only potion results that actually changed during the completed brewing batch. */
     public static void recordSuccessfulBrew(
             ServerLevel level,
             BlockPos pos,
             ItemStack ingredient,
             List<ItemStack> inputs,
-            MultiOutcomeBrewing.Outcome selectedOutcome
+            List<ItemStack> outputs
     ) {
         ServerPlayer player = nearestPlayer(level, pos);
         if (player == null) {
@@ -53,18 +53,16 @@ public final class AlchemyDiscoveryService {
         }
 
         Set<Holder<Potion>> results = new LinkedHashSet<>();
-        if (selectedOutcome != null) {
-            results.add(selectedOutcome.potion());
-        } else {
-            for (ItemStack input : inputs) {
-                ItemStack output = level.potionBrewing().mix(ingredient, input);
-                if (output == input || output.isEmpty()) {
-                    continue;
-                }
-                output.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY)
-                        .potion()
-                        .ifPresent(results::add);
+        int slotCount = Math.min(inputs.size(), outputs.size());
+        for (int index = 0; index < slotCount; index++) {
+            ItemStack input = inputs.get(index);
+            ItemStack output = outputs.get(index);
+            if (output.isEmpty() || ItemStack.matches(input, output)) {
+                continue;
             }
+            output.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY)
+                    .potion()
+                    .ifPresent(results::add);
         }
 
         for (Holder<Potion> result : results) {
