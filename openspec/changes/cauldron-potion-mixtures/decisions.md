@@ -13,3 +13,5 @@ Implementation decisions:
 - Pouring a stored mixture back into a cauldron restores its progress rather than restarting it.
 - Mixing is conservative: volume and effect quantity are conserved, opposing effect families neutralize, then the result is diluted by total volume.
 - Canonical results may use normal Minecraft potion identity where practical; non-canonical or unfinished results remain potion ItemStacks carrying Alchemy mixture metadata.
+- Brewing Stand chemistry remains the fast/risky route: it keeps the existing ingredient success chances and multi-outcome rolls.
+- Alchemy Cauldron chemistry is the slow/controllable route: reactions require heat and time, may be interrupted/bottled/resumed, and do not roll a separate hidden failure chance after the player has committed a long reaction. Multi-outcome ingredients still select an outcome when the reaction is scheduled, but unfinished bottle metadata does not reveal that hidden target before completion.
