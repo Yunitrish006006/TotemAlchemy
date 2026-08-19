@@ -1,5 +1,6 @@
 package dev.totem.alchemy.manual;
 
+import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import dev.totem.core.api.v1.manual.TotemManualLifecycle;
 import dev.totem.core.api.v1.manual.TotemManualPlayerHelper;
@@ -12,12 +13,13 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
 
-/** Alchemy chapter in the shared Totem manual and its brewing-stand acquisition source. */
+/** Alchemy chapter in the shared Totem manual and its brewing-source acquisition hooks. */
 public final class AlchemyManual {
     /** Reserved first module position in the shared Totem manual. */
     public static final int SECTION_ORDER = 0;
@@ -45,8 +47,7 @@ public final class AlchemyManual {
         TotemManualLifecycle.registerLoginRefresh();
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (player.isSpectator()
-                    || !world.getBlockState(hitResult.getBlockPos()).is(Blocks.BREWING_STAND)) {
+            if (player.isSpectator() || !isManualSource(world.getBlockState(hitResult.getBlockPos()))) {
                 return InteractionResult.PASS;
             }
             ItemStack stack = player.getItemInHand(hand);
@@ -60,6 +61,17 @@ public final class AlchemyManual {
                     ? InteractionResult.SUCCESS
                     : InteractionResult.PASS;
         });
+    }
+
+    /**
+     * A player can discover the Alchemy chapter from either brewing path: the vanilla brewing stand,
+     * a normal/water cauldron before an Alchemy recipe starts, or the converted Alchemy cauldron.
+     */
+    public static boolean isManualSource(BlockState state) {
+        return state.is(Blocks.BREWING_STAND)
+                || state.is(Blocks.CAULDRON)
+                || state.is(Blocks.WATER_CAULDRON)
+                || state.is(AlchemyBlocks.ALCHEMY_CAULDRON);
     }
 
     public static boolean isManualRequest(ItemStack stack) {
