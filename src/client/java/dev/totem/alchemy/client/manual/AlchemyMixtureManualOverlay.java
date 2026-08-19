@@ -63,17 +63,25 @@ public final class AlchemyMixtureManualOverlay {
     }
 
     private static void stack(TotemManualPageRenderContext context, ItemStack stack, int localX, int y) {
-        context.graphics().renderItem(stack, context.pageLeft() + localX, y);
+        int x = context.pageLeft() + localX;
+        context.graphics().item(stack, x, y);
+        if (context.mouseX() >= x && context.mouseX() < x + 16
+                && context.mouseY() >= y && context.mouseY() < y + 16) {
+            context.graphics().setTooltipForNextFrame(context.font(), stack, context.mouseX(), context.mouseY());
+        }
     }
 
     private static void text(TotemManualPageRenderContext context, String text, int localX, int y, int color) {
-        context.graphics().drawString(context.font(), text, context.pageLeft() + localX, y, color, false);
+        context.graphics().text(context.font(), text, context.pageLeft() + localX, y, color, false);
     }
 
     private static void centered(TotemManualPageRenderContext context, String key, int y, int color) {
-        Component component = Component.translatable(key);
-        int width = Math.min(148, context.font().width(component));
-        int x = context.pageLeft() + (166 - width) / 2;
-        context.graphics().drawString(context.font(), component, x, y, color, false);
+        context.graphics().centeredText(
+                context.font(),
+                Component.translatable(key),
+                context.pageLeft() + 93,
+                y,
+                color
+        );
     }
 }
