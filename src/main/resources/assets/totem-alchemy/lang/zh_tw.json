@@ -8,5 +8,10 @@
   "tooltip.deadrecall.alchemy.mixture.stability": "穩定度：%s%%",
   "tooltip.deadrecall.alchemy.mixture.reaction": "%s — 已反應 %s%%，約剩 %s 秒",
   "tooltip.deadrecall.alchemy.mixture.drink_warning": "現在就能喝：只會套用目前已形成的效果。",
-  "tooltip.deadrecall.alchemy.mixture.repour_hint": "倒回鍋釜後會從目前進度繼續反應。"
+  "tooltip.deadrecall.alchemy.mixture.repour_hint": "倒回鍋釜後會從目前進度繼續反應。",
+  "book.deadrecall.alchemy_manual.page.15": "藥水混合",
+  "book.deadrecall.alchemy_manual.mixture.mix": "不同藥水可以倒在一起；三瓶會裝滿一個鍋釜。",
+  "book.deadrecall.alchemy_manual.mixture.bottle_early": "反應完成前也能裝瓶，材料與剩餘時間都會保留。",
+  "book.deadrecall.alchemy_manual.mixture.resume": "把半成品倒回鍋釜，會從原本的反應進度繼續。",
+  "book.deadrecall.alchemy_manual.mixture.counteract": "相反效果會先互相對沖，剩餘效果再依總液量稀釋。"
 }
