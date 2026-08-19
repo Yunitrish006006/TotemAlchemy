@@ -2,6 +2,9 @@ package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
@@ -21,11 +24,12 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
 import net.minecraft.world.level.block.SnowLayerBlock;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -165,13 +169,48 @@ public final class AlchemyHandler {
     }
 
     private static boolean canApplyAlchemyItem(Level level, BlockPos pos, ItemStack stack, boolean dropped) {
+        if (canApplyMixtureInteraction(level, pos, stack, dropped)) {
+            return true;
+        }
         if (findExtractionRecipe(level, pos, stack) != null) {
             return true;
         }
         return findIngredientMatch(level, pos, stack, dropped) != null;
     }
 
+    private static boolean canApplyMixtureInteraction(Level level, BlockPos pos, ItemStack stack, boolean dropped) {
+        BlockState state = level.getBlockState(pos);
+        if (!dropped && AlchemyMixtureBottle.isDrinkablePotion(stack)) {
+            if (state.is(Blocks.CAULDRON)) {
+                return true;
+            }
+            if (state.is(Blocks.WATER_CAULDRON)) {
+                return state.getValue(LayeredCauldronBlock.LEVEL) < AlchemyMixtureState.MAX_VOLUME_UNITS;
+            }
+            if (state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
+                BlockEntity blockEntity = level.getBlockEntity(pos);
+                return blockEntity instanceof AlchemyCauldronBlockEntity cauldron
+                        && cauldron.hasMixture()
+                        && cauldron.mixtureSnapshot().volumeUnits() < AlchemyMixtureState.MAX_VOLUME_UNITS;
+            }
+            return false;
+        }
+
+        if (!dropped && stack.is(Items.GLASS_BOTTLE) && state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            return blockEntity instanceof AlchemyCauldronBlockEntity cauldron && cauldron.hasMixture();
+        }
+
+        AlchemyMixtureState preview = previewMixture(level, pos);
+        return !preview.isEmpty() && AlchemyMixtureBrewing.canReact(level, preview, stack);
+    }
+
     private static CauldronAction tryApplyAlchemyItem(ServerLevel level, BlockPos pos, ItemStack stack, boolean dropped) {
+        CauldronAction mixtureAction = tryApplyMixtureInteraction(level, pos, stack, dropped);
+        if (mixtureAction != null) {
+            return mixtureAction;
+        }
+
         AlchemyCauldronRecipe extractionRecipe = findExtractionRecipe(level, pos, stack);
         if (extractionRecipe != null) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
@@ -210,6 +249,158 @@ public final class AlchemyHandler {
                                 chancePercent(match.ingredient().successChance())
                         ))
         );
+    }
+
+    private static CauldronAction tryApplyMixtureInteraction(
+            ServerLevel level,
+            BlockPos pos,
+            ItemStack stack,
+            boolean dropped
+    ) {
+        BlockState state = level.getBlockState(pos);
+
+        if (!dropped && AlchemyMixtureBottle.isDrinkablePotion(stack)) {
+            AlchemyMixtureState incoming = AlchemyMixtureBottle.fromPotion(stack);
+            if (incoming.isEmpty()) {
+                return null;
+            }
+            AlchemyCauldronBlockEntity cauldron = ensureMixtureCauldronForPour(level, pos, incoming);
+            if (cauldron == null) {
+                return null;
+            }
+            level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0F, 1.0F);
+            return new CauldronAction(
+                    new ItemStack(Items.GLASS_BOTTLE),
+                    Component.translatable("message.deadrecall.alchemy.mixture_poured")
+            );
+        }
+
+        if (!dropped && stack.is(Items.GLASS_BOTTLE) && state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (!(blockEntity instanceof AlchemyCauldronBlockEntity cauldron) || !cauldron.hasMixture()) {
+                return null;
+            }
+            AlchemyMixtureState bottled = cauldron.extractMixtureBottle();
+            if (bottled.isEmpty()) {
+                return null;
+            }
+            ItemStack output = AlchemyMixtureBottle.toPotion(bottled);
+            int remaining = cauldron.mixtureSnapshot().volumeUnits();
+            if (remaining <= 0) {
+                level.setBlock(pos, Blocks.CAULDRON.defaultBlockState(), 3);
+            } else {
+                level.setBlock(pos, level.getBlockState(pos).setValue(LayeredCauldronBlock.LEVEL, remaining), 3);
+            }
+            level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
+            return new CauldronAction(output, Component.translatable("message.deadrecall.alchemy.mixture_bottled"));
+        }
+
+        AlchemyMixtureState preview = previewMixture(level, pos);
+        if (preview.isEmpty() || !AlchemyMixtureBrewing.canReact(level, preview, stack)) {
+            return null;
+        }
+        AlchemyCauldronBlockEntity cauldron = ensureMixtureCauldronForReaction(level, pos);
+        if (cauldron == null || !cauldron.scheduleMixtureReaction(level, stack)) {
+            return null;
+        }
+        level.playSound(null, pos, SoundEvents.BREWING_STAND_BREW, SoundSource.BLOCKS, 0.8F, 0.9F);
+        return new CauldronAction(
+                ItemStack.EMPTY,
+                Component.translatable(
+                        "message.deadrecall.alchemy.mixture_reaction_started",
+                        AlchemyMixtureState.DEFAULT_REACTION_TICKS / 20
+                )
+        );
+    }
+
+    private static AlchemyMixtureState previewMixture(Level level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.is(Blocks.WATER_CAULDRON)) {
+            return AlchemyMixtureBrewing.waterState(state.getValue(LayeredCauldronBlock.LEVEL));
+        }
+        if (state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity instanceof AlchemyCauldronBlockEntity cauldron && cauldron.hasMixture()) {
+                return cauldron.mixtureSnapshot();
+            }
+        }
+        return AlchemyMixtureState.empty();
+    }
+
+    private static AlchemyCauldronBlockEntity ensureMixtureCauldronForPour(
+            ServerLevel level,
+            BlockPos pos,
+            AlchemyMixtureState incoming
+    ) {
+        BlockState state = level.getBlockState(pos);
+        if (state.is(Blocks.CAULDRON)) {
+            BlockState alchemyState = AlchemyBlocks.ALCHEMY_CAULDRON.defaultBlockState()
+                    .setValue(LayeredCauldronBlock.LEVEL, incoming.volumeUnits());
+            level.setBlock(pos, alchemyState, 3);
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity instanceof AlchemyCauldronBlockEntity cauldron && cauldron.initializeMixture(incoming)) {
+                return cauldron;
+            }
+            return null;
+        }
+
+        if (state.is(Blocks.WATER_CAULDRON)) {
+            int waterVolume = state.getValue(LayeredCauldronBlock.LEVEL);
+            if (waterVolume + incoming.volumeUnits() > AlchemyMixtureState.MAX_VOLUME_UNITS) {
+                return null;
+            }
+            BlockState alchemyState = AlchemyBlocks.ALCHEMY_CAULDRON.defaultBlockState()
+                    .setValue(LayeredCauldronBlock.LEVEL, waterVolume);
+            level.setBlock(pos, alchemyState, 3);
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (!(blockEntity instanceof AlchemyCauldronBlockEntity cauldron)
+                    || !cauldron.initializeMixture(AlchemyMixtureBrewing.waterState(waterVolume))
+                    || !cauldron.mergeMixture(incoming)) {
+                return null;
+            }
+            level.setBlock(pos, level.getBlockState(pos).setValue(
+                    LayeredCauldronBlock.LEVEL,
+                    cauldron.mixtureSnapshot().volumeUnits()
+            ), 3);
+            return cauldron;
+        }
+
+        if (state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity instanceof AlchemyCauldronBlockEntity cauldron
+                    && cauldron.hasMixture()
+                    && cauldron.mergeMixture(incoming)) {
+                level.setBlock(pos, state.setValue(
+                        LayeredCauldronBlock.LEVEL,
+                        cauldron.mixtureSnapshot().volumeUnits()
+                ), 3);
+                return cauldron;
+            }
+        }
+        return null;
+    }
+
+    private static AlchemyCauldronBlockEntity ensureMixtureCauldronForReaction(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.is(Blocks.WATER_CAULDRON)) {
+            int volume = state.getValue(LayeredCauldronBlock.LEVEL);
+            BlockState alchemyState = AlchemyBlocks.ALCHEMY_CAULDRON.defaultBlockState()
+                    .setValue(LayeredCauldronBlock.LEVEL, volume);
+            level.setBlock(pos, alchemyState, 3);
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity instanceof AlchemyCauldronBlockEntity cauldron
+                    && cauldron.initializeMixture(AlchemyMixtureBrewing.waterState(volume))) {
+                return cauldron;
+            }
+            return null;
+        }
+        if (state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            return blockEntity instanceof AlchemyCauldronBlockEntity cauldron && cauldron.hasMixture()
+                    ? cauldron
+                    : null;
+        }
+        return null;
     }
 
     private static void showIngredientFailure(
@@ -284,7 +475,9 @@ public final class AlchemyHandler {
         BlockState state = level.getBlockState(pos);
         if (state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (!(blockEntity instanceof AlchemyCauldronBlockEntity cauldron) || cauldron.getRecipeId() == null) {
+            if (!(blockEntity instanceof AlchemyCauldronBlockEntity cauldron)
+                    || cauldron.hasMixture()
+                    || cauldron.getRecipeId() == null) {
                 return null;
             }
 

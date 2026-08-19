@@ -3,6 +3,8 @@ package dev.totem.alchemy.block.entity;
 import dev.totem.alchemy.alchemy.AlchemyCauldronRecipe;
 import dev.totem.alchemy.alchemy.AlchemyCauldronRecipes;
 import dev.totem.alchemy.alchemy.AlchemyHandler;
+import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -27,6 +29,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     private final Set<String> cookedIngredients = new LinkedHashSet<>();
     private boolean readyForExtraction;
     private int cookTime;
+    private AlchemyMixtureState mixture = AlchemyMixtureState.empty();
 
     public AlchemyCauldronBlockEntity(BlockPos pos, BlockState state) {
         super(AlchemyBlockEntities.ALCHEMY_CAULDRON, pos, state);
@@ -36,8 +39,61 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         return recipeId;
     }
 
+    public boolean hasMixture() {
+        return mixture != null && !mixture.isEmpty();
+    }
+
+    public AlchemyMixtureState mixtureSnapshot() {
+        return mixture == null ? AlchemyMixtureState.empty() : mixture.copy();
+    }
+
+    public boolean initializeMixture(AlchemyMixtureState initial) {
+        if (initial == null || initial.isEmpty() || recipeId != null || readyForExtraction || hasMixture()) {
+            return false;
+        }
+        mixture = initial.copy();
+        setChanged();
+        return true;
+    }
+
+    public boolean mergeMixture(AlchemyMixtureState incoming) {
+        if (incoming == null || incoming.isEmpty() || recipeId != null || readyForExtraction) {
+            return false;
+        }
+        if (!hasMixture()) {
+            mixture = incoming.copy();
+            setChanged();
+            return true;
+        }
+        boolean merged = mixture.mergeFrom(incoming);
+        if (merged) {
+            setChanged();
+        }
+        return merged;
+    }
+
+    public boolean scheduleMixtureReaction(Level level, ItemStack ingredient) {
+        if (!hasMixture() || recipeId != null || readyForExtraction) {
+            return false;
+        }
+        boolean scheduled = AlchemyMixtureBrewing.schedule(level, mixture, ingredient);
+        if (scheduled) {
+            setChanged();
+        }
+        return scheduled;
+    }
+
+    public AlchemyMixtureState extractMixtureBottle() {
+        if (!hasMixture()) {
+            return AlchemyMixtureState.empty();
+        }
+        AlchemyMixtureState bottle = mixture.extractBottle();
+        setChanged();
+        return bottle;
+    }
+
     public boolean canAddIngredient(AlchemyCauldronRecipe recipe, AlchemyCauldronRecipe.IngredientStep ingredient) {
-        if (recipe == null || ingredient == null || readyForExtraction) {
+        if (recipe == null || ingredient == null || readyForExtraction || hasMixture()) {
             return false;
         }
         if (recipeId != null && !recipeId.equals(recipe.id())) {
@@ -57,7 +113,8 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean canExtractBottledResult(AlchemyCauldronRecipe recipe, ItemStack stack) {
-        return recipe != null
+        return !hasMixture()
+                && recipe != null
                 && recipeId != null
                 && recipeId.equals(recipe.id())
                 && readyForExtraction
@@ -81,6 +138,15 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, AlchemyCauldronBlockEntity cauldron) {
+        if (cauldron.hasMixture()) {
+            if (cauldron.mixture.hasPendingReactions() && AlchemyHandler.hasLitCampfireBelow(level, pos)) {
+                if (cauldron.mixture.tickReactions(1)) {
+                    cauldron.setChanged();
+                }
+            }
+            return;
+        }
+
         if (cauldron.recipeId == null) {
             cauldron.cookTime = 0;
             return;
@@ -242,6 +308,9 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         output.putString("cooked_ingredients", String.join(",", cookedIngredients));
         output.putBoolean("ready_for_extraction", readyForExtraction);
         output.putInt("cook_time", cookTime);
+        if (hasMixture()) {
+            output.putString("mixture_state", mixture.encode());
+        }
     }
 
     @Override
@@ -254,6 +323,16 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         cookedIngredients.addAll(readIngredientSet(input.getStringOr("cooked_ingredients", "")));
         readyForExtraction = input.getBooleanOr("ready_for_extraction", false);
         cookTime = input.getIntOr("cook_time", 0);
+        mixture = AlchemyMixtureState.decode(input.getStringOr("mixture_state", ""));
+
+        if (hasMixture()) {
+            recipeId = null;
+            addedIngredients.clear();
+            cookedIngredients.clear();
+            readyForExtraction = false;
+            cookTime = 0;
+            return;
+        }
 
         if (recipeId == null) {
             loadLegacyState(input);

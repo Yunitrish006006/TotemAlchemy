@@ -35,8 +35,8 @@ public final class AlchemyManualGameTest {
                 helper.fail("Alchemy manual source did not create a canonical Totem manual");
                 return;
             }
-            if (AlchemyManual.pageKeys().size() != 14) {
-                helper.fail("Alchemy manual did not register all fourteen dynamic icon pages");
+            if (AlchemyManual.pageKeys().size() != 15) {
+                helper.fail("Alchemy manual did not register all fifteen dynamic icon pages");
                 return;
             }
             boolean hasAlchemySection = dev.totem.core.api.v1.manual.TotemManualRegistry.global()

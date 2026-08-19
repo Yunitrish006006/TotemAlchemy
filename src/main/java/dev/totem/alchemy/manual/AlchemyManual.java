@@ -26,7 +26,7 @@ public final class AlchemyManual {
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
     private static final Identifier MANUAL_ADVANCEMENT =
             Identifier.fromNamespaceAndPath("deadrecall", "alchemy_manual");
-    private static final List<String> PAGE_KEYS = IntStream.rangeClosed(1, 14)
+    private static final List<String> PAGE_KEYS = IntStream.rangeClosed(1, 15)
             .mapToObj(page -> "book.deadrecall.alchemy_manual.page." + page)
             .toList();
     private static final TotemManualSection SECTION = new TotemManualSection(
