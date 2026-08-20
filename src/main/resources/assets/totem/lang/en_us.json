@@ -1,4 +1,5 @@
 {
+  "block.totem.alchemy_cauldron": "Alchemy Cauldron",
   "item.totem.alchemy.large_potion_flask": "Large Potion Flask",
   "item.totem.alchemy.mixture": "Alchemy Mixture",
   "message.deadrecall.alchemy.mixture_poured": "The potion joins the cauldron mixture.",
