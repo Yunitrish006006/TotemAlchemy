@@ -26,8 +26,10 @@ public final class AlchemyBlocks {
     public static final Block PIG_MANURE_MUD = registerPigManureBlock("pig_manure_mud", Blocks.MUD);
     public static final PigManureLayerBlock PIG_MANURE_LAYER = registerPigManureLayer();
 
-    public static final Block ALCHEMY_CAULDRON = registerBlock("alchemy_cauldron", Blocks.CAULDRON,
-            (base, properties) -> new AlchemyCauldronBlock(properties));
+    /** Canonical standalone TotemAlchemy registry id. */
+    public static final Block ALCHEMY_CAULDRON = registerAlchemyCauldron("totem", "alchemy_cauldron");
+    /** Legacy world-compatibility block. New content must never reference this id. */
+    public static final Block LEGACY_ALCHEMY_CAULDRON = registerAlchemyCauldron("deadrecall", "alchemy_cauldron");
 
     private AlchemyBlocks() {
     }
@@ -46,12 +48,23 @@ public final class AlchemyBlocks {
         return Registry.register(BuiltInRegistries.BLOCK, id, block);
     }
 
+    private static Block registerAlchemyCauldron(String namespace, String name) {
+        Identifier id = Identifier.fromNamespaceAndPath(namespace, name);
+        ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id);
+        BlockBehaviour.Properties properties = BlockBehaviour.Properties.ofFullCopy(Blocks.CAULDRON).setId(blockKey);
+        return Registry.register(BuiltInRegistries.BLOCK, id, new AlchemyCauldronBlock(properties));
+    }
+
     private static Block registerBlock(String name, Block baseBlock, BiFunction<Block, BlockBehaviour.Properties, Block> factory) {
         Identifier id = Identifier.fromNamespaceAndPath("deadrecall", name);
         ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id);
         BlockBehaviour.Properties properties = BlockBehaviour.Properties.ofFullCopy(baseBlock).setId(blockKey);
         Block block = factory.apply(baseBlock, properties);
         return Registry.register(BuiltInRegistries.BLOCK, id, block);
+    }
+
+    public static boolean isAlchemyCauldron(BlockState state) {
+        return state.is(ALCHEMY_CAULDRON) || state.is(LEGACY_ALCHEMY_CAULDRON);
     }
 
     public static BlockState getPigManureState(BlockState cleanState) {
@@ -86,10 +99,6 @@ public final class AlchemyBlocks {
         return null;
     }
 
-    /**
-     * Adds one manure layer at the pig's feet. Repeated deposits use the same
-     * eight-layer state progression as snow without replacing the ground below.
-     */
     public static boolean addPigManureLayer(Level level, BlockPos pos) {
         BlockState currentState = level.getBlockState(pos);
         if (currentState.is(PIG_MANURE_LAYER)) {
