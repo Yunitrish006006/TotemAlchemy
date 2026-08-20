@@ -6,6 +6,7 @@ import dev.totem.alchemy.client.manual.AlchemyManualPageOverlay;
 import dev.totem.alchemy.client.manual.AlchemyMaterialResearchOverlay;
 import dev.totem.alchemy.client.manual.AlchemyMixtureManualOverlay;
 import dev.totem.alchemy.client.manual.AlchemyResearchClientCache;
+import dev.totem.alchemy.client.mixture.AlchemyCauldronColorProvider;
 import dev.totem.alchemy.client.mixture.AlchemyMixtureTooltip;
 import net.fabricmc.api.ClientModInitializer;
 
@@ -19,5 +20,6 @@ public final class TotemAlchemyClient implements ClientModInitializer {
         AlchemyMaterialResearchOverlay.register();
         AlchemyMixtureManualOverlay.register();
         AlchemyMixtureTooltip.register();
+        AlchemyCauldronColorProvider.register();
     }
 }

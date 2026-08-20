@@ -1,6 +1,7 @@
 package dev.totem.alchemy;
 
 import dev.totem.alchemy.alchemy.AlchemyHandler;
+import dev.totem.alchemy.alchemy.AlchemyPortableContainerInteractions;
 import dev.totem.alchemy.alchemy.CherryBrewInteractions;
 import dev.totem.alchemy.alchemy.FireflyStrengthInteractions;
 import dev.totem.alchemy.alchemy.PigManureInteractions;
@@ -37,6 +38,7 @@ public final class TotemAlchemy implements ModInitializer {
         BrewingMaterialSettings.register();
         BrewingOutcomeWeights.register();
         AlchemyHandler.register();
+        AlchemyPortableContainerInteractions.register();
         AlchemyDiscoveryService.register();
         AlchemyManual.register();
         CherryBrewInteractions.register();

@@ -45,11 +45,11 @@ public final class AlchemyMixtureBottle {
     }
 
     public static AlchemyMixtureState fromPotion(ItemStack stack) {
+        if (hasStoredMixture(stack)) {
+            return storedMixture(stack);
+        }
         if (!isPotionContainer(stack)) {
             return AlchemyMixtureState.empty();
-        }
-        if (hasStoredMixture(stack)) {
-            return AlchemyMixtureState.decode(storedStateString(stack));
         }
 
         PotionContents contents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
@@ -63,10 +63,9 @@ public final class AlchemyMixtureBottle {
                     .map(key -> key.identifier().toString())
                     .orElse(null);
             if (effectId != null) {
-                state.putEffect(effectId,
-                        AlchemyMixtureState.EffectDose.fromDuration(effect.getDuration(), effect.getAmplifier())
-                                .potencyTicks(),
-                        effect.getAmplifier());
+                AlchemyMixtureState.EffectDose dose =
+                        AlchemyMixtureState.EffectDose.fromDuration(effect.getDuration(), effect.getAmplifier());
+                state.putEffect(effectId, dose.potencyTicks(), effect.getAmplifier());
             }
         }
         state.setBaseActivated(isActivatedPotion(state.canonicalPotionId(), state.effects().isEmpty()));
