@@ -105,13 +105,14 @@ public final class MultiOutcomeBrewing {
     private MultiOutcomeBrewing() {
     }
 
+    /**
+     * A configured outcome material may be layered onto any potion-bearing batch. Base validity is handled
+     * by the mixture stability system rather than by refusing the recipe at this stage.
+     */
     public static void beginBatch(RandomSource random, ItemStack ingredient, Iterable<ItemStack> inputs) {
         clearBatch();
-        if (!containsPotion(inputs, Potions.AWKWARD)) {
-            return;
-        }
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
-        if (pool == null) {
+        if (pool == null || !containsPotionContainer(inputs)) {
             return;
         }
         ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.choose(ingredient.getItem(), random.nextFloat())));
@@ -128,22 +129,31 @@ public final class MultiOutcomeBrewing {
 
     public static ItemStack applyBatchOutcome(ItemStack ingredient, ItemStack input, ItemStack vanillaOutput) {
         BatchOutcome batch = ACTIVE_BATCH.get();
-        if (batch == null || ingredient.getItem() != batch.ingredient() || !hasPotion(input, Potions.AWKWARD)) {
+        if (batch == null || ingredient.getItem() != batch.ingredient() || !isPotionContainer(input)) {
             return vanillaOutput;
         }
-        return PotionContents.createItemStack(vanillaOutput.getItem(), batch.outcome().potion());
+        Item outputItem = isPotionContainer(vanillaOutput) ? vanillaOutput.getItem() : input.getItem();
+        return PotionContents.createItemStack(outputItem, batch.outcome().potion());
     }
 
     public static Outcome chooseOutcome(ItemStack ingredient, ItemStack input, float roll) {
-        if (!hasPotion(input, Potions.AWKWARD)) {
+        if (!isPotionContainer(input)) {
             return null;
         }
+        return chooseOutcome(ingredient, roll);
+    }
+
+    public static Outcome chooseOutcome(ItemStack ingredient, float roll) {
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
         return pool == null ? null : pool.choose(ingredient.getItem(), roll);
     }
 
+    public static boolean isOutcomeIngredient(ItemStack ingredient) {
+        return ingredient != null && !ingredient.isEmpty() && AWKWARD_POOLS.containsKey(ingredient.getItem());
+    }
+
     public static int outcomeCount(ItemStack ingredient, ItemStack input) {
-        if (!hasPotion(input, Potions.AWKWARD)) {
+        if (!isPotionContainer(input)) {
             return 0;
         }
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
@@ -151,10 +161,14 @@ public final class MultiOutcomeBrewing {
     }
 
     public static List<Outcome> outcomesFor(ItemStack ingredient, ItemStack input) {
-        if (!hasPotion(input, Potions.AWKWARD)) {
+        if (!isPotionContainer(input)) {
             return List.of();
         }
-        OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
+        return outcomesForIngredient(ingredient);
+    }
+
+    public static List<Outcome> outcomesForIngredient(ItemStack ingredient) {
+        OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
         return pool == null ? List.of() : pool.outcomes();
     }
 
@@ -168,17 +182,17 @@ public final class MultiOutcomeBrewing {
         return -1.0D;
     }
 
-    private static boolean containsPotion(Iterable<ItemStack> inputs, Holder<Potion> potion) {
+    private static boolean containsPotionContainer(Iterable<ItemStack> inputs) {
         for (ItemStack input : inputs) {
-            if (hasPotion(input, potion)) {
+            if (isPotionContainer(input)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean hasPotion(ItemStack stack, Holder<Potion> potion) {
-        return stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(potion);
+    private static boolean isPotionContainer(ItemStack stack) {
+        return stack != null && (stack.is(Items.POTION) || stack.is(Items.SPLASH_POTION) || stack.is(Items.LINGERING_POTION));
     }
 
     public record Outcome(Holder<Potion> potion, String messageKey) {

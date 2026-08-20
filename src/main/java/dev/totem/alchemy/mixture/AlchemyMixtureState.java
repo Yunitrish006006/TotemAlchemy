@@ -1,5 +1,8 @@
 package dev.totem.alchemy.mixture;
 
+import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
+import net.minecraft.util.RandomSource;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -12,11 +15,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Server-authoritative liquid chemistry state shared by Alchemy Cauldrons and bottled mixtures.
+ * Server-authoritative liquid chemistry state shared by Alchemy Cauldrons and portable containers.
  *
  * <p>Effect amount is stored as potency-ticks rather than only a duration. A level II effect therefore
- * carries twice the amount of an equal-duration level I effect. This lets volume dilution, redstone and
- * glowstone conserve effect quantity instead of creating power when liquids are mixed.</p>
+ * carries twice the amount of an equal-duration level I effect. This lets volume dilution, modifiers and
+ * multi-effect brewing conserve effect quantity instead of creating power when liquids are mixed.</p>
  */
 public final class AlchemyMixtureState {
     public static final int MAX_VOLUME_UNITS = 3;
@@ -28,6 +31,9 @@ public final class AlchemyMixtureState {
 
     private int volumeUnits;
     private int stability;
+    private int overcookTicks;
+    private boolean baseActivated;
+    private DeliveryForm deliveryForm = DeliveryForm.DRINKABLE;
     private String canonicalPotionId;
     private final Map<String, EffectDose> effects = new LinkedHashMap<>();
     private final Map<String, Reaction> reactions = new LinkedHashMap<>();
@@ -45,6 +51,9 @@ public final class AlchemyMixtureState {
     public AlchemyMixtureState copy() {
         AlchemyMixtureState copy = new AlchemyMixtureState(volumeUnits);
         copy.stability = stability;
+        copy.overcookTicks = overcookTicks;
+        copy.baseActivated = baseActivated;
+        copy.deliveryForm = deliveryForm;
         copy.canonicalPotionId = canonicalPotionId;
         copy.effects.putAll(effects);
         copy.reactions.putAll(reactions);
@@ -62,6 +71,27 @@ public final class AlchemyMixtureState {
 
     public void setStability(int stability) {
         this.stability = Math.max(0, Math.min(STABILITY_MAX, stability));
+    }
+
+    public int overcookTicks() {
+        return overcookTicks;
+    }
+
+    public boolean baseActivated() {
+        return baseActivated;
+    }
+
+    public void setBaseActivated(boolean baseActivated) {
+        this.baseActivated = baseActivated;
+    }
+
+    public DeliveryForm deliveryForm() {
+        return deliveryForm;
+    }
+
+    public void setDeliveryForm(DeliveryForm deliveryForm) {
+        this.deliveryForm = deliveryForm == null ? DeliveryForm.DRINKABLE : deliveryForm;
+        canonicalPotionId = null;
     }
 
     public String canonicalPotionId() {
@@ -84,12 +114,20 @@ public final class AlchemyMixtureState {
         return Set.copyOf(provenance);
     }
 
+    public boolean hasProvenance(String value) {
+        return value != null && provenance.contains(value);
+    }
+
     public boolean isEmpty() {
         return volumeUnits <= 0;
     }
 
     public boolean hasPendingReactions() {
         return !reactions.isEmpty();
+    }
+
+    public boolean canOvercook() {
+        return !isEmpty() && !hasPendingReactions() && (baseActivated || !effects.isEmpty());
     }
 
     public void addProvenance(String value) {
@@ -103,6 +141,18 @@ public final class AlchemyMixtureState {
             return;
         }
         effects.merge(effectId, new EffectDose(potencyTicks, Math.max(0, amplifierCap)), EffectDose::merge);
+        neutralizeOpposites();
+    }
+
+    public void addEffects(Map<String, EffectDose> additions) {
+        if (additions == null) {
+            return;
+        }
+        additions.forEach((id, dose) -> {
+            if (id != null && !id.isBlank() && dose != null && dose.potencyTicks() > 0.0001D) {
+                effects.merge(id, dose, EffectDose::merge);
+            }
+        });
         neutralizeOpposites();
     }
 
@@ -124,7 +174,10 @@ public final class AlchemyMixtureState {
         }
         reactions.merge(reaction.id(), reaction, Reaction::mergeSameReaction);
         canonicalPotionId = null;
-        stability = Math.max(0, stability - 5);
+        overcookTicks = 0;
+        if (stability > 0) {
+            stability = Math.max(0, stability - 5);
+        }
     }
 
     /** Tick every independent reaction. Completed reactions replace only their captured contribution. */
@@ -146,7 +199,7 @@ public final class AlchemyMixtureState {
             applyReaction(reaction);
             reactions.remove(reaction.id());
         }
-        if (!completed.isEmpty()) {
+        if (!completed.isEmpty() && stability > 0) {
             stability = Math.min(STABILITY_MAX, stability + completed.size() * 5);
         }
         return changed;
@@ -156,11 +209,22 @@ public final class AlchemyMixtureState {
         subtractEffects(reaction.sourceEffects());
         addEffects(reaction.targetEffects());
         neutralizeOpposites();
+
+        if (BrewingMaterialSettings.isStarter(reaction.ingredientId())) {
+            baseActivated = true;
+        }
+        if ("minecraft:gunpowder".equals(reaction.ingredientId())) {
+            deliveryForm = DeliveryForm.SPLASH;
+        } else if ("minecraft:dragon_breath".equals(reaction.ingredientId())) {
+            deliveryForm = DeliveryForm.LINGERING;
+        }
+
         if (reactions.size() == 1 && reaction.targetPotionId() != null && volumeUnits == reaction.volumeUnits()) {
             canonicalPotionId = reaction.targetPotionId();
         } else {
             canonicalPotionId = null;
         }
+        overcookTicks = 0;
         addProvenance("reaction:" + reaction.ingredientId());
     }
 
@@ -174,7 +238,9 @@ public final class AlchemyMixtureState {
                 new EffectDose(dose.potencyTicks(), Math.max(0, dose.amplifierCap() - 1))));
         replaceEffects(updated);
         canonicalPotionId = null;
-        stability = Math.max(0, stability - 3);
+        if (stability > 0) {
+            stability = Math.max(0, stability - 3);
+        }
         addProvenance("modifier:minecraft:redstone");
     }
 
@@ -188,8 +254,127 @@ public final class AlchemyMixtureState {
                 new EffectDose(dose.potencyTicks(), Math.min(4, dose.amplifierCap() + 1))));
         replaceEffects(updated);
         canonicalPotionId = null;
-        stability = Math.max(0, stability - 6);
+        if (stability > 0) {
+            stability = Math.max(0, stability - 6);
+        }
         addProvenance("modifier:minecraft:glowstone_dust");
+    }
+
+    /**
+     * Continued heating after the configured reaction time slowly damages stability. Each mutation threshold
+     * is applied at most once and is persisted through provenance markers.
+     */
+    public boolean tickOvercook(RandomSource random, int ticks) {
+        if (ticks <= 0 || !canOvercook()) {
+            return false;
+        }
+        if (stability <= 0 && hasProvenance("mutation:0")) {
+            return false;
+        }
+
+        int oldSecond = overcookTicks / 20;
+        overcookTicks += ticks;
+        int newSecond = overcookTicks / 20;
+        int decay = Math.max(0, newSecond - oldSecond);
+        if (decay <= 0) {
+            return false;
+        }
+
+        int before = stability;
+        stability = Math.max(0, stability - decay);
+        boolean mutated = false;
+        if (stability <= 35 && !hasProvenance("mutation:35")) {
+            mutateMild(random);
+            provenance.add("mutation:35");
+            mutated = true;
+        }
+        if (stability <= 15 && !hasProvenance("mutation:15")) {
+            mutateSevere(random);
+            provenance.add("mutation:15");
+            mutated = true;
+        }
+        if (stability <= 0 && !hasProvenance("mutation:0")) {
+            mutateCollapse(random);
+            provenance.add("mutation:0");
+            mutated = true;
+        }
+        if (mutated) {
+            canonicalPotionId = null;
+        }
+        return before != stability || mutated;
+    }
+
+    private void mutateMild(RandomSource random) {
+        if (!invertRandomEffect(random)) {
+            removeRandomEffect(random);
+        }
+    }
+
+    private void mutateSevere(RandomSource random) {
+        if (random.nextFloat() < 0.65F) {
+            addPoisonMutation(0.75D);
+        } else if (!invertRandomEffect(random)) {
+            removeRandomEffect(random);
+        }
+    }
+
+    private void mutateCollapse(RandomSource random) {
+        double dose = referenceDose();
+        if (!effects.isEmpty() && random.nextBoolean()) {
+            removeRandomEffect(random);
+        } else {
+            effects.clear();
+        }
+        putEffect("minecraft:poison", Math.max(dose, 20.0D * 30.0D * Math.max(1, volumeUnits)), 0);
+    }
+
+    private void addPoisonMutation(double factor) {
+        putEffect("minecraft:poison",
+                Math.max(20.0D * 15.0D * Math.max(1, volumeUnits), referenceDose() * factor), 0);
+    }
+
+    private boolean invertRandomEffect(RandomSource random) {
+        List<String> candidates = effects.keySet().stream().filter(id -> oppositeOf(id) != null).toList();
+        if (candidates.isEmpty()) {
+            return false;
+        }
+        String source = candidates.get(random.nextInt(candidates.size()));
+        EffectDose dose = effects.remove(source);
+        String opposite = oppositeOf(source);
+        if (dose != null && opposite != null) {
+            effects.merge(opposite, dose, EffectDose::merge);
+            neutralizeOpposites();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean removeRandomEffect(RandomSource random) {
+        if (effects.isEmpty()) {
+            return false;
+        }
+        List<String> ids = List.copyOf(effects.keySet());
+        effects.remove(ids.get(random.nextInt(ids.size())));
+        return true;
+    }
+
+    private static String oppositeOf(String id) {
+        return switch (id) {
+            case "minecraft:speed" -> "minecraft:slowness";
+            case "minecraft:slowness" -> "minecraft:speed";
+            case "minecraft:instant_health" -> "minecraft:instant_damage";
+            case "minecraft:instant_damage" -> "minecraft:instant_health";
+            case "minecraft:strength", "deadrecall:firefly_strength", "totem:alchemy/firefly_strength" -> "minecraft:weakness";
+            case "minecraft:weakness" -> "minecraft:strength";
+            case "minecraft:regeneration" -> "minecraft:poison";
+            case "minecraft:poison" -> "minecraft:regeneration";
+            default -> null;
+        };
+    }
+
+    private double referenceDose() {
+        return effects.values().stream().mapToDouble(EffectDose::potencyTicks).average()
+                .orElse(20.0D * 30.0D * Math.max(1, volumeUnits));
     }
 
     /** Merge another liquid into this state. Volume and all captured effect quantities are conserved. */
@@ -203,6 +388,9 @@ public final class AlchemyMixtureState {
         addEffects(other.effects);
         mergeReactions(other, oldVolume, incomingVolume);
         provenance.addAll(other.provenance);
+        baseActivated = baseActivated || other.baseActivated;
+        deliveryForm = deliveryForm == other.deliveryForm ? deliveryForm : DeliveryForm.DRINKABLE;
+        overcookTicks = 0;
         stability = mergedVolume == 0 ? STABILITY_MAX
                 : Math.max(0, Math.min(STABILITY_MAX,
                 (stability * oldVolume + other.stability * incomingVolume) / mergedVolume - 2));
@@ -226,36 +414,49 @@ public final class AlchemyMixtureState {
         }
     }
 
-    /**
-     * Remove one bottle unit. The returned bottle carries a proportional effect/reaction contribution and
-     * exactly the same reaction percentage as the cauldron liquid at extraction time.
-     */
     public AlchemyMixtureState extractBottle() {
-        if (volumeUnits <= 0) {
+        return extractUnits(1);
+    }
+
+    /** Remove up to the requested number of bottle-volume units without changing concentration. */
+    public AlchemyMixtureState extractUnits(int requestedUnits) {
+        if (volumeUnits <= 0 || requestedUnits <= 0) {
             return empty();
         }
         int originalVolume = volumeUnits;
-        double fraction = 1.0D / originalVolume;
-        AlchemyMixtureState bottle = scaledCopy(fraction, 1);
+        int extractedVolume = Math.min(originalVolume, requestedUnits);
+        double fraction = extractedVolume / (double) originalVolume;
+        AlchemyMixtureState extracted = scaledCopy(fraction, extractedVolume);
 
-        if (originalVolume == 1) {
-            volumeUnits = 0;
-            effects.clear();
-            reactions.clear();
-            provenance.clear();
-            canonicalPotionId = null;
-            stability = STABILITY_MAX;
-            return bottle;
+        if (extractedVolume == originalVolume) {
+            resetEmpty();
+            return extracted;
         }
 
-        scaleInPlace((originalVolume - 1.0D) / originalVolume);
-        volumeUnits = originalVolume - 1;
-        return bottle;
+        int remainingVolume = originalVolume - extractedVolume;
+        scaleInPlace(remainingVolume / (double) originalVolume, remainingVolume);
+        volumeUnits = remainingVolume;
+        return extracted;
+    }
+
+    private void resetEmpty() {
+        volumeUnits = 0;
+        effects.clear();
+        reactions.clear();
+        provenance.clear();
+        canonicalPotionId = null;
+        stability = STABILITY_MAX;
+        overcookTicks = 0;
+        baseActivated = false;
+        deliveryForm = DeliveryForm.DRINKABLE;
     }
 
     private AlchemyMixtureState scaledCopy(double factor, int newVolume) {
         AlchemyMixtureState result = new AlchemyMixtureState(newVolume);
         result.stability = stability;
+        result.overcookTicks = overcookTicks;
+        result.baseActivated = baseActivated;
+        result.deliveryForm = deliveryForm;
         result.canonicalPotionId = canonicalPotionId;
         effects.forEach((id, dose) -> result.effects.put(id, dose.scale(factor)));
         reactions.forEach((id, reaction) -> result.reactions.put(id, reaction.scale(factor, newVolume)));
@@ -263,13 +464,9 @@ public final class AlchemyMixtureState {
         return result;
     }
 
-    private void scaleInPlace(double factor) {
+    private void scaleInPlace(double factor, int newVolume) {
         effects.replaceAll((id, dose) -> dose.scale(factor));
-        reactions.replaceAll((id, reaction) -> reaction.scale(factor, Math.max(1, volumeUnits - 1)));
-    }
-
-    private void addEffects(Map<String, EffectDose> additions) {
-        additions.forEach((id, dose) -> effects.merge(id, dose, EffectDose::merge));
+        reactions.replaceAll((id, reaction) -> reaction.scale(factor, Math.max(1, newVolume)));
     }
 
     private void subtractEffects(Map<String, EffectDose> removals) {
@@ -315,7 +512,7 @@ public final class AlchemyMixtureState {
         if (weakness == null) {
             return;
         }
-        List<String> positives = List.of("minecraft:strength", "deadrecall:firefly_strength");
+        List<String> positives = List.of("minecraft:strength", "deadrecall:firefly_strength", "totem:alchemy/firefly_strength");
         double positiveTotal = positives.stream()
                 .map(effects::get)
                 .filter(java.util.Objects::nonNull)
@@ -348,6 +545,9 @@ public final class AlchemyMixtureState {
         StringBuilder out = new StringBuilder();
         out.append("V|").append(volumeUnits).append('\n');
         out.append("S|").append(stability).append('\n');
+        out.append("B|").append(baseActivated ? 1 : 0).append('\n');
+        out.append("F|").append(deliveryForm.name()).append('\n');
+        out.append("O|").append(overcookTicks).append('\n');
         if (canonicalPotionId != null) {
             out.append("C|").append(enc(canonicalPotionId)).append('\n');
         }
@@ -373,6 +573,7 @@ public final class AlchemyMixtureState {
             return empty();
         }
         AlchemyMixtureState state = empty();
+        boolean sawBaseMarker = false;
         for (String line : encoded.split("\\R")) {
             if (line.isBlank()) {
                 continue;
@@ -382,6 +583,12 @@ public final class AlchemyMixtureState {
                 switch (part[0]) {
                     case "V" -> state.volumeUnits = clampVolume(Integer.parseInt(part[1]));
                     case "S" -> state.stability = Math.max(0, Math.min(STABILITY_MAX, Integer.parseInt(part[1])));
+                    case "B" -> {
+                        state.baseActivated = Integer.parseInt(part[1]) != 0;
+                        sawBaseMarker = true;
+                    }
+                    case "F" -> state.deliveryForm = DeliveryForm.parse(part[1]);
+                    case "O" -> state.overcookTicks = Math.max(0, Integer.parseInt(part[1]));
                     case "C" -> state.canonicalPotionId = blankToNull(dec(part[1]));
                     case "E" -> state.effects.put(dec(part[1]),
                             new EffectDose(Double.parseDouble(part[2]), Integer.parseInt(part[3])));
@@ -396,8 +603,22 @@ public final class AlchemyMixtureState {
                 // Corrupt individual entries are ignored so one bad field cannot brick a world or item stack.
             }
         }
+        if (!sawBaseMarker) {
+            state.baseActivated = inferLegacyBase(state);
+        }
         state.neutralizeOpposites();
         return state;
+    }
+
+    private static boolean inferLegacyBase(AlchemyMixtureState state) {
+        if (!state.effects.isEmpty()) {
+            return true;
+        }
+        String id = state.canonicalPotionId;
+        return id != null
+                && !"minecraft:water".equals(id)
+                && !"minecraft:mundane".equals(id)
+                && !"minecraft:thick".equals(id);
     }
 
     private static String encodeEffects(Map<String, EffectDose> values) {
@@ -450,6 +671,23 @@ public final class AlchemyMixtureState {
 
     private static String nullToBlank(String value) {
         return value == null ? "" : value;
+    }
+
+    public enum DeliveryForm {
+        DRINKABLE,
+        SPLASH,
+        LINGERING;
+
+        public static DeliveryForm parse(String value) {
+            if (value == null || value.isBlank()) {
+                return DRINKABLE;
+            }
+            try {
+                return DeliveryForm.valueOf(value);
+            } catch (IllegalArgumentException ignored) {
+                return DRINKABLE;
+            }
+        }
     }
 
     public record EffectDose(double potencyTicks, int amplifierCap) {

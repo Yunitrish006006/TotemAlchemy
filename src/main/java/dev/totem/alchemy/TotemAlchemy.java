@@ -5,6 +5,7 @@ import dev.totem.alchemy.alchemy.CherryBrewInteractions;
 import dev.totem.alchemy.alchemy.FireflyStrengthInteractions;
 import dev.totem.alchemy.alchemy.PigManureInteractions;
 import dev.totem.alchemy.alchemy.AlchemyPotions;
+import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import dev.totem.alchemy.alchemy.BrewingOutcomeWeights;
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyBlockEntities;
@@ -33,6 +34,7 @@ public final class TotemAlchemy implements ModInitializer {
         AlchemyItems.register();
         AlchemyRecipes.register();
         AlchemyItemGroups.register();
+        BrewingMaterialSettings.register();
         BrewingOutcomeWeights.register();
         AlchemyHandler.register();
         AlchemyDiscoveryService.register();

@@ -84,12 +84,16 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public AlchemyMixtureState extractMixtureBottle() {
-        if (!hasMixture()) {
+        return extractMixtureUnits(1);
+    }
+
+    public AlchemyMixtureState extractMixtureUnits(int units) {
+        if (!hasMixture() || units <= 0) {
             return AlchemyMixtureState.empty();
         }
-        AlchemyMixtureState bottle = mixture.extractBottle();
+        AlchemyMixtureState extracted = mixture.extractUnits(units);
         setChanged();
-        return bottle;
+        return extracted;
     }
 
     public boolean canAddIngredient(AlchemyCauldronRecipe recipe, AlchemyCauldronRecipe.IngredientStep ingredient) {
@@ -139,8 +143,11 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, AlchemyCauldronBlockEntity cauldron) {
         if (cauldron.hasMixture()) {
-            if (cauldron.mixture.hasPendingReactions() && AlchemyHandler.hasLitCampfireBelow(level, pos)) {
-                if (cauldron.mixture.tickReactions(1)) {
+            if (AlchemyHandler.hasLitCampfireBelow(level, pos)) {
+                boolean changed = cauldron.mixture.hasPendingReactions()
+                        ? cauldron.mixture.tickReactions(1)
+                        : cauldron.mixture.tickOvercook(level.getRandom(), 1);
+                if (changed) {
                     cauldron.setChanged();
                 }
             }

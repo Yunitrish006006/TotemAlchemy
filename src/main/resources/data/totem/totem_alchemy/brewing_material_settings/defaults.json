@@ -1,0 +1,28 @@
+{
+  "ingredients": [
+    {"ingredient":"minecraft:nether_wart","processing_ticks":400,"starter":true},
+    {"ingredient":"minecraft:red_mushroom","processing_ticks":360,"starter":true},
+    {"ingredient":"minecraft:spider_eye","processing_ticks":380},
+    {"ingredient":"minecraft:fermented_spider_eye","processing_ticks":420},
+    {"ingredient":"minecraft:sugar","processing_ticks":300},
+    {"ingredient":"minecraft:rabbit_foot","processing_ticks":440},
+    {"ingredient":"minecraft:magma_cream","processing_ticks":460},
+    {"ingredient":"minecraft:glistering_melon_slice","processing_ticks":360},
+    {"ingredient":"minecraft:golden_carrot","processing_ticks":420},
+    {"ingredient":"minecraft:blaze_powder","processing_ticks":360},
+    {"ingredient":"minecraft:ghast_tear","processing_ticks":480},
+    {"ingredient":"minecraft:pufferfish","processing_ticks":440},
+    {"ingredient":"minecraft:turtle_helmet","processing_ticks":500},
+    {"ingredient":"minecraft:phantom_membrane","processing_ticks":420},
+    {"ingredient":"minecraft:breeze_rod","processing_ticks":380},
+    {"ingredient":"minecraft:slime_block","processing_ticks":400},
+    {"ingredient":"minecraft:stone","processing_ticks":520},
+    {"ingredient":"minecraft:cobweb","processing_ticks":420},
+    {"ingredient":"minecraft:cherry_leaves","processing_ticks":320},
+    {"ingredient":"minecraft:firefly_bush","processing_ticks":360},
+    {"ingredient":"minecraft:redstone","processing_ticks":240},
+    {"ingredient":"minecraft:glowstone_dust","processing_ticks":280},
+    {"ingredient":"minecraft:gunpowder","processing_ticks":240},
+    {"ingredient":"minecraft:dragon_breath","processing_ticks":320}
+  ]
+}
