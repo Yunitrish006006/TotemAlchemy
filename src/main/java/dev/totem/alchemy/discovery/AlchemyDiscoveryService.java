@@ -9,7 +9,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -69,12 +68,10 @@ public final class AlchemyDiscoveryService {
         }
 
         AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
-        boolean changed = false;
         for (Holder<Potion> result : results) {
             String key = AlchemyDiscoveryKey.of(ingredient.getItem(), result);
             data.recordResearch(player.getUUID(), key);
             if (data.record(player.getUUID(), key)) {
-                changed = true;
                 ItemStack resultStack = PotionContents.createItemStack(net.minecraft.world.item.Items.POTION, result);
                 player.sendOverlayMessage(Component.translatable(
                         "message.deadrecall.alchemy.discovery_recorded", resultStack.getHoverName()));
@@ -127,7 +124,8 @@ public final class AlchemyDiscoveryService {
                 continue;
             }
             AlchemyResearchTier tier = AlchemyResearchTier.classify(samples, Math.abs(observed - truth));
-            snapshot.add(key + "|" + samples + "|" + tier.name());
+            AlchemyObservedFrequency frequency = AlchemyObservedFrequency.classify(observed);
+            snapshot.add(key + "|" + samples + "|" + tier.name() + "|" + frequency.name());
         }
         snapshot.sort(String::compareTo);
         return List.copyOf(snapshot);
