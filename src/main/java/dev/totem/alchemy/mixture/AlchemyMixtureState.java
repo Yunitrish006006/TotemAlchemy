@@ -25,6 +25,7 @@ public final class AlchemyMixtureState {
     public static final int MAX_VOLUME_UNITS = 3;
     public static final int DEFAULT_REACTION_TICKS = 20 * 20;
     public static final int STABILITY_MAX = 100;
+    private static final String PRESERVE_INDEPENDENT_OUTCOMES = "state:independent_outcome_set";
 
     private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder B64D = Base64.getUrlDecoder();
@@ -118,6 +119,10 @@ public final class AlchemyMixtureState {
         return value != null && provenance.contains(value);
     }
 
+    public boolean preservesIndependentOutcomes() {
+        return provenance.contains(PRESERVE_INDEPENDENT_OUTCOMES);
+    }
+
     public boolean isEmpty() {
         return volumeUnits <= 0;
     }
@@ -140,6 +145,7 @@ public final class AlchemyMixtureState {
         if (effectId == null || effectId.isBlank() || potencyTicks <= 0.0001D) {
             return;
         }
+        provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
         effects.merge(effectId, new EffectDose(potencyTicks, Math.max(0, amplifierCap)), EffectDose::merge);
         neutralizeOpposites();
     }
@@ -148,6 +154,7 @@ public final class AlchemyMixtureState {
         if (additions == null) {
             return;
         }
+        provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
         additions.forEach((id, dose) -> {
             if (id != null && !id.isBlank() && dose != null && dose.potencyTicks() > 0.0001D) {
                 effects.merge(id, dose, EffectDose::merge);
@@ -156,8 +163,22 @@ public final class AlchemyMixtureState {
         neutralizeOpposites();
     }
 
+    /** Adds one independently rolled outcome set without collapsing intentionally coexisting opposites. */
+    public void addIndependentOutcomeEffects(Map<String, EffectDose> additions) {
+        if (additions == null) {
+            return;
+        }
+        additions.forEach((id, dose) -> {
+            if (id != null && !id.isBlank() && dose != null && dose.potencyTicks() > 0.0001D) {
+                effects.merge(id, dose, EffectDose::merge);
+            }
+        });
+        provenance.add(PRESERVE_INDEPENDENT_OUTCOMES);
+    }
+
     public void replaceEffects(Map<String, EffectDose> replacement) {
         effects.clear();
+        provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
         if (replacement != null) {
             replacement.forEach((id, dose) -> {
                 if (id != null && !id.isBlank() && dose != null && dose.potencyTicks() > 0.0001D) {
@@ -166,6 +187,11 @@ public final class AlchemyMixtureState {
             });
         }
         neutralizeOpposites();
+    }
+
+    private void replaceIndependentOutcomeEffects(Map<String, EffectDose> replacement) {
+        effects.clear();
+        addIndependentOutcomeEffects(replacement);
     }
 
     public void addReaction(Reaction reaction) {
@@ -206,9 +232,13 @@ public final class AlchemyMixtureState {
     }
 
     private void applyReaction(Reaction reaction) {
+        boolean independentOutcomeSet = reaction.id().startsWith("brewset:");
         subtractEffects(reaction.sourceEffects());
-        addEffects(reaction.targetEffects());
-        neutralizeOpposites();
+        if (independentOutcomeSet) {
+            addIndependentOutcomeEffects(reaction.targetEffects());
+        } else {
+            addEffects(reaction.targetEffects());
+        }
 
         if (BrewingMaterialSettings.isStarter(reaction.ingredientId())) {
             baseActivated = true;
@@ -236,7 +266,11 @@ public final class AlchemyMixtureState {
         Map<String, EffectDose> updated = new LinkedHashMap<>();
         effects.forEach((id, dose) -> updated.put(id,
                 new EffectDose(dose.potencyTicks(), Math.max(0, dose.amplifierCap() - 1))));
-        replaceEffects(updated);
+        if (preservesIndependentOutcomes()) {
+            replaceIndependentOutcomeEffects(updated);
+        } else {
+            replaceEffects(updated);
+        }
         canonicalPotionId = null;
         if (stability > 0) {
             stability = Math.max(0, stability - 3);
@@ -252,7 +286,11 @@ public final class AlchemyMixtureState {
         Map<String, EffectDose> updated = new LinkedHashMap<>();
         effects.forEach((id, dose) -> updated.put(id,
                 new EffectDose(dose.potencyTicks(), Math.min(4, dose.amplifierCap() + 1))));
-        replaceEffects(updated);
+        if (preservesIndependentOutcomes()) {
+            replaceIndependentOutcomeEffects(updated);
+        } else {
+            replaceEffects(updated);
+        }
         canonicalPotionId = null;
         if (stability > 0) {
             stability = Math.max(0, stability - 6);
@@ -385,9 +423,18 @@ public final class AlchemyMixtureState {
         int oldVolume = volumeUnits;
         int incomingVolume = other.volumeUnits;
         int mergedVolume = oldVolume + incomingVolume;
-        addEffects(other.effects);
+        boolean preserveOutcomeSet = other.preservesIndependentOutcomes()
+                && (oldVolume == 0 || preservesIndependentOutcomes() && effects.keySet().equals(other.effects.keySet()));
+        if (preserveOutcomeSet) {
+            addIndependentOutcomeEffects(other.effects);
+        } else {
+            addEffects(other.effects);
+        }
         mergeReactions(other, oldVolume, incomingVolume);
         provenance.addAll(other.provenance);
+        if (!preserveOutcomeSet) {
+            provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
+        }
         baseActivated = baseActivated || other.baseActivated;
         deliveryForm = deliveryForm == other.deliveryForm ? deliveryForm : DeliveryForm.DRINKABLE;
         overcookTicks = 0;
@@ -399,7 +446,9 @@ public final class AlchemyMixtureState {
             canonicalPotionId = null;
         }
         volumeUnits = mergedVolume;
-        neutralizeOpposites();
+        if (!preserveOutcomeSet) {
+            neutralizeOpposites();
+        }
         return true;
     }
 
@@ -606,7 +655,9 @@ public final class AlchemyMixtureState {
         if (!sawBaseMarker) {
             state.baseActivated = inferLegacyBase(state);
         }
-        state.neutralizeOpposites();
+        if (!state.provenance.contains(PRESERVE_INDEPENDENT_OUTCOMES)) {
+            state.neutralizeOpposites();
+        }
         return state;
     }
 

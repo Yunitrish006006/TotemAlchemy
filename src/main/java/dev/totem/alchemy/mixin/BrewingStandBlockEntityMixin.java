@@ -100,7 +100,7 @@ public abstract class BrewingStandBlockEntityMixin {
                     potionInputs.stream().map(ItemStack::copy).toList(),
                     chancePercent,
                     processingTicks,
-                    MultiOutcomeBrewing.activeOutcome(),
+                    MultiOutcomeBrewing.activeOutcomes(),
                     researcherId
             ));
             return;
@@ -142,18 +142,18 @@ public abstract class BrewingStandBlockEntityMixin {
                 return;
             }
             if (level instanceof ServerLevel serverLevel) {
-                AlchemyDiscoveryService.recordSuccessfulBrew(
+                AlchemyDiscoveryService.recordSuccessfulBrewOutcomes(
                         serverLevel,
                         pos,
                         context.ingredient(),
                         context.inputs(),
                         slots.subList(0, INGREDIENT_SLOT).stream().map(ItemStack::copy).toList(),
                         context.processingTicks(),
-                        context.outcome() == null ? null : context.outcome().potion(),
+                        context.outcomes().stream().map(MultiOutcomeBrewing.Outcome::potion).toList(),
                         context.researcherId()
                 );
             }
-            if (context.outcome() == null) {
+            if (context.outcomes().isEmpty()) {
                 notifyNearbyPlayers(
                         level,
                         pos,
@@ -166,7 +166,7 @@ public abstract class BrewingStandBlockEntityMixin {
                         pos,
                         "message.deadrecall.alchemy.multi_outcome_success",
                         context.chancePercent(),
-                        Component.translatable(context.outcome().messageKey())
+                        outcomeSetName(context.outcomes())
                 );
             }
         } finally {
@@ -235,6 +235,17 @@ public abstract class BrewingStandBlockEntityMixin {
         }
     }
 
+    private static Component outcomeSetName(List<MultiOutcomeBrewing.Outcome> outcomes) {
+        var name = Component.empty();
+        for (int index = 0; index < outcomes.size(); index++) {
+            if (index > 0) {
+                name.append(Component.literal(", "));
+            }
+            name.append(Component.translatable(outcomes.get(index).messageKey()));
+        }
+        return name;
+    }
+
     private record ProcessingTimer(Item ingredient, int elapsedTicks, UUID researcherId) {
     }
 
@@ -243,12 +254,13 @@ public abstract class BrewingStandBlockEntityMixin {
             List<ItemStack> inputs,
             int chancePercent,
             int processingTicks,
-            MultiOutcomeBrewing.Outcome outcome,
+            List<MultiOutcomeBrewing.Outcome> outcomes,
             UUID researcherId
     ) {
         private SuccessfulBrewContext {
             ingredient = ingredient.copy();
             inputs = inputs.stream().map(ItemStack::copy).toList();
+            outcomes = List.copyOf(outcomes);
         }
     }
 }

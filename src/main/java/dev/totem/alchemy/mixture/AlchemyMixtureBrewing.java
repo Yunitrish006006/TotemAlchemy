@@ -9,8 +9,10 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.Level;
+import net.minecraft.util.RandomSource;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Builds delayed cauldron reactions and preserves layered mixtures through a vanilla Brewing Stand. */
@@ -45,6 +47,37 @@ public final class AlchemyMixtureBrewing {
     }
 
     public static boolean schedule(Level level, AlchemyMixtureState state, ItemStack ingredient) {
+        return scheduleInternal(level, state, ingredient, level == null ? null : level.getRandom(), null);
+    }
+
+    /** Random-source overload keeps independent effect rolls deterministic for scripted chemistry and validation. */
+    public static boolean schedule(
+            Level level,
+            AlchemyMixtureState state,
+            ItemStack ingredient,
+            RandomSource random
+    ) {
+        return scheduleInternal(level, state, ingredient, random, null);
+    }
+
+    /** Schedules an already selected independent outcome set as one cauldron reaction. */
+    public static boolean scheduleOutcomeSet(
+            Level level,
+            AlchemyMixtureState state,
+            ItemStack ingredient,
+            List<MultiOutcomeBrewing.Outcome> selectedOutcomes
+    ) {
+        return scheduleInternal(level, state, ingredient, null,
+                selectedOutcomes == null ? List.of() : List.copyOf(selectedOutcomes));
+    }
+
+    private static boolean scheduleInternal(
+            Level level,
+            AlchemyMixtureState state,
+            ItemStack ingredient,
+            RandomSource random,
+            List<MultiOutcomeBrewing.Outcome> selectedOutcomes
+    ) {
         if (!canReact(level, state, ingredient)) {
             return false;
         }
@@ -77,12 +110,13 @@ public final class AlchemyMixtureBrewing {
                 state.setStability(0);
                 state.addProvenance("unstable:no_starter");
             }
-            MultiOutcomeBrewing.Outcome chosen = MultiOutcomeBrewing.chooseOutcome(
-                    ingredient, level.getRandom().nextFloat());
-            if (chosen == null) {
+            List<MultiOutcomeBrewing.Outcome> chosen = selectedOutcomes == null
+                    ? MultiOutcomeBrewing.chooseOutcomes(ingredient, random == null ? level.getRandom() : random)
+                    : selectedOutcomes;
+            if (chosen.isEmpty()) {
                 return false;
             }
-            target = scaleEffects(effectsForPotion(chosen.potion()), state.volumeUnits());
+            target = scaleEffects(effectsForOutcomes(chosen), state.volumeUnits());
         } else {
             ItemStack input = canonicalInput(state);
             if (input.isEmpty()) {
@@ -98,7 +132,9 @@ public final class AlchemyMixtureBrewing {
             targetPotion = targetState.canonicalPotionId();
         }
 
-        String id = "brew:" + (sourcePotion == null ? "mixed" : sourcePotion)
+        String reactionPrefix = MultiOutcomeBrewing.isOutcomeIngredient(ingredient)
+                || state.preservesIndependentOutcomes() ? "brewset:" : "brew:";
+        String id = reactionPrefix + (sourcePotion == null ? "mixed" : sourcePotion)
                 + ">" + ingredientId + ">" + (targetPotion == null ? "mixed" : targetPotion);
         state.addReaction(new AlchemyMixtureState.Reaction(
                 id,
@@ -138,12 +174,27 @@ public final class AlchemyMixtureBrewing {
         return MultiOutcomeBrewing.isOutcomeIngredient(ingredient);
     }
 
-    /** Apply one completed Brewing Stand ingredient without discarding effects already stored in the mixture. */
+    /** Backward-compatible single-outcome entry point. */
     public static ItemStack applyBrewingStandIngredient(
             ItemStack ingredient,
             ItemStack input,
             ItemStack vanillaOutput,
             MultiOutcomeBrewing.Outcome chosenOutcome
+    ) {
+        return applyBrewingStandOutcomes(
+                ingredient,
+                input,
+                vanillaOutput,
+                chosenOutcome == null ? List.of() : List.of(chosenOutcome)
+        );
+    }
+
+    /** Apply one completed Brewing Stand ingredient without discarding effects already stored in the mixture. */
+    public static ItemStack applyBrewingStandOutcomes(
+            ItemStack ingredient,
+            ItemStack input,
+            ItemStack vanillaOutput,
+            List<MultiOutcomeBrewing.Outcome> chosenOutcomes
     ) {
         if (!AlchemyMixtureBottle.isPotionContainer(input) || ingredient == null || ingredient.isEmpty()) {
             return vanillaOutput;
@@ -185,14 +236,14 @@ public final class AlchemyMixtureBrewing {
             state.addProvenance("modifier:minecraft:dragon_breath");
         } else if (MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) {
             Map<String, AlchemyMixtureState.EffectDose> additions;
-            if (chosenOutcome != null) {
-                additions = effectsForPotion(chosenOutcome.potion());
+            if (chosenOutcomes != null && !chosenOutcomes.isEmpty()) {
+                additions = effectsForOutcomes(chosenOutcomes);
             } else if (AlchemyMixtureBottle.isPotionContainer(vanillaOutput)) {
                 additions = AlchemyMixtureBottle.fromPotion(vanillaOutput).effects();
             } else {
                 additions = Map.of();
             }
-            state.addEffects(scaleEffects(additions, state.volumeUnits()));
+            state.addIndependentOutcomeEffects(scaleEffects(additions, state.volumeUnits()));
             state.setCanonicalPotionId(null);
             state.addProvenance("reaction:" + ingredientId);
         } else if (AlchemyMixtureBottle.isPotionContainer(vanillaOutput)) {
@@ -230,6 +281,17 @@ public final class AlchemyMixtureBrewing {
         }
         ItemStack stack = PotionContents.createItemStack(Items.POTION, potion);
         return AlchemyMixtureBottle.fromPotion(stack).effects();
+    }
+
+    private static Map<String, AlchemyMixtureState.EffectDose> effectsForOutcomes(
+            List<MultiOutcomeBrewing.Outcome> outcomes
+    ) {
+        Map<String, AlchemyMixtureState.EffectDose> result = new LinkedHashMap<>();
+        for (MultiOutcomeBrewing.Outcome outcome : outcomes) {
+            effectsForPotion(outcome.potion()).forEach((id, dose) -> result.merge(id, dose,
+                    AlchemyMixtureState.EffectDose::merge));
+        }
+        return result;
     }
 
     private static Map<String, AlchemyMixtureState.EffectDose> scaleEffects(

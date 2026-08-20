@@ -7,6 +7,9 @@ import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -31,6 +34,116 @@ import java.util.Set;
 public final class AlchemyCauldronPersistenceGameTest {
     private static final BlockPos CAULDRON_POS = new BlockPos(2, 2, 2);
     private static final Identifier HOT_COCOA = Identifier.fromNamespaceAndPath("deadrecall", "hot_cocoa");
+
+    @GameTest(maxTicks = 40)
+    public void independentEffectRollsCanSelectSeveralAndFallbackStillGuaranteesOne(GameTestHelper helper) {
+        ItemStack sugar = new ItemStack(Items.SUGAR);
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+
+        List<MultiOutcomeBrewing.Outcome> several = MultiOutcomeBrewing.chooseOutcomes(
+                sugar, awkward, 0.0F, 0.0F, 0.999F, 0.0F);
+        require(helper, several.size() == 2,
+                "Independent sugar rolls did not select two simultaneous outcomes");
+        require(helper, several.stream().anyMatch(outcome -> outcome.potion().is(Potions.SWIFTNESS))
+                        && several.stream().anyMatch(outcome -> outcome.potion().is(Potions.SLOWNESS)),
+                "Independent sugar rolls did not preserve the selected swiftness/slowness pair");
+
+        List<MultiOutcomeBrewing.Outcome> fallback = MultiOutcomeBrewing.chooseOutcomes(
+                sugar, awkward, 0.999F, 0.999F, 0.999F, 0.60F);
+        require(helper, fallback.size() == 1,
+                "An all-miss independent roll did not choose exactly one weighted fallback");
+        require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
+                        "minecraft:sugar", "minecraft:swiftness") - 0.64D) < 0.000_001D,
+                "Research truth omitted the all-miss fallback contribution for swiftness");
+        require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
+                        "minecraft:sugar", "minecraft:slowness") - 0.384D) < 0.000_001D,
+                "Research truth omitted the all-miss fallback contribution for slowness");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void brewingBatchSharesExactOpposingEffectSetAcrossAllBottles(GameTestHelper helper) {
+        ItemStack sugar = new ItemStack(Items.SUGAR);
+        List<ItemStack> inputs = List.of(
+                PotionContents.createItemStack(Items.POTION, Potions.AWKWARD),
+                PotionContents.createItemStack(Items.POTION, Potions.AWKWARD),
+                PotionContents.createItemStack(Items.POTION, Potions.AWKWARD)
+        );
+        MultiOutcomeBrewing.beginBatch(sugar, inputs, 0.0F, 0.0F, 0.999F, 0.0F);
+        try {
+            require(helper, MultiOutcomeBrewing.activeOutcomes().size() == 2,
+                    "Brewing batch did not retain its two selected outcomes");
+            List<ItemStack> outputs = inputs.stream()
+                    .map(input -> helper.getLevel().potionBrewing().mix(sugar, input))
+                    .toList();
+            String expectedState = null;
+            for (ItemStack output : outputs) {
+                require(helper, output.is(Items.POTION),
+                        "Independent outcome set changed the bottle container type");
+                AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(output);
+                require(helper, state.effects().containsKey("minecraft:speed")
+                                && state.effects().containsKey("minecraft:slowness"),
+                        "Produced bottle collapsed an independently selected opposing-effect pair");
+                require(helper, state.preservesIndependentOutcomes(),
+                        "Produced bottle did not persist its independent outcome-set marker");
+                if (expectedState == null) {
+                    expectedState = state.encode();
+                } else {
+                    require(helper, expectedState.equals(state.encode()),
+                            "Bottles in one Brewing Stand batch received different effect sets");
+                }
+            }
+
+            AlchemyMixtureState modified = AlchemyMixtureState.decode(expectedState);
+            modified.applyRedstoneModifier();
+            modified.applyGlowstoneModifier();
+            ItemStack roundTrip = AlchemyMixtureBottle.toPotion(modified);
+            AlchemyMixtureState restored = AlchemyMixtureBottle.fromPotion(roundTrip);
+            require(helper, restored.effects().containsKey("minecraft:speed")
+                            && restored.effects().containsKey("minecraft:slowness"),
+                    "Potion round-trip or duration/potency modifiers collapsed selected opposing effects");
+            helper.succeed();
+        } finally {
+            MultiOutcomeBrewing.clearBatch();
+        }
+    }
+
+    @GameTest(maxTicks = 40)
+    public void cauldronCanScheduleSeveralIndependentEffectsInOneReaction(GameTestHelper helper) {
+        ItemStack sugar = new ItemStack(Items.SUGAR);
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        List<MultiOutcomeBrewing.Outcome> selected = MultiOutcomeBrewing.chooseOutcomes(
+                sugar, awkward, 0.0F, 0.0F, 0.999F, 0.0F);
+        AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(awkward);
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(), state, sugar, selected),
+                "Cauldron refused a selected independent outcome set");
+        state.tickReactions(Integer.MAX_VALUE);
+        require(helper, state.effects().containsKey("minecraft:speed")
+                        && state.effects().containsKey("minecraft:slowness")
+                        && state.preservesIndependentOutcomes(),
+                "Cauldron reaction did not retain a simultaneous swiftness/slowness outcome set");
+
+        require(helper, AlchemyMixtureBrewing.schedule(
+                        helper.getLevel(), state, new ItemStack(Items.REDSTONE)),
+                "Cauldron refused redstone for an independent outcome set");
+        state.tickReactions(Integer.MAX_VALUE);
+        require(helper, state.effects().containsKey("minecraft:speed")
+                        && state.effects().containsKey("minecraft:slowness")
+                        && state.preservesIndependentOutcomes(),
+                "Delayed cauldron redstone reaction collapsed selected opposing effects");
+
+        require(helper, AlchemyMixtureBrewing.schedule(
+                        helper.getLevel(), state, new ItemStack(Items.GUNPOWDER)),
+                "Cauldron refused gunpowder for an independent outcome set");
+        state.tickReactions(Integer.MAX_VALUE);
+        require(helper, state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH
+                        && state.effects().containsKey("minecraft:speed")
+                        && state.effects().containsKey("minecraft:slowness")
+                        && state.preservesIndependentOutcomes(),
+                "Delayed delivery-form reaction collapsed selected opposing effects");
+        helper.succeed();
+    }
 
     @GameTest(maxTicks = 40)
     public void everyPrimaryBrewingIngredientHasMultipleReachableOutcomes(GameTestHelper helper) {

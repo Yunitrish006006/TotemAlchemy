@@ -239,7 +239,11 @@ public final class AlchemyManualPageOverlay {
         plus(context, 55, y + 8);
         percentage(context, ingredient, 67, y);
         arrow(context, 101, y + 8, 9);
-        potion(context, Potions.AWKWARD, 116, y);
+        if (AlchemyDiscoveryClientCache.has(ingredient, Potions.AWKWARD)) {
+            potion(context, Potions.AWKWARD, 116, y);
+        } else {
+            unknownPotion(context, 116, y);
+        }
         if (unstable) {
             text(context, "−20%", 137, y + 4, WARN);
         }
