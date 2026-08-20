@@ -59,8 +59,8 @@ public final class LargePotionFlaskItem extends Item {
         PotionContents contents = potionView.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
         if (level instanceof ServerLevel serverLevel) {
             for (MobEffectInstance effect : contents.getAllEffects()) {
-                if (effect.getEffect().value().isInstantenous()) {
-                    effect.getEffect().value().applyInstantenousEffect(
+                if (effect.getEffect().value().isInstantaneous()) {
+                    effect.getEffect().value().applyInstantaneousEffect(
                             serverLevel, entity, entity, entity, effect.getAmplifier(), 1.0D);
                 } else {
                     entity.addEffect(new MobEffectInstance(
