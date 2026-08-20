@@ -26,7 +26,8 @@ public final class AlchemyDiscoveryClientCache {
     }
 
     public static boolean has(Item ingredient, Holder<Potion> potion) {
-        return discoveries.contains(AlchemyDiscoveryKey.of(ingredient, potion));
+        String key = AlchemyDiscoveryKey.of(ingredient, potion);
+        return discoveries.contains(key) || AlchemyResearchClientCache.hasOutcome(ingredient, potion);
     }
 
     static void replace(Iterable<String> updatedDiscoveries) {

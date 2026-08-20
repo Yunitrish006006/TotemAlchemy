@@ -23,9 +23,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Attributes brewing to one nearby player and synchronizes discoveries plus research confidence. */
+/** Attributes brewing to the player who started observing it and synchronizes discoveries plus research confidence. */
 public final class AlchemyDiscoveryService {
     private static final double ATTRIBUTION_DISTANCE_SQUARED = 64.0D;
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
@@ -50,7 +51,7 @@ public final class AlchemyDiscoveryService {
             List<ItemStack> inputs,
             List<ItemStack> outputs
     ) {
-        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, -1, null);
+        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, -1, null, null);
     }
 
     /** One successful batch contributes one outcome observation and one material processing-time sample. */
@@ -62,7 +63,7 @@ public final class AlchemyDiscoveryService {
             List<ItemStack> outputs,
             int processingTicks
     ) {
-        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, processingTicks, null);
+        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, processingTicks, null, null);
     }
 
     /**
@@ -78,10 +79,35 @@ public final class AlchemyDiscoveryService {
             int processingTicks,
             Holder<Potion> explicitResult
     ) {
-        ServerPlayer player = nearestPlayer(level, pos);
-        if (player == null) {
-            return;
+        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, processingTicks, explicitResult, null);
+    }
+
+    /**
+     * Records a completed batch for the player captured when brewing started. If no researcher was captured,
+     * the legacy nearby-player fallback is used. A captured player may move away or change dimensions without
+     * losing the completed observation; if they disconnect, the observation is still persisted by UUID.
+     */
+    public static void recordSuccessfulBrew(
+            ServerLevel level,
+            BlockPos pos,
+            ItemStack ingredient,
+            List<ItemStack> inputs,
+            List<ItemStack> outputs,
+            int processingTicks,
+            Holder<Potion> explicitResult,
+            UUID researcherId
+    ) {
+        UUID subjectId = researcherId;
+        ServerPlayer livePlayer = subjectId == null
+                ? nearestPlayer(level, pos)
+                : level.getServer().getPlayerList().getPlayer(subjectId);
+        if (subjectId == null) {
+            if (livePlayer == null) {
+                return;
+            }
+            subjectId = livePlayer.getUUID();
         }
+
         Set<Holder<Potion>> results = new LinkedHashSet<>();
         if (explicitResult != null) {
             results.add(explicitResult);
@@ -99,22 +125,24 @@ public final class AlchemyDiscoveryService {
             return;
         }
 
-        AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
+        AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(level.getServer());
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
         if (processingTicks > 0) {
-            data.recordProcessingTime(player.getUUID(), ingredientId, processingTicks);
+            data.recordProcessingTime(subjectId, ingredientId, processingTicks);
         }
 
         for (Holder<Potion> result : results) {
             String key = AlchemyDiscoveryKey.of(ingredient.getItem(), result);
-            data.recordResearch(player.getUUID(), key);
-            if (data.record(player.getUUID(), key)) {
+            data.recordResearch(subjectId, key);
+            if (data.record(subjectId, key) && livePlayer != null) {
                 ItemStack resultStack = PotionContents.createItemStack(net.minecraft.world.item.Items.POTION, result);
-                player.sendOverlayMessage(Component.translatable(
+                livePlayer.sendOverlayMessage(Component.translatable(
                         "message.deadrecall.alchemy.discovery_recorded", resultStack.getHoverName()));
             }
         }
-        send(player);
+        if (livePlayer != null) {
+            send(livePlayer);
+        }
     }
 
     /** A failed completed brew still teaches the player how long this material takes to process. */
@@ -124,17 +152,36 @@ public final class AlchemyDiscoveryService {
             ItemStack ingredient,
             int processingTicks
     ) {
+        recordProcessingAttempt(level, pos, ingredient, processingTicks, null);
+    }
+
+    /** Records timing for the player captured when this brew cycle began. */
+    public static void recordProcessingAttempt(
+            ServerLevel level,
+            BlockPos pos,
+            ItemStack ingredient,
+            int processingTicks,
+            UUID researcherId
+    ) {
         if (processingTicks <= 0) {
             return;
         }
-        ServerPlayer player = nearestPlayer(level, pos);
-        if (player == null) {
-            return;
+        UUID subjectId = researcherId;
+        ServerPlayer livePlayer = subjectId == null
+                ? nearestPlayer(level, pos)
+                : level.getServer().getPlayerList().getPlayer(subjectId);
+        if (subjectId == null) {
+            if (livePlayer == null) {
+                return;
+            }
+            subjectId = livePlayer.getUUID();
         }
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
-        AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
-        data.recordProcessingTime(player.getUUID(), ingredientId, processingTicks);
-        send(player);
+        AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(level.getServer());
+        data.recordProcessingTime(subjectId, ingredientId, processingTicks);
+        if (livePlayer != null) {
+            send(livePlayer);
+        }
     }
 
     public static boolean record(ServerPlayer player, ItemStack ingredient, Holder<Potion> result) {

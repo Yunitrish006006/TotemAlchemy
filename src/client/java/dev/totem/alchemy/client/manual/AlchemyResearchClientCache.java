@@ -48,6 +48,11 @@ public final class AlchemyResearchClientCache {
         return timing == null ? 0 : timing.averageTicks();
     }
 
+    /** Research observations are also proof that this outcome has already been discovered. */
+    public static boolean hasOutcome(Item ingredient, Holder<Potion> potion) {
+        return entries.containsKey(AlchemyDiscoveryKey.of(ingredient, potion));
+    }
+
     public static String tierKey(Item ingredient, Holder<Potion> potion) {
         ResearchEntry entry = entries.get(AlchemyDiscoveryKey.of(ingredient, potion));
         String tier = entry == null ? "novice" : entry.tier().toLowerCase(Locale.ROOT);
