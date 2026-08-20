@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {"ingredient":"minecraft:spider_eye","outcomes":{"minecraft:poison":65,"minecraft:weakness":35}},
+    {"ingredient":"minecraft:red_mushroom","outcomes":{"minecraft:poison":60,"totem:alchemy/saturation":40}},
+    {"ingredient":"minecraft:glistering_melon_slice","outcomes":{"minecraft:healing":70,"totem:alchemy/resistance":30}},
+    {"ingredient":"minecraft:sugar","outcomes":{"minecraft:swiftness":50,"minecraft:slowness":30,"totem:alchemy/saturation":20}},
+    {"ingredient":"minecraft:rabbit_foot","outcomes":{"minecraft:leaping":50,"minecraft:slow_falling":30,"minecraft:swiftness":20}},
+    {"ingredient":"minecraft:magma_cream","outcomes":{"minecraft:fire_resistance":50,"totem:alchemy/resistance":30,"minecraft:strength":20}},
+    {"ingredient":"minecraft:golden_carrot","outcomes":{"minecraft:night_vision":55,"minecraft:invisibility":30,"minecraft:healing":15}},
+    {"ingredient":"minecraft:blaze_powder","outcomes":{"minecraft:strength":55,"minecraft:fire_resistance":30,"minecraft:harming":15}},
+    {"ingredient":"minecraft:ghast_tear","outcomes":{"minecraft:regeneration":55,"minecraft:healing":30,"minecraft:weakness":15}},
+    {"ingredient":"minecraft:pufferfish","outcomes":{"minecraft:water_breathing":60,"minecraft:poison":25,"minecraft:weakness":15}},
+    {"ingredient":"minecraft:turtle_helmet","outcomes":{"minecraft:turtle_master":55,"minecraft:water_breathing":30,"totem:alchemy/resistance":15}},
+    {"ingredient":"minecraft:phantom_membrane","outcomes":{"minecraft:slow_falling":55,"minecraft:invisibility":30,"minecraft:night_vision":15}},
+    {"ingredient":"minecraft:breeze_rod","outcomes":{"minecraft:wind_charged":55,"minecraft:slow_falling":30,"minecraft:leaping":15}},
+    {"ingredient":"minecraft:slime_block","outcomes":{"minecraft:oozing":55,"minecraft:leaping":30,"minecraft:slowness":15}},
+    {"ingredient":"minecraft:stone","outcomes":{"minecraft:infested":50,"totem:alchemy/resistance":35,"minecraft:slowness":15}},
+    {"ingredient":"minecraft:cobweb","outcomes":{"minecraft:weaving":55,"minecraft:slowness":30,"minecraft:weakness":15}},
+    {"ingredient":"minecraft:fermented_spider_eye","outcomes":{"minecraft:weakness":50,"minecraft:harming":35,"minecraft:invisibility":15}}
+  ]
+}

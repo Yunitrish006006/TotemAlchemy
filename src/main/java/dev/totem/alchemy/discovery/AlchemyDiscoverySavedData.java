@@ -16,17 +16,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** World-persistent, per-player successful brewing discoveries. */
+/** World-persistent, per-player brewing discoveries plus observed outcome counts. */
 public final class AlchemyDiscoverySavedData extends SavedData {
     private static final Codec<PlayerDiscoveries> PLAYER_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             UUIDUtil.CODEC.fieldOf("player").forGetter(PlayerDiscoveries::player),
-            Codec.STRING.listOf().optionalFieldOf("discoveries", List.of())
-                    .forGetter(PlayerDiscoveries::discoveries)
+            Codec.STRING.listOf().optionalFieldOf("discoveries", List.of()).forGetter(PlayerDiscoveries::discoveries),
+            Codec.STRING.listOf().optionalFieldOf("research", List.of()).forGetter(PlayerDiscoveries::research)
     ).apply(instance, PlayerDiscoveries::new));
 
     public static final Codec<AlchemyDiscoverySavedData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            PLAYER_CODEC.listOf().optionalFieldOf("players", List.of())
-                    .forGetter(AlchemyDiscoverySavedData::playerList)
+            PLAYER_CODEC.listOf().optionalFieldOf("players", List.of()).forGetter(AlchemyDiscoverySavedData::playerList)
     ).apply(instance, AlchemyDiscoverySavedData::new));
 
     public static final SavedDataType<AlchemyDiscoverySavedData> TYPE = new SavedDataType<>(
@@ -37,6 +36,7 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     );
 
     private final Map<UUID, Set<String>> discoveriesByPlayer = new HashMap<>();
+    private final Map<UUID, Map<String, Integer>> researchByPlayer = new HashMap<>();
 
     public AlchemyDiscoverySavedData() {
     }
@@ -44,6 +44,23 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     private AlchemyDiscoverySavedData(List<PlayerDiscoveries> players) {
         for (PlayerDiscoveries player : players) {
             discoveriesByPlayer.put(player.player(), new HashSet<>(player.discoveries()));
+            Map<String, Integer> counts = new HashMap<>();
+            for (String encoded : player.research()) {
+                int split = encoded.lastIndexOf('=');
+                if (split <= 0 || split >= encoded.length() - 1) {
+                    continue;
+                }
+                try {
+                    int count = Integer.parseInt(encoded.substring(split + 1));
+                    if (count > 0) {
+                        counts.put(encoded.substring(0, split), count);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            if (!counts.isEmpty()) {
+                researchByPlayer.put(player.player(), counts);
+            }
         }
     }
 
@@ -52,13 +69,16 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     }
 
     public boolean record(UUID playerId, String discovery) {
-        boolean changed = discoveriesByPlayer
-                .computeIfAbsent(playerId, ignored -> new HashSet<>())
-                .add(discovery);
+        boolean changed = discoveriesByPlayer.computeIfAbsent(playerId, ignored -> new HashSet<>()).add(discovery);
         if (changed) {
             setDirty();
         }
         return changed;
+    }
+
+    public void recordResearch(UUID playerId, String outcomeKey) {
+        researchByPlayer.computeIfAbsent(playerId, ignored -> new HashMap<>()).merge(outcomeKey, 1, Integer::sum);
+        setDirty();
     }
 
     public boolean has(UUID playerId, String discovery) {
@@ -69,19 +89,35 @@ public final class AlchemyDiscoverySavedData extends SavedData {
         return Set.copyOf(discoveriesByPlayer.getOrDefault(playerId, Set.of()));
     }
 
-    private List<PlayerDiscoveries> playerList() {
-        return discoveriesByPlayer.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> new PlayerDiscoveries(
-                        entry.getKey(),
-                        entry.getValue().stream().sorted().toList()
-                ))
-                .toList();
+    public Map<String, Integer> research(UUID playerId) {
+        return Map.copyOf(researchByPlayer.getOrDefault(playerId, Map.of()));
     }
 
-    private record PlayerDiscoveries(UUID player, List<String> discoveries) {
+    public int researchTotal(UUID playerId, String ingredientId) {
+        String prefix = ingredientId + ">";
+        return researchByPlayer.getOrDefault(playerId, Map.of()).entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(prefix))
+                .mapToInt(Map.Entry::getValue)
+                .sum();
+    }
+
+    private List<PlayerDiscoveries> playerList() {
+        Set<UUID> players = new HashSet<>(discoveriesByPlayer.keySet());
+        players.addAll(researchByPlayer.keySet());
+        return players.stream().sorted().map(playerId -> {
+            List<String> discoveries = discoveriesByPlayer.getOrDefault(playerId, Set.of()).stream().sorted().toList();
+            List<String> research = researchByPlayer.getOrDefault(playerId, Map.of()).entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .toList();
+            return new PlayerDiscoveries(playerId, discoveries, research);
+        }).toList();
+    }
+
+    private record PlayerDiscoveries(UUID player, List<String> discoveries, List<String> research) {
         private PlayerDiscoveries {
             discoveries = List.copyOf(discoveries == null ? List.of() : discoveries);
+            research = List.copyOf(research == null ? List.of() : research);
         }
     }
 }
