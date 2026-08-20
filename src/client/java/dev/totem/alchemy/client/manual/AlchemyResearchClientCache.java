@@ -13,9 +13,10 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-/** Client snapshot containing only sample counts, research tiers, and observed frequency bands. */
+/** Client snapshot containing only sample counts, derived labels, and observed processing time. */
 public final class AlchemyResearchClientCache {
     private static volatile Map<String, ResearchEntry> entries = Map.of();
+    private static volatile Map<String, TimingEntry> timings = Map.of();
 
     private AlchemyResearchClientCache() {
     }
@@ -25,15 +26,26 @@ public final class AlchemyResearchClientCache {
                 AlchemyResearchPayload.TYPE,
                 (payload, context) -> context.client().execute(() -> replace(payload.entries()))
         );
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> entries = Map.of());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            entries = Map.of();
+            timings = Map.of();
+        });
     }
 
     public static int samples(Item ingredient) {
-        String prefix = BuiltInRegistries.ITEM.getKey(ingredient) + ">";
-        return entries.entrySet().stream()
+        String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient).toString();
+        String prefix = ingredientId + ">";
+        int outcomeSamples = entries.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(prefix))
                 .mapToInt(entry -> entry.getValue().samples())
                 .max().orElse(0);
+        TimingEntry timing = timings.get(ingredientId);
+        return Math.max(outcomeSamples, timing == null ? 0 : timing.samples());
+    }
+
+    public static int processingTicks(Item ingredient) {
+        TimingEntry timing = timings.get(BuiltInRegistries.ITEM.getKey(ingredient).toString());
+        return timing == null ? 0 : timing.averageTicks();
     }
 
     public static String tierKey(Item ingredient, Holder<Potion> potion) {
@@ -49,20 +61,49 @@ public final class AlchemyResearchClientCache {
     }
 
     private static void replace(Iterable<String> encodedEntries) {
-        Map<String, ResearchEntry> copy = new HashMap<>();
+        Map<String, ResearchEntry> researchCopy = new HashMap<>();
+        Map<String, TimingEntry> timingCopy = new HashMap<>();
         for (String encoded : encodedEntries) {
-            String[] parts = encoded.split("\\|", 4);
-            if (parts.length != 4) {
+            if (encoded.startsWith("O|")) {
+                String[] parts = encoded.split("\\|", 5);
+                if (parts.length != 5) {
+                    continue;
+                }
+                try {
+                    researchCopy.put(parts[1], new ResearchEntry(Integer.parseInt(parts[2]), parts[3], parts[4]));
+                } catch (NumberFormatException ignored) {
+                }
                 continue;
             }
-            try {
-                copy.put(parts[0], new ResearchEntry(Integer.parseInt(parts[1]), parts[2], parts[3]));
-            } catch (NumberFormatException ignored) {
+            if (encoded.startsWith("T|")) {
+                String[] parts = encoded.split("\\|", 4);
+                if (parts.length != 4) {
+                    continue;
+                }
+                try {
+                    timingCopy.put(parts[1], new TimingEntry(Integer.parseInt(parts[2]), Integer.parseInt(parts[3])));
+                } catch (NumberFormatException ignored) {
+                }
+                continue;
+            }
+
+            // Compatibility with the first research snapshot format used before typed entries were introduced.
+            String[] legacy = encoded.split("\\|", 4);
+            if (legacy.length == 4) {
+                try {
+                    researchCopy.put(legacy[0], new ResearchEntry(
+                            Integer.parseInt(legacy[1]), legacy[2], legacy[3]));
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
-        entries = Map.copyOf(copy);
+        entries = Map.copyOf(researchCopy);
+        timings = Map.copyOf(timingCopy);
     }
 
     private record ResearchEntry(int samples, String tier, String frequency) {
+    }
+
+    private record TimingEntry(int samples, int averageTicks) {
     }
 }

@@ -26,12 +26,14 @@ public final class AlchemyManual {
     private static final List<String> PAGE_KEYS = List.of(
             "book.deadrecall.alchemy_manual.page.1",
             "book.deadrecall.alchemy_manual.page.2",
-            "book.totem_alchemy.material.spider_eye",
+            "book.totem_alchemy.material.nether_wart",
             "book.totem_alchemy.material.red_mushroom",
-            "book.totem_alchemy.material.glistering_melon_slice",
+            "book.totem_alchemy.material.spider_eye",
+            "book.totem_alchemy.material.fermented_spider_eye",
             "book.totem_alchemy.material.sugar",
             "book.totem_alchemy.material.rabbit_foot",
             "book.totem_alchemy.material.magma_cream",
+            "book.totem_alchemy.material.glistering_melon_slice",
             "book.totem_alchemy.material.golden_carrot",
             "book.totem_alchemy.material.blaze_powder",
             "book.totem_alchemy.material.ghast_tear",
@@ -42,7 +44,12 @@ public final class AlchemyManual {
             "book.totem_alchemy.material.slime_block",
             "book.totem_alchemy.material.stone",
             "book.totem_alchemy.material.cobweb",
-            "book.totem_alchemy.material.fermented_spider_eye",
+            "book.totem_alchemy.material.cherry_leaves",
+            "book.totem_alchemy.material.firefly_bush",
+            "book.totem_alchemy.material.redstone",
+            "book.totem_alchemy.material.glowstone_dust",
+            "book.totem_alchemy.material.gunpowder",
+            "book.totem_alchemy.material.dragon_breath",
             "book.deadrecall.alchemy_manual.page.8"
     );
     private static final TotemManualSection SECTION = new TotemManualSection(

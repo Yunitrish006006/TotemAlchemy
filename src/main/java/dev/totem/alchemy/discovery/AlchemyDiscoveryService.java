@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,13 +42,25 @@ public final class AlchemyDiscoveryService {
         ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) -> send(player));
     }
 
-    /** One successful batch contributes one observation, even when several bottle slots share that batch result. */
+    /** Backward-compatible entry point for tests/callers that do not have an observed processing duration. */
     public static void recordSuccessfulBrew(
             ServerLevel level,
             BlockPos pos,
             ItemStack ingredient,
             List<ItemStack> inputs,
             List<ItemStack> outputs
+    ) {
+        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, -1);
+    }
+
+    /** One successful batch contributes one outcome observation and one material processing-time sample. */
+    public static void recordSuccessfulBrew(
+            ServerLevel level,
+            BlockPos pos,
+            ItemStack ingredient,
+            List<ItemStack> inputs,
+            List<ItemStack> outputs,
+            int processingTicks
     ) {
         ServerPlayer player = nearestPlayer(level, pos);
         if (player == null) {
@@ -68,6 +81,11 @@ public final class AlchemyDiscoveryService {
         }
 
         AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
+        String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
+        if (processingTicks > 0) {
+            data.recordProcessingTime(player.getUUID(), ingredientId, processingTicks);
+        }
+
         for (Holder<Potion> result : results) {
             String key = AlchemyDiscoveryKey.of(ingredient.getItem(), result);
             data.recordResearch(player.getUUID(), key);
@@ -104,6 +122,10 @@ public final class AlchemyDiscoveryService {
         }
     }
 
+    /**
+     * Outcome entries contain only sample count + derived labels. Timing entries contain only the player's
+     * observed average. Hidden true outcome probabilities never cross the network boundary.
+     */
     private static List<String> buildResearchSnapshot(ServerPlayer player, AlchemyDiscoverySavedData data) {
         List<String> snapshot = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : data.research(player.getUUID()).entrySet()) {
@@ -125,8 +147,17 @@ public final class AlchemyDiscoveryService {
             }
             AlchemyResearchTier tier = AlchemyResearchTier.classify(samples, Math.abs(observed - truth));
             AlchemyObservedFrequency frequency = AlchemyObservedFrequency.classify(observed);
-            snapshot.add(key + "|" + samples + "|" + tier.name() + "|" + frequency.name());
+            snapshot.add("O|" + key + "|" + samples + "|" + tier.name() + "|" + frequency.name());
         }
+
+        for (Map.Entry<String, AlchemyDiscoverySavedData.ProcessingTimeStats> entry
+                : data.processingTimes(player.getUUID()).entrySet()) {
+            AlchemyDiscoverySavedData.ProcessingTimeStats timing = entry.getValue();
+            if (timing.samples() > 0 && timing.averageTicks() > 0) {
+                snapshot.add("T|" + entry.getKey() + "|" + timing.samples() + "|" + timing.averageTicks());
+            }
+        }
+
         snapshot.sort(String::compareTo);
         return List.copyOf(snapshot);
     }

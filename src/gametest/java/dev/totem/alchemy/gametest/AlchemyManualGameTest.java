@@ -35,8 +35,8 @@ public final class AlchemyManualGameTest {
                 helper.fail("Alchemy manual source did not create a canonical Totem manual");
                 return;
             }
-            if (AlchemyManual.pageKeys().size() != 20) {
-                helper.fail("Alchemy manual did not register its two overview pages, seventeen material pages, and cauldron page");
+            if (AlchemyManual.pageKeys().size() != 27) {
+                helper.fail("Alchemy manual did not register two overview pages, twenty-four material pages, and the cauldron page");
                 return;
             }
             boolean hasAlchemySection = dev.totem.core.api.v1.manual.TotemManualRegistry.global()
@@ -109,7 +109,7 @@ public final class AlchemyManualGameTest {
             ItemStack brewedPoison = PotionContents.createItemStack(Items.POTION, Potions.POISON);
             AlchemyDiscoveryService.recordSuccessfulBrew(
                     player.level(), player.blockPosition(), ingredient,
-                    java.util.List.of(awkward), java.util.List.of(brewedPoison));
+                    java.util.List.of(awkward), java.util.List.of(brewedPoison), 400);
 
             AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
             String poisonKey = AlchemyDiscoveryKey.of(Items.SPIDER_EYE, Potions.POISON);
@@ -128,6 +128,12 @@ public final class AlchemyManualGameTest {
             }
             if (data.research(player.getUUID()).getOrDefault(poisonKey, 0) != 1) {
                 helper.fail("Successful brewing batch did not add exactly one research observation");
+                return;
+            }
+            AlchemyDiscoverySavedData.ProcessingTimeStats timing =
+                    data.processingTime(player.getUUID(), "minecraft:spider_eye");
+            if (timing.samples() != 1 || timing.averageTicks() != 400) {
+                helper.fail("Successful brewing batch did not record one 400-tick processing-time observation");
                 return;
             }
             helper.succeed();
