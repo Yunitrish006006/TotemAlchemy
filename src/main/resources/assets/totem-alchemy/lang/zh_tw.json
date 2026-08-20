@@ -1,7 +1,9 @@
 {
   "book.totem_alchemy.research.samples": "研究樣本：%s",
-  "book.totem_alchemy.research.processing_time": "觀察處理時間：約 %s 秒",
-  "book.totem_alchemy.research.processing_time_unknown": "觀察處理時間：尚未記錄",
+  "book.totem_alchemy.research.processing_time_range": "預估時間：%s–%s 秒",
+  "book.totem_alchemy.research.processing_time_exact": "預估時間：約 %s 秒",
+  "book.totem_alchemy.research.processing_time_accuracy": "時間正確度：%s%%",
+  "book.totem_alchemy.research.processing_time_unknown": "預估時間：尚未記錄",
   "book.totem_alchemy.research.unknown_effect": "未知效果",
   "book.totem_alchemy.research.tier.novice": "新手",
   "book.totem_alchemy.research.tier.beginner": "入門",

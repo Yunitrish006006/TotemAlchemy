@@ -69,11 +69,11 @@ public abstract class PotionBrewingMixin {
         boolean vanillaChanged = !ItemStack.matches(input, selectedOutput);
         ItemStack output = selectedOutput;
         if (layeredRule || vanillaChanged) {
-            output = AlchemyMixtureBrewing.applyBrewingStandIngredient(
+            output = AlchemyMixtureBrewing.applyBrewingStandOutcomes(
                     ingredient,
                     input,
                     selectedOutput,
-                    MultiOutcomeBrewing.activeOutcome()
+                    MultiOutcomeBrewing.activeOutcomes()
             );
         }
         if (output.isEmpty()) {

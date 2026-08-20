@@ -306,10 +306,7 @@ public final class AlchemyHandler {
         level.playSound(null, pos, SoundEvents.BREWING_STAND_BREW, SoundSource.BLOCKS, 0.8F, 0.9F);
         return new CauldronAction(
                 ItemStack.EMPTY,
-                Component.translatable(
-                        "message.deadrecall.alchemy.mixture_reaction_started",
-                        AlchemyMixtureState.DEFAULT_REACTION_TICKS / 20
-                )
+                Component.translatable("message.deadrecall.alchemy.mixture_reaction_started")
         );
     }
 

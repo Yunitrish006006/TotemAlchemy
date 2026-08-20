@@ -143,6 +143,12 @@ tasks.matching { task -> task.name == "runClientGameTest" }.configureEach {
             rename { name -> name.replaceFirst(/^\d+_/, "") }
             into(file("test-artifacts/screenshots/alchemy-manual-zh_tw"))
         }
+        copy {
+            from(file("${buildDir}/run/clientGameTest/screenshots"))
+            include("*_alchemy-cauldron-hud-*.png")
+            rename { name -> name.replaceFirst(/^\d+_/, "") }
+            into(file("test-artifacts/screenshots/alchemy-cauldron-hud"))
+        }
     }
 }
 

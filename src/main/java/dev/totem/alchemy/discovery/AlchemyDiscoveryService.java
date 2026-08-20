@@ -51,10 +51,10 @@ public final class AlchemyDiscoveryService {
             List<ItemStack> inputs,
             List<ItemStack> outputs
     ) {
-        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, -1, null, null);
+        recordSuccessfulBrewResults(level, pos, ingredient, inputs, outputs, -1, List.of(), null);
     }
 
-    /** One successful batch contributes one outcome observation and one material processing-time sample. */
+    /** One successful batch contributes each observed outcome plus one material and processing-time sample. */
     public static void recordSuccessfulBrew(
             ServerLevel level,
             BlockPos pos,
@@ -63,7 +63,7 @@ public final class AlchemyDiscoveryService {
             List<ItemStack> outputs,
             int processingTicks
     ) {
-        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, processingTicks, null, null);
+        recordSuccessfulBrewResults(level, pos, ingredient, inputs, outputs, processingTicks, List.of(), null);
     }
 
     /**
@@ -79,7 +79,8 @@ public final class AlchemyDiscoveryService {
             int processingTicks,
             Holder<Potion> explicitResult
     ) {
-        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, processingTicks, explicitResult, null);
+        recordSuccessfulBrewResults(level, pos, ingredient, inputs, outputs, processingTicks,
+                explicitResult == null ? List.of() : List.of(explicitResult), null);
     }
 
     /**
@@ -97,6 +98,35 @@ public final class AlchemyDiscoveryService {
             Holder<Potion> explicitResult,
             UUID researcherId
     ) {
+        recordSuccessfulBrewResults(level, pos, ingredient, inputs, outputs, processingTicks,
+                explicitResult == null ? List.of() : List.of(explicitResult), researcherId);
+    }
+
+    /** Records every independently selected result while counting the successful material batch only once. */
+    public static void recordSuccessfulBrewOutcomes(
+            ServerLevel level,
+            BlockPos pos,
+            ItemStack ingredient,
+            List<ItemStack> inputs,
+            List<ItemStack> outputs,
+            int processingTicks,
+            List<Holder<Potion>> explicitResults,
+            UUID researcherId
+    ) {
+        recordSuccessfulBrewResults(level, pos, ingredient, inputs, outputs, processingTicks,
+                explicitResults == null ? List.of() : explicitResults, researcherId);
+    }
+
+    private static void recordSuccessfulBrewResults(
+            ServerLevel level,
+            BlockPos pos,
+            ItemStack ingredient,
+            List<ItemStack> inputs,
+            List<ItemStack> outputs,
+            int processingTicks,
+            List<Holder<Potion>> explicitResults,
+            UUID researcherId
+    ) {
         UUID subjectId = researcherId;
         ServerPlayer livePlayer = subjectId == null
                 ? nearestPlayer(level, pos)
@@ -109,9 +139,7 @@ public final class AlchemyDiscoveryService {
         }
 
         Set<Holder<Potion>> results = new LinkedHashSet<>();
-        if (explicitResult != null) {
-            results.add(explicitResult);
-        }
+        results.addAll(explicitResults);
         int slotCount = Math.min(inputs.size(), outputs.size());
         for (int index = 0; index < slotCount; index++) {
             ItemStack input = inputs.get(index);
@@ -127,6 +155,7 @@ public final class AlchemyDiscoveryService {
 
         AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(level.getServer());
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
+        data.recordMaterialSample(subjectId, ingredientId);
         if (processingTicks > 0) {
             data.recordProcessingTime(subjectId, ingredientId, processingTicks);
         }
@@ -187,34 +216,50 @@ public final class AlchemyDiscoveryService {
     public static boolean record(ServerPlayer player, ItemStack ingredient, Holder<Potion> result) {
         String key = AlchemyDiscoveryKey.of(ingredient.getItem(), result);
         AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
-        if (!data.record(player.getUUID(), key)) {
+        boolean researchChanged = data.ensureResearchSample(player.getUUID(), key);
+        String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
+        boolean materialChanged = data.ensureMaterialSample(player.getUUID(), ingredientId);
+        boolean discoveryChanged = data.record(player.getUUID(), key);
+        if (!researchChanged && !materialChanged && !discoveryChanged) {
             return false;
         }
         send(player);
-        ItemStack resultStack = PotionContents.createItemStack(net.minecraft.world.item.Items.POTION, result);
-        player.sendOverlayMessage(Component.translatable(
-                "message.deadrecall.alchemy.discovery_recorded", resultStack.getHoverName()));
-        return true;
+        if (discoveryChanged) {
+            ItemStack resultStack = PotionContents.createItemStack(net.minecraft.world.item.Items.POTION, result);
+            player.sendOverlayMessage(Component.translatable(
+                    "message.deadrecall.alchemy.discovery_recorded", resultStack.getHoverName()));
+        }
+        return discoveryChanged;
     }
 
     public static void send(ServerPlayer player) {
         AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
+        // Apply statistics before reveal state so an open manual cannot show a newly revealed result with stale data.
+        if (ServerPlayNetworking.canSend(player, AlchemyResearchPayload.TYPE)) {
+            ServerPlayNetworking.send(player, new AlchemyResearchPayload(buildResearchSnapshot(player, data)));
+        }
         if (ServerPlayNetworking.canSend(player, AlchemyDiscoveriesPayload.TYPE)) {
             ServerPlayNetworking.send(player, new AlchemyDiscoveriesPayload(
                     data.discoveries(player.getUUID()).stream().sorted().toList()));
         }
-        if (ServerPlayNetworking.canSend(player, AlchemyResearchPayload.TYPE)) {
-            ServerPlayNetworking.send(player, new AlchemyResearchPayload(buildResearchSnapshot(player, data)));
-        }
     }
 
     /**
-     * Outcome entries contain only sample count + derived labels. Timing entries contain only the player's
-     * observed average. Hidden true outcome probabilities never cross the network boundary.
+     * Ingredient entries contain successful sample totals, outcome entries add derived labels, and timing entries
+     * contain only a server-derived visible range plus accuracy. Exact low-confidence averages and hidden true
+     * probabilities never cross the network boundary.
      */
     private static List<String> buildResearchSnapshot(ServerPlayer player, AlchemyDiscoverySavedData data) {
         List<String> snapshot = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : data.research(player.getUUID()).entrySet()) {
+        Map<String, Integer> research = data.research(player.getUUID());
+        Map<String, Integer> samplesByIngredient = data.materialSamples(player.getUUID());
+        samplesByIngredient.forEach((ingredientId, samples) -> {
+            if (samples > 0) {
+                snapshot.add("S|" + ingredientId + "|" + samples);
+            }
+        });
+
+        for (Map.Entry<String, Integer> entry : research.entrySet()) {
             String key = entry.getKey();
             int split = key.indexOf('>');
             if (split <= 0 || split >= key.length() - 1) {
@@ -222,7 +267,7 @@ public final class AlchemyDiscoveryService {
             }
             String ingredientId = key.substring(0, split);
             String potionId = key.substring(split + 1);
-            int samples = data.researchTotal(player.getUUID(), ingredientId);
+            int samples = samplesByIngredient.getOrDefault(ingredientId, 0);
             if (samples <= 0) {
                 continue;
             }
@@ -239,9 +284,9 @@ public final class AlchemyDiscoveryService {
         for (Map.Entry<String, AlchemyDiscoverySavedData.ProcessingTimeStats> entry
                 : data.processingTimes(player.getUUID()).entrySet()) {
             AlchemyDiscoverySavedData.ProcessingTimeStats timing = entry.getValue();
-            if (timing.samples() > 0 && timing.averageTicks() > 0) {
-                snapshot.add("T|" + entry.getKey() + "|" + timing.samples() + "|" + timing.averageTicks());
-            }
+            AlchemyProcessingTimeEstimate.fromObservations(timing.samples(), timing.averageTicks())
+                    .map(estimate -> estimate.encodeSnapshotEntry(entry.getKey()))
+                    .ifPresent(snapshot::add);
         }
 
         snapshot.sort(String::compareTo);

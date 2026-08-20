@@ -6,7 +6,10 @@ import dev.totem.alchemy.alchemy.AlchemyHandler;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureColor;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -37,6 +40,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     private AlchemyMixtureState mixture = AlchemyMixtureState.empty();
     private int lastSyncedColor = -1;
     private int lastSyncedVolume = -1;
+    private AlchemyMixtureTiming.State lastSyncedTimingState;
     private long lastVisualSyncTick = Long.MIN_VALUE;
 
     public AlchemyCauldronBlockEntity(BlockPos pos, BlockState state) {
@@ -323,6 +327,11 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return saveCustomOnly(registries);
+    }
+
+    @Override
     public void setChanged() {
         super.setChanged();
         if (level == null || level.isClientSide()) {
@@ -330,15 +339,18 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         }
         int color = mixtureColorRgb();
         int volume = hasMixture() ? mixture.volumeUnits() : 0;
+        AlchemyMixtureTiming.State timingState = AlchemyMixtureTiming.classify(mixture);
         long gameTime = level.getGameTime();
         boolean volumeChanged = volume != lastSyncedVolume;
         boolean colorChanged = color != lastSyncedColor;
+        boolean timingChanged = timingState != lastSyncedTimingState;
         boolean intervalElapsed = lastVisualSyncTick == Long.MIN_VALUE || gameTime - lastVisualSyncTick >= 10L;
-        if (volumeChanged || (colorChanged && intervalElapsed)) {
+        if (volumeChanged || timingChanged || (colorChanged && intervalElapsed)) {
             BlockState state = getBlockState();
             level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_ALL);
             lastSyncedColor = color;
             lastSyncedVolume = volume;
+            lastSyncedTimingState = timingState;
             lastVisualSyncTick = gameTime;
         }
     }

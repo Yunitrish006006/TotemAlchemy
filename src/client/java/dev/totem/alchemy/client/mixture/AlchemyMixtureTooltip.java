@@ -2,6 +2,7 @@ package dev.totem.alchemy.client.mixture;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -38,14 +39,16 @@ public final class AlchemyMixtureTooltip {
                     state.stability()
             ).withStyle(ChatFormatting.DARK_GRAY));
 
+            AlchemyMixtureTiming.State timing = AlchemyMixtureTiming.classify(state);
+            lines.add(Component.translatable(
+                    "tooltip.deadrecall.alchemy.mixture.timing_state",
+                    Component.translatable(timing.translationKey())
+            ).withStyle(timingColor(timing)));
+
             for (AlchemyMixtureState.Reaction reaction : state.reactions()) {
-                int seconds = (int) Math.ceil(reaction.remainingTicks() / 20.0D);
-                int percent = (int) Math.round(reaction.progress() * 100.0D);
                 lines.add(Component.translatable(
-                        "tooltip.deadrecall.alchemy.mixture.reaction",
-                        ingredientName(reaction.ingredientId()),
-                        percent,
-                        seconds
+                        "tooltip.deadrecall.alchemy.mixture.reacting_ingredient",
+                        ingredientName(reaction.ingredientId())
                 ).withStyle(ChatFormatting.YELLOW));
             }
 
@@ -65,5 +68,16 @@ public final class AlchemyMixtureTooltip {
         }
         Item item = BuiltInRegistries.ITEM.getValue(identifier);
         return item == null ? Component.literal(id) : new ItemStack(item).getHoverName();
+    }
+
+    static ChatFormatting timingColor(AlchemyMixtureTiming.State timing) {
+        return switch (timing) {
+            case JUST_STARTED, WORKING -> ChatFormatting.GRAY;
+            case ALMOST_READY, NEARLY_READY -> ChatFormatting.GOLD;
+            case JUST_RIGHT, PERFECT -> ChatFormatting.GREEN;
+            case SLIGHTLY_OVERDONE -> ChatFormatting.YELLOW;
+            case OVERDONE, BADLY_OVERDONE -> ChatFormatting.RED;
+            case EMPTY -> ChatFormatting.DARK_GRAY;
+        };
     }
 }

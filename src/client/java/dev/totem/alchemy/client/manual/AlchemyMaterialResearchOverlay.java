@@ -50,26 +50,38 @@ public final class AlchemyMaterialResearchOverlay {
         int top = context.pageTop() + 24;
         ItemStack ingredientStack = new ItemStack(ingredient);
         stack(context, ingredientStack, 18, top);
-        context.graphics().text(context.font(), ingredientStack.getHoverName(),
-                context.pageLeft() + 40, top + 4, INK, false);
 
         int samples = AlchemyResearchClientCache.samples(ingredient);
         context.graphics().text(context.font(), Component.translatable(
                         "book.totem_alchemy.research.samples", samples),
                 context.pageLeft() + 18, top + 24, MUTED, false);
 
-        int processingTicks = AlchemyResearchClientCache.processingTicks(ingredient);
-        Component processingTime = processingTicks > 0
-                ? Component.translatable(
-                        "book.totem_alchemy.research.processing_time",
-                        String.format(Locale.ROOT, "%.1f", processingTicks / 20.0D))
-                : Component.translatable("book.totem_alchemy.research.processing_time_unknown");
-        context.graphics().text(context.font(), processingTime,
-                context.pageLeft() + 18, top + 36, MUTED, false);
+        var timeEstimate = AlchemyResearchClientCache.timeEstimate(ingredient);
+        if (timeEstimate.isPresent()) {
+            var estimate = timeEstimate.orElseThrow();
+            Component processingTime = estimate.exact()
+                    ? Component.translatable(
+                            "book.totem_alchemy.research.processing_time_exact",
+                            formatTenths(estimate.lowerTenths()))
+                    : Component.translatable(
+                            "book.totem_alchemy.research.processing_time_range",
+                            formatTenths(estimate.lowerTenths()),
+                            formatTenths(estimate.upperTenths()));
+            context.graphics().text(context.font(), processingTime,
+                    context.pageLeft() + 18, top + 36, MUTED, false);
+            context.graphics().text(context.font(), Component.translatable(
+                            "book.totem_alchemy.research.processing_time_accuracy",
+                            estimate.accuracyPercent()),
+                    context.pageLeft() + 18, top + 48, MUTED, false);
+        } else {
+            context.graphics().text(context.font(), Component.translatable(
+                            "book.totem_alchemy.research.processing_time_unknown"),
+                    context.pageLeft() + 18, top + 36, MUTED, false);
+        }
 
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
         List<MultiOutcomeBrewing.Outcome> outcomes = MultiOutcomeBrewing.outcomesFor(ingredientStack, awkward);
-        int y = top + 60;
+        int y = top + 62;
         if (outcomes.isEmpty()) {
             String noteKey = MATERIAL_NOTES.get(ingredient);
             if (noteKey != null) {
@@ -100,7 +112,7 @@ public final class AlchemyMaterialResearchOverlay {
                                 "book.totem_alchemy.research.unknown_effect"),
                         context.pageLeft() + 43, y + 5, WARN, false);
             }
-            y += 38;
+            y += 25;
         }
     }
 
@@ -111,6 +123,12 @@ public final class AlchemyMaterialResearchOverlay {
                 && context.mouseY() >= y && context.mouseY() < y + 16) {
             context.graphics().setTooltipForNextFrame(context.font(), stack, context.mouseX(), context.mouseY());
         }
+    }
+
+    private static String formatTenths(int tenths) {
+        return tenths % 10 == 0
+                ? Integer.toString(tenths / 10)
+                : String.format(Locale.ROOT, "%.1f", tenths / 10.0D);
     }
 
     private static Map<String, Item> createMaterialPages() {

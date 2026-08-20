@@ -1,5 +1,6 @@
 package dev.totem.alchemy.alchemy;
 
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -13,8 +14,9 @@ import net.minecraft.world.item.alchemy.Potions;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.DoubleSupplier;
 
-/** Selects one shared weighted result for every compatible bottle in a brewing-stand batch. */
+/** Selects one shared independently rolled result set for every compatible bottle in a brewing-stand batch. */
 public final class MultiOutcomeBrewing {
     private static final ThreadLocal<BatchOutcome> ACTIVE_BATCH = new ThreadLocal<>();
     private static final Map<Item, OutcomePool> AWKWARD_POOLS = Map.ofEntries(
@@ -112,10 +114,22 @@ public final class MultiOutcomeBrewing {
     public static void beginBatch(RandomSource random, ItemStack ingredient, Iterable<ItemStack> inputs) {
         clearBatch();
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
-        if (pool == null || !containsPotionContainer(inputs)) {
+        if (pool == null || !canRollOutcomes(ingredient, inputs)) {
             return;
         }
-        ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.choose(ingredient.getItem(), random.nextFloat())));
+        ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.rollAll(ingredient.getItem(), random::nextFloat)));
+    }
+
+    /** Deterministic batch setup used by validation and scripted chemistry. */
+    public static void beginBatch(ItemStack ingredient, Iterable<ItemStack> inputs, float... rolls) {
+        clearBatch();
+        if (!canRollOutcomes(ingredient, inputs)) {
+            return;
+        }
+        List<Outcome> outcomes = chooseOutcomes(ingredient, rolls);
+        if (!outcomes.isEmpty()) {
+            ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), outcomes));
+        }
     }
 
     public static void clearBatch() {
@@ -124,7 +138,13 @@ public final class MultiOutcomeBrewing {
 
     public static Outcome activeOutcome() {
         BatchOutcome batch = ACTIVE_BATCH.get();
-        return batch == null ? null : batch.outcome();
+        return batch == null || batch.outcomes().isEmpty() ? null : batch.outcomes().getFirst();
+    }
+
+    /** The immutable effect set selected once for the active Brewing Stand batch. */
+    public static List<Outcome> activeOutcomes() {
+        BatchOutcome batch = ACTIVE_BATCH.get();
+        return batch == null ? List.of() : batch.outcomes();
     }
 
     public static ItemStack applyBatchOutcome(ItemStack ingredient, ItemStack input, ItemStack vanillaOutput) {
@@ -133,7 +153,7 @@ public final class MultiOutcomeBrewing {
             return vanillaOutput;
         }
         Item outputItem = isPotionContainer(vanillaOutput) ? vanillaOutput.getItem() : input.getItem();
-        return PotionContents.createItemStack(outputItem, batch.outcome().potion());
+        return PotionContents.createItemStack(outputItem, batch.outcomes().getFirst().potion());
     }
 
     public static Outcome chooseOutcome(ItemStack ingredient, ItemStack input, float roll) {
@@ -146,6 +166,37 @@ public final class MultiOutcomeBrewing {
     public static Outcome chooseOutcome(ItemStack ingredient, float roll) {
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
         return pool == null ? null : pool.choose(ingredient.getItem(), roll);
+    }
+
+    /**
+     * Independently rolls every configured effect. The first {@code outcomeCount} values are the Bernoulli
+     * rolls in configured order; when all miss, the following value selects the guaranteed weighted fallback.
+     */
+    public static List<Outcome> chooseOutcomes(ItemStack ingredient, ItemStack input, float... rolls) {
+        if (!isPotionContainer(input)) {
+            return List.of();
+        }
+        return chooseOutcomes(ingredient, rolls);
+    }
+
+    /** Deterministic overload used by validation and other non-Brewing-Stand chemistry paths. */
+    public static List<Outcome> chooseOutcomes(ItemStack ingredient, float... rolls) {
+        OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
+        if (pool == null) {
+            return List.of();
+        }
+        int required = pool.outcomes().size() + 1;
+        if (rolls == null || rolls.length < required) {
+            throw new IllegalArgumentException("Independent outcome selection requires " + required + " rolls");
+        }
+        int[] cursor = {0};
+        return pool.rollAll(ingredient.getItem(), () -> rolls[cursor[0]++]);
+    }
+
+    /** Independently rolls every configured outcome using the supplied random source. */
+    public static List<Outcome> chooseOutcomes(ItemStack ingredient, RandomSource random) {
+        OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
+        return pool == null ? List.of() : pool.rollAll(ingredient.getItem(), random::nextFloat);
     }
 
     public static boolean isOutcomeIngredient(ItemStack ingredient) {
@@ -182,13 +233,19 @@ public final class MultiOutcomeBrewing {
         return -1.0D;
     }
 
-    private static boolean containsPotionContainer(Iterable<ItemStack> inputs) {
+    private static boolean canRollOutcomes(ItemStack ingredient, Iterable<ItemStack> inputs) {
+        boolean foundPotion = false;
+        boolean foundActivatedBase = false;
         for (ItemStack input : inputs) {
-            if (isPotionContainer(input)) {
-                return true;
+            if (!isPotionContainer(input)) {
+                continue;
+            }
+            foundPotion = true;
+            if (AlchemyMixtureBottle.fromPotion(input).baseActivated()) {
+                foundActivatedBase = true;
             }
         }
-        return false;
+        return foundPotion && (!BrewingMaterialSettings.isStarter(ingredient.getItem()) || foundActivatedBase);
     }
 
     private static boolean isPotionContainer(ItemStack stack) {
@@ -199,11 +256,30 @@ public final class MultiOutcomeBrewing {
     }
 
     private record OutcomePool(List<Outcome> outcomes) {
+        private List<Outcome> rollAll(Item ingredient, DoubleSupplier rolls) {
+            double total = totalWeight(ingredient);
+            if (total <= 0.0D) {
+                return List.of(outcomes.getFirst());
+            }
+            List<Outcome> selected = new java.util.ArrayList<>();
+            for (Outcome outcome : outcomes) {
+                double probability = BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D) / total;
+                if (normalizedRoll(rolls.getAsDouble()) < probability) {
+                    selected.add(outcome);
+                }
+            }
+            if (selected.isEmpty()) {
+                selected.add(choose(ingredient, (float) normalizedRoll(rolls.getAsDouble())));
+            }
+            return List.copyOf(selected);
+        }
+
         private Outcome choose(Item ingredient, float roll) {
-            double total = outcomes.stream()
-                    .mapToDouble(outcome -> BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D))
-                    .sum();
-            double target = Math.max(0.0D, Math.min(Math.nextDown(1.0D), roll)) * total;
+            double total = totalWeight(ingredient);
+            if (total <= 0.0D) {
+                return outcomes.getFirst();
+            }
+            double target = normalizedRoll(roll) * total;
             double cumulative = 0.0D;
             for (Outcome outcome : outcomes) {
                 cumulative += BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D);
@@ -215,21 +291,41 @@ public final class MultiOutcomeBrewing {
         }
 
         private double probability(Item ingredient, String potionId) {
-            double total = outcomes.stream()
-                    .mapToDouble(outcome -> BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D))
-                    .sum();
+            double total = totalWeight(ingredient);
             if (total <= 0.0D) {
                 return -1.0D;
             }
+            double allMissProbability = 1.0D;
+            for (Outcome outcome : outcomes) {
+                double share = BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D) / total;
+                allMissProbability *= 1.0D - share;
+            }
             for (Outcome outcome : outcomes) {
                 if (BuiltInRegistries.POTION.getKey(outcome.potion().value()).toString().equals(potionId)) {
-                    return BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D) / total;
+                    double share = BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D) / total;
+                    return Math.min(1.0D, share + allMissProbability * share);
                 }
             }
             return -1.0D;
         }
+
+        private double totalWeight(Item ingredient) {
+            return outcomes.stream()
+                    .mapToDouble(outcome -> BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D))
+                    .sum();
+        }
+
+        private static double normalizedRoll(double roll) {
+            if (!Double.isFinite(roll)) {
+                return 0.0D;
+            }
+            return Math.max(0.0D, Math.min(Math.nextDown(1.0D), roll));
+        }
     }
 
-    private record BatchOutcome(Item ingredient, Outcome outcome) {
+    private record BatchOutcome(Item ingredient, List<Outcome> outcomes) {
+        private BatchOutcome {
+            outcomes = List.copyOf(outcomes);
+        }
     }
 }

@@ -1,7 +1,9 @@
 {
   "book.totem_alchemy.research.samples": "Research samples: %s",
-  "book.totem_alchemy.research.processing_time": "Observed processing time: ~%s s",
-  "book.totem_alchemy.research.processing_time_unknown": "Observed processing time: unrecorded",
+  "book.totem_alchemy.research.processing_time_range": "Time estimate: %s–%s s",
+  "book.totem_alchemy.research.processing_time_exact": "Time estimate: ~%s s",
+  "book.totem_alchemy.research.processing_time_accuracy": "Time accuracy: %s%%",
+  "book.totem_alchemy.research.processing_time_unknown": "Time estimate: unrecorded",
   "book.totem_alchemy.research.unknown_effect": "Unknown effect",
   "book.totem_alchemy.research.tier.novice": "Novice",
   "book.totem_alchemy.research.tier.beginner": "Beginner",
