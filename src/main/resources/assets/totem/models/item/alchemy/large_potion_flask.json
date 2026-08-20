@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/ominous_bottle"
+    "layer0": "totem:item/alchemy/large_potion_flask"
   }
 }
