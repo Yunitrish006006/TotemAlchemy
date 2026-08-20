@@ -50,7 +50,7 @@ public final class AlchemyDiscoveryService {
             List<ItemStack> inputs,
             List<ItemStack> outputs
     ) {
-        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, -1);
+        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, -1, null);
     }
 
     /** One successful batch contributes one outcome observation and one material processing-time sample. */
@@ -62,11 +62,30 @@ public final class AlchemyDiscoveryService {
             List<ItemStack> outputs,
             int processingTicks
     ) {
+        recordSuccessfulBrew(level, pos, ingredient, inputs, outputs, processingTicks, null);
+    }
+
+    /**
+     * Records a completed batch. {@code explicitResult} is used for layered custom mixtures whose
+     * PotionContents intentionally has no canonical potion holder after multiple effects are combined.
+     */
+    public static void recordSuccessfulBrew(
+            ServerLevel level,
+            BlockPos pos,
+            ItemStack ingredient,
+            List<ItemStack> inputs,
+            List<ItemStack> outputs,
+            int processingTicks,
+            Holder<Potion> explicitResult
+    ) {
         ServerPlayer player = nearestPlayer(level, pos);
         if (player == null) {
             return;
         }
         Set<Holder<Potion>> results = new LinkedHashSet<>();
+        if (explicitResult != null) {
+            results.add(explicitResult);
+        }
         int slotCount = Math.min(inputs.size(), outputs.size());
         for (int index = 0; index < slotCount; index++) {
             ItemStack input = inputs.get(index);
