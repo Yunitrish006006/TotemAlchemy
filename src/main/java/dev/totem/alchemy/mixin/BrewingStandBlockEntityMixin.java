@@ -8,6 +8,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
@@ -23,21 +24,24 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.WeakHashMap;
 
 @Mixin(BrewingStandBlockEntity.class)
 public abstract class BrewingStandBlockEntityMixin {
     private static final int INGREDIENT_SLOT = 3;
+    private static final double ATTRIBUTION_DISTANCE_SQUARED = 64.0D;
     private static final ThreadLocal<SuccessfulBrewContext> SUCCESSFUL_BREW = new ThreadLocal<>();
     private static final Map<Level, Map<Long, ProcessingTimer>> PROCESSING_TIMERS =
             Collections.synchronizedMap(new WeakHashMap<>());
 
     /**
-     * Counts only ticks while the stand is actively brewing. Chunk unload time therefore does not inflate
-     * the observed processing duration recorded in the player's research journal.
+     * Counts only ticks while the stand is actively brewing and captures the nearby researcher when the
+     * cycle begins. Moving away before completion therefore no longer drops the player's journal update.
      */
     @Inject(method = "serverTick", at = @At("TAIL"))
     private static void totemAlchemy$trackProcessingTime(
@@ -55,9 +59,13 @@ public abstract class BrewingStandBlockEntityMixin {
                 Item ingredient = entity.getItem(INGREDIENT_SLOT).getItem();
                 ProcessingTimer timer = timers.get(key);
                 if (timer == null || timer.ingredient() != ingredient) {
-                    timers.put(key, new ProcessingTimer(ingredient, 0));
+                    timers.put(key, new ProcessingTimer(ingredient, 0, nearestResearcher(level, pos)));
                 } else {
-                    timers.put(key, new ProcessingTimer(ingredient, timer.elapsedTicks() + 1));
+                    timers.put(key, new ProcessingTimer(
+                            ingredient,
+                            timer.elapsedTicks() + 1,
+                            timer.researcherId()
+                    ));
                 }
             } else {
                 timers.remove(key);
@@ -80,7 +88,9 @@ public abstract class BrewingStandBlockEntityMixin {
 
         ItemStack ingredient = slots.get(INGREDIENT_SLOT);
         List<ItemStack> potionInputs = slots.subList(0, INGREDIENT_SLOT);
-        int processingTicks = currentProcessingTicks(level, pos, ingredient);
+        ProcessingTimer processing = currentProcessing(level, pos, ingredient);
+        int processingTicks = processing == null ? -1 : processing.elapsedTicks() + 1;
+        UUID researcherId = processing == null ? null : processing.researcherId();
         double successChance = VanillaBrewingChance.chanceFor(ingredient, potionInputs);
         int chancePercent = (int) Math.round(successChance * 100.0D);
         if (VanillaBrewingChance.isSuccessful(ingredient, potionInputs, level.getRandom().nextFloat())) {
@@ -90,13 +100,15 @@ public abstract class BrewingStandBlockEntityMixin {
                     potionInputs.stream().map(ItemStack::copy).toList(),
                     chancePercent,
                     processingTicks,
-                    MultiOutcomeBrewing.activeOutcome()
+                    MultiOutcomeBrewing.activeOutcome(),
+                    researcherId
             ));
             return;
         }
 
         if (level instanceof ServerLevel serverLevel) {
-            AlchemyDiscoveryService.recordProcessingAttempt(serverLevel, pos, ingredient, processingTicks);
+            AlchemyDiscoveryService.recordProcessingAttempt(
+                    serverLevel, pos, ingredient, processingTicks, researcherId);
         }
         consumeIngredient(level, pos, slots);
         level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 1.0F, 0.8F);
@@ -137,7 +149,8 @@ public abstract class BrewingStandBlockEntityMixin {
                         context.inputs(),
                         slots.subList(0, INGREDIENT_SLOT).stream().map(ItemStack::copy).toList(),
                         context.processingTicks(),
-                        context.outcome() == null ? null : context.outcome().potion()
+                        context.outcome() == null ? null : context.outcome().potion(),
+                        context.researcherId()
                 );
             }
             if (context.outcome() == null) {
@@ -162,19 +175,28 @@ public abstract class BrewingStandBlockEntityMixin {
         }
     }
 
-    private static int currentProcessingTicks(Level level, BlockPos pos, ItemStack ingredient) {
+    private static ProcessingTimer currentProcessing(Level level, BlockPos pos, ItemStack ingredient) {
         synchronized (PROCESSING_TIMERS) {
             Map<Long, ProcessingTimer> timers = PROCESSING_TIMERS.get(level);
             if (timers == null) {
-                return -1;
+                return null;
             }
             ProcessingTimer timer = timers.get(pos.asLong());
-            if (timer == null || timer.ingredient() != ingredient.getItem()) {
-                return -1;
-            }
-            // The completion tick invokes doBrew before serverTick reaches TAIL, so include that final active tick here.
-            return timer.elapsedTicks() + 1;
+            return timer == null || timer.ingredient() != ingredient.getItem() ? null : timer;
         }
+    }
+
+    private static UUID nearestResearcher(Level level, BlockPos pos) {
+        double x = pos.getX() + 0.5D;
+        double y = pos.getY() + 0.5D;
+        double z = pos.getZ() + 0.5D;
+        return level.players().stream()
+                .filter(ServerPlayer.class::isInstance).map(ServerPlayer.class::cast)
+                .filter(player -> !player.isSpectator())
+                .filter(player -> player.distanceToSqr(x, y, z) <= ATTRIBUTION_DISTANCE_SQUARED)
+                .min(Comparator.comparingDouble(player -> player.distanceToSqr(x, y, z)))
+                .map(ServerPlayer::getUUID)
+                .orElse(null);
     }
 
     private static void consumeIngredient(Level level, BlockPos pos, NonNullList<ItemStack> slots) {
@@ -213,7 +235,7 @@ public abstract class BrewingStandBlockEntityMixin {
         }
     }
 
-    private record ProcessingTimer(Item ingredient, int elapsedTicks) {
+    private record ProcessingTimer(Item ingredient, int elapsedTicks, UUID researcherId) {
     }
 
     private record SuccessfulBrewContext(
@@ -221,7 +243,8 @@ public abstract class BrewingStandBlockEntityMixin {
             List<ItemStack> inputs,
             int chancePercent,
             int processingTicks,
-            MultiOutcomeBrewing.Outcome outcome
+            MultiOutcomeBrewing.Outcome outcome,
+            UUID researcherId
     ) {
         private SuccessfulBrewContext {
             ingredient = ingredient.copy();
