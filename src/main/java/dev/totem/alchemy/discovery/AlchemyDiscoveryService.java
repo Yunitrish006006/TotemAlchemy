@@ -98,6 +98,26 @@ public final class AlchemyDiscoveryService {
         send(player);
     }
 
+    /** A failed completed brew still teaches the player how long this material takes to process. */
+    public static void recordProcessingAttempt(
+            ServerLevel level,
+            BlockPos pos,
+            ItemStack ingredient,
+            int processingTicks
+    ) {
+        if (processingTicks <= 0) {
+            return;
+        }
+        ServerPlayer player = nearestPlayer(level, pos);
+        if (player == null) {
+            return;
+        }
+        String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
+        AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
+        data.recordProcessingTime(player.getUUID(), ingredientId, processingTicks);
+        send(player);
+    }
+
     public static boolean record(ServerPlayer player, ItemStack ingredient, Holder<Potion> result) {
         String key = AlchemyDiscoveryKey.of(ingredient.getItem(), result);
         AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());

@@ -95,6 +95,9 @@ public abstract class BrewingStandBlockEntityMixin {
             return;
         }
 
+        if (level instanceof ServerLevel serverLevel) {
+            AlchemyDiscoveryService.recordProcessingAttempt(serverLevel, pos, ingredient, processingTicks);
+        }
         consumeIngredient(level, pos, slots);
         level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 1.0F, 0.8F);
         notifyNearbyPlayers(level, pos, "message.deadrecall.alchemy.vanilla_brew_failure", chancePercent);
