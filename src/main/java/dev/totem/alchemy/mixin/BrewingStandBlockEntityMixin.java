@@ -136,7 +136,8 @@ public abstract class BrewingStandBlockEntityMixin {
                         context.ingredient(),
                         context.inputs(),
                         slots.subList(0, INGREDIENT_SLOT).stream().map(ItemStack::copy).toList(),
-                        context.processingTicks()
+                        context.processingTicks(),
+                        context.outcome() == null ? null : context.outcome().potion()
                 );
             }
             if (context.outcome() == null) {
