@@ -141,4 +141,40 @@ public final class AlchemyManualGameTest {
             player.discard();
         }
     }
+
+    @GameTest(maxTicks = 20)
+    public void sugarSwiftnessRecordsForCapturedResearcherEvenOutsideCompletionRadius(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        try {
+            ItemStack ingredient = new ItemStack(Items.SUGAR);
+            ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+            ItemStack swiftness = PotionContents.createItemStack(Items.POTION, Potions.SWIFTNESS);
+            var farCompletionPos = player.blockPosition().offset(32, 0, 0);
+
+            AlchemyDiscoveryService.recordSuccessfulBrew(
+                    player.level(),
+                    farCompletionPos,
+                    ingredient,
+                    List.of(awkward),
+                    List.of(swiftness),
+                    400,
+                    Potions.SWIFTNESS,
+                    player.getUUID()
+            );
+
+            AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(player.level().getServer());
+            String swiftnessKey = AlchemyDiscoveryKey.of(Items.SUGAR, Potions.SWIFTNESS);
+            if (!data.has(player.getUUID(), swiftnessKey)) {
+                helper.fail("Captured sugar researcher lost the swiftness discovery after moving away");
+                return;
+            }
+            if (data.research(player.getUUID()).getOrDefault(swiftnessKey, 0) != 1) {
+                helper.fail("Sugar -> swiftness did not add one research sample for the captured player");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
+    }
 }
