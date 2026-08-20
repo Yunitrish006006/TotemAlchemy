@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
@@ -17,31 +18,43 @@ import net.minecraft.world.item.component.CustomData;
 
 import java.util.Map;
 
-/** Conversion between vanilla potion ItemStacks and persistent Alchemy mixture snapshots. */
+/** Conversion between potion containers and persistent Alchemy mixture snapshots. */
 public final class AlchemyMixtureBottle {
     public static final String TAG_MIXTURE_STATE = "totem_alchemy_mixture_state";
 
     private AlchemyMixtureBottle() {
     }
 
+    public static boolean isPotionContainer(ItemStack stack) {
+        return stack != null && (stack.is(Items.POTION)
+                || stack.is(Items.SPLASH_POTION)
+                || stack.is(Items.LINGERING_POTION));
+    }
+
     public static boolean isDrinkablePotion(ItemStack stack) {
-        return stack.is(Items.POTION);
+        return stack != null && stack.is(Items.POTION);
     }
 
     public static boolean hasStoredMixture(ItemStack stack) {
         return !storedStateString(stack).isBlank();
     }
 
+    public static AlchemyMixtureState storedMixture(ItemStack stack) {
+        String encoded = storedStateString(stack);
+        return encoded.isBlank() ? AlchemyMixtureState.empty() : AlchemyMixtureState.decode(encoded);
+    }
+
     public static AlchemyMixtureState fromPotion(ItemStack stack) {
-        if (!isDrinkablePotion(stack)) {
-            return AlchemyMixtureState.empty();
-        }
         if (hasStoredMixture(stack)) {
-            return AlchemyMixtureState.decode(storedStateString(stack));
+            return storedMixture(stack);
+        }
+        if (!isPotionContainer(stack)) {
+            return AlchemyMixtureState.empty();
         }
 
         PotionContents contents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
         AlchemyMixtureState state = new AlchemyMixtureState(1);
+        state.setDeliveryForm(deliveryForm(stack));
         contents.potion()
                 .flatMap(Holder::unwrapKey)
                 .ifPresent(key -> state.setCanonicalPotionId(key.identifier().toString()));
@@ -50,14 +63,23 @@ public final class AlchemyMixtureBottle {
                     .map(key -> key.identifier().toString())
                     .orElse(null);
             if (effectId != null) {
-                state.putEffect(effectId,
-                        AlchemyMixtureState.EffectDose.fromDuration(effect.getDuration(), effect.getAmplifier())
-                                .potencyTicks(),
-                        effect.getAmplifier());
+                AlchemyMixtureState.EffectDose dose =
+                        AlchemyMixtureState.EffectDose.fromDuration(effect.getDuration(), effect.getAmplifier());
+                state.putEffect(effectId, dose.potencyTicks(), effect.getAmplifier());
             }
         }
+        state.setBaseActivated(isActivatedPotion(state.canonicalPotionId(), state.effects().isEmpty()));
         state.addProvenance("potion:" + (state.canonicalPotionId() == null ? "custom" : state.canonicalPotionId()));
         return state;
+    }
+
+    private static boolean isActivatedPotion(String potionId, boolean hasNoEffects) {
+        if (potionId == null) {
+            return !hasNoEffects;
+        }
+        return !"minecraft:water".equals(potionId)
+                && !"minecraft:mundane".equals(potionId)
+                && !"minecraft:thick".equals(potionId);
     }
 
     public static ItemStack toPotion(AlchemyMixtureState state) {
@@ -66,7 +88,7 @@ public final class AlchemyMixtureBottle {
         }
         ItemStack stack = canonicalStack(state);
         if (stack.isEmpty()) {
-            stack = new ItemStack(Items.POTION);
+            stack = new ItemStack(deliveryItem(state.deliveryForm()));
             PotionContents contents = PotionContents.EMPTY;
             for (Map.Entry<String, AlchemyMixtureState.EffectDose> entry : state.effects().entrySet()) {
                 Holder<MobEffect> effect = effectHolder(entry.getKey());
@@ -80,7 +102,7 @@ public final class AlchemyMixtureBottle {
                         dose.amplifierCap()
                 ));
             }
-            if (state.stability() < 50) {
+            if (state.stability() < 50 && state.stability() > 0) {
                 int nauseaTicks = 20 * Math.max(2, (50 - state.stability()) / 5);
                 contents = contents.withEffectAdded(new MobEffectInstance(MobEffects.NAUSEA, nauseaTicks, 0));
             }
@@ -88,9 +110,7 @@ public final class AlchemyMixtureBottle {
             stack.set(DataComponents.CUSTOM_NAME, Component.translatable("item.totem.alchemy.mixture"));
         }
 
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        tag.putString(TAG_MIXTURE_STATE, state.encode());
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        writeState(stack, state);
         return stack;
     }
 
@@ -99,7 +119,20 @@ public final class AlchemyMixtureBottle {
             return;
         }
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        tag.putString(TAG_MIXTURE_STATE, state.encode());
+        if (state.isEmpty()) {
+            tag.remove(TAG_MIXTURE_STATE);
+        } else {
+            tag.putString(TAG_MIXTURE_STATE, state.encode());
+        }
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+    }
+
+    public static void clearState(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        tag.remove(TAG_MIXTURE_STATE);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
     }
 
@@ -108,7 +141,25 @@ public final class AlchemyMixtureBottle {
             return ItemStack.EMPTY;
         }
         Holder<Potion> holder = potionHolder(state.canonicalPotionId());
-        return holder == null ? ItemStack.EMPTY : PotionContents.createItemStack(Items.POTION, holder);
+        return holder == null ? ItemStack.EMPTY : PotionContents.createItemStack(deliveryItem(state.deliveryForm()), holder);
+    }
+
+    private static Item deliveryItem(AlchemyMixtureState.DeliveryForm form) {
+        return switch (form == null ? AlchemyMixtureState.DeliveryForm.DRINKABLE : form) {
+            case SPLASH -> Items.SPLASH_POTION;
+            case LINGERING -> Items.LINGERING_POTION;
+            case DRINKABLE -> Items.POTION;
+        };
+    }
+
+    private static AlchemyMixtureState.DeliveryForm deliveryForm(ItemStack stack) {
+        if (stack.is(Items.SPLASH_POTION)) {
+            return AlchemyMixtureState.DeliveryForm.SPLASH;
+        }
+        if (stack.is(Items.LINGERING_POTION)) {
+            return AlchemyMixtureState.DeliveryForm.LINGERING;
+        }
+        return AlchemyMixtureState.DeliveryForm.DRINKABLE;
     }
 
     private static String storedStateString(ItemStack stack) {

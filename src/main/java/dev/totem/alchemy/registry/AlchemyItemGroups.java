@@ -44,5 +44,6 @@ public final class AlchemyItemGroups {
         output.accept(AlchemyItems.CHERRY_BREW);
         output.accept(AlchemyItems.STONE_BOWL);
         output.accept(AlchemyItems.SULFUR_BOWL);
+        output.accept(AlchemyItems.LARGE_POTION_FLASK);
     }
 }

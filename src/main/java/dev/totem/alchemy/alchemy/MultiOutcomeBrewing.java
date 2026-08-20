@@ -2,6 +2,7 @@ package dev.totem.alchemy.alchemy;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -13,7 +14,7 @@ import net.minecraft.world.item.alchemy.Potions;
 import java.util.List;
 import java.util.Map;
 
-/** Selects one shared result for every compatible bottle in a brewing-stand batch. */
+/** Selects one shared weighted result for every compatible bottle in a brewing-stand batch. */
 public final class MultiOutcomeBrewing {
     private static final ThreadLocal<BatchOutcome> ACTIVE_BATCH = new ThreadLocal<>();
     private static final Map<Item, OutcomePool> AWKWARD_POOLS = Map.ofEntries(
@@ -104,16 +105,17 @@ public final class MultiOutcomeBrewing {
     private MultiOutcomeBrewing() {
     }
 
+    /**
+     * A configured outcome material may be layered onto any potion-bearing batch. Base validity is handled
+     * by the mixture stability system rather than by refusing the recipe at this stage.
+     */
     public static void beginBatch(RandomSource random, ItemStack ingredient, Iterable<ItemStack> inputs) {
         clearBatch();
-        if (!containsPotion(inputs, Potions.AWKWARD)) {
-            return;
-        }
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
-        if (pool == null) {
+        if (pool == null || !containsPotionContainer(inputs)) {
             return;
         }
-        ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.choose(random.nextFloat())));
+        ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.choose(ingredient.getItem(), random.nextFloat())));
     }
 
     public static void clearBatch() {
@@ -127,60 +129,104 @@ public final class MultiOutcomeBrewing {
 
     public static ItemStack applyBatchOutcome(ItemStack ingredient, ItemStack input, ItemStack vanillaOutput) {
         BatchOutcome batch = ACTIVE_BATCH.get();
-        if (batch == null
-                || ingredient.getItem() != batch.ingredient()
-                || !hasPotion(input, Potions.AWKWARD)) {
+        if (batch == null || ingredient.getItem() != batch.ingredient() || !isPotionContainer(input)) {
             return vanillaOutput;
         }
-        return PotionContents.createItemStack(vanillaOutput.getItem(), batch.outcome().potion());
+        Item outputItem = isPotionContainer(vanillaOutput) ? vanillaOutput.getItem() : input.getItem();
+        return PotionContents.createItemStack(outputItem, batch.outcome().potion());
     }
 
     public static Outcome chooseOutcome(ItemStack ingredient, ItemStack input, float roll) {
-        if (!hasPotion(input, Potions.AWKWARD)) {
+        if (!isPotionContainer(input)) {
             return null;
         }
+        return chooseOutcome(ingredient, roll);
+    }
+
+    public static Outcome chooseOutcome(ItemStack ingredient, float roll) {
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
-        return pool == null ? null : pool.choose(roll);
+        return pool == null ? null : pool.choose(ingredient.getItem(), roll);
+    }
+
+    public static boolean isOutcomeIngredient(ItemStack ingredient) {
+        return ingredient != null && !ingredient.isEmpty() && AWKWARD_POOLS.containsKey(ingredient.getItem());
     }
 
     public static int outcomeCount(ItemStack ingredient, ItemStack input) {
-        if (!hasPotion(input, Potions.AWKWARD)) {
+        if (!isPotionContainer(input)) {
             return 0;
         }
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
         return pool == null ? 0 : pool.outcomes().size();
     }
 
-    /** Read-only outcome list used by the in-game manual and diagnostics. */
     public static List<Outcome> outcomesFor(ItemStack ingredient, ItemStack input) {
-        if (!hasPotion(input, Potions.AWKWARD)) {
+        if (!isPotionContainer(input)) {
             return List.of();
         }
-        OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
+        return outcomesForIngredient(ingredient);
+    }
+
+    public static List<Outcome> outcomesForIngredient(ItemStack ingredient) {
+        OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
         return pool == null ? List.of() : pool.outcomes();
     }
 
-    private static boolean containsPotion(Iterable<ItemStack> inputs, Holder<Potion> potion) {
+    /** Server-side only research comparator. The manual receives only the resulting tier, never this probability. */
+    public static double outcomeProbability(String ingredientId, String potionId) {
+        for (Map.Entry<Item, OutcomePool> entry : AWKWARD_POOLS.entrySet()) {
+            if (BuiltInRegistries.ITEM.getKey(entry.getKey()).toString().equals(ingredientId)) {
+                return entry.getValue().probability(entry.getKey(), potionId);
+            }
+        }
+        return -1.0D;
+    }
+
+    private static boolean containsPotionContainer(Iterable<ItemStack> inputs) {
         for (ItemStack input : inputs) {
-            if (hasPotion(input, potion)) {
+            if (isPotionContainer(input)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean hasPotion(ItemStack stack, Holder<Potion> potion) {
-        return stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(potion);
+    private static boolean isPotionContainer(ItemStack stack) {
+        return stack != null && (stack.is(Items.POTION) || stack.is(Items.SPLASH_POTION) || stack.is(Items.LINGERING_POTION));
     }
 
     public record Outcome(Holder<Potion> potion, String messageKey) {
     }
 
     private record OutcomePool(List<Outcome> outcomes) {
-        private Outcome choose(float roll) {
-            float clampedRoll = Math.max(0.0F, Math.min(Math.nextDown(1.0F), roll));
-            int index = Math.min(outcomes.size() - 1, (int) (clampedRoll * outcomes.size()));
-            return outcomes.get(index);
+        private Outcome choose(Item ingredient, float roll) {
+            double total = outcomes.stream()
+                    .mapToDouble(outcome -> BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D))
+                    .sum();
+            double target = Math.max(0.0D, Math.min(Math.nextDown(1.0D), roll)) * total;
+            double cumulative = 0.0D;
+            for (Outcome outcome : outcomes) {
+                cumulative += BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D);
+                if (target < cumulative) {
+                    return outcome;
+                }
+            }
+            return outcomes.getLast();
+        }
+
+        private double probability(Item ingredient, String potionId) {
+            double total = outcomes.stream()
+                    .mapToDouble(outcome -> BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D))
+                    .sum();
+            if (total <= 0.0D) {
+                return -1.0D;
+            }
+            for (Outcome outcome : outcomes) {
+                if (BuiltInRegistries.POTION.getKey(outcome.potion().value()).toString().equals(potionId)) {
+                    return BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D) / total;
+                }
+            }
+            return -1.0D;
         }
     }
 

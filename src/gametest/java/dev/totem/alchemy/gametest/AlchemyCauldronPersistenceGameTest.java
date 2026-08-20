@@ -63,16 +63,15 @@ public final class AlchemyCauldronPersistenceGameTest {
                     "Effect-pool ingredient had the wrong number of outcomes: " + ingredient);
 
             Set<Object> reached = new HashSet<>();
-            if (entry.getValue() == 2) {
-                reached.add(MultiOutcomeBrewing.chooseOutcome(ingredient, awkward, 0.1F).potion());
-                reached.add(MultiOutcomeBrewing.chooseOutcome(ingredient, awkward, 0.9F).potion());
-            } else {
-                reached.add(MultiOutcomeBrewing.chooseOutcome(ingredient, awkward, 0.1F).potion());
-                reached.add(MultiOutcomeBrewing.chooseOutcome(ingredient, awkward, 0.5F).potion());
-                reached.add(MultiOutcomeBrewing.chooseOutcome(ingredient, awkward, 0.9F).potion());
+            for (int sample = 0; sample <= 1000 && reached.size() < entry.getValue(); sample++) {
+                float roll = sample / 1000.0F;
+                MultiOutcomeBrewing.Outcome outcome = MultiOutcomeBrewing.chooseOutcome(ingredient, awkward, roll);
+                if (outcome != null) {
+                    reached.add(outcome.potion());
+                }
             }
             require(helper, reached.size() == entry.getValue(),
-                    "Not every configured outcome was reachable: " + ingredient);
+                    "Not every configured outcome was reachable across the full roll range: " + ingredient);
         }
         helper.succeed();
     }

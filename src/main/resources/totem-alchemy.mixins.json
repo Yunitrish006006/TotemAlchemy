@@ -2,6 +2,6 @@
   "required": true,
   "package": "dev.totem.alchemy.mixin",
   "compatibilityLevel": "JAVA_25",
-  "mixins": ["BrewingStandBlockEntityMixin", "PigMixin", "PotionBrewingMixin", "SnowballMixin"],
+  "mixins": ["BrewingStandBlockEntityAccessor", "BrewingStandBlockEntityMixin", "PigMixin", "PotionBrewingMixin", "SnowballMixin"],
   "injectors": { "defaultRequire": 1 }
 }

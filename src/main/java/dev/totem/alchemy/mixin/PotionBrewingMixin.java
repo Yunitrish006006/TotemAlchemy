@@ -3,6 +3,8 @@ package dev.totem.alchemy.mixin;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.alchemy.AlchemyPotions;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -40,16 +42,44 @@ public abstract class PotionBrewingMixin {
         builder.addMix(AlchemyPotions.FIREFLY_STRENGTH, Items.GLOWSTONE_DUST, AlchemyPotions.STRONG_FIREFLY_STRENGTH);
     }
 
+    @Inject(method = "hasMix", at = @At("HEAD"), cancellable = true)
+    private void totemAlchemy$allowLayeredMixtureIngredients(
+            ItemStack input,
+            ItemStack ingredient,
+            CallbackInfoReturnable<Boolean> cir
+    ) {
+        if (AlchemyMixtureBrewing.canApplyBrewingStandIngredient(input, ingredient)) {
+            cir.setReturnValue(true);
+        }
+    }
+
     @Inject(method = "mix", at = @At("RETURN"), cancellable = true)
-    private void totemAlchemy$carryUnstableMushroomBase(
+    private void totemAlchemy$preserveLayeredMixture(
             ItemStack ingredient,
             ItemStack input,
             CallbackInfoReturnable<ItemStack> cir
     ) {
-        ItemStack output = MultiOutcomeBrewing.applyBatchOutcome(ingredient, input, cir.getReturnValue());
-        if (output == input || output.isEmpty()) {
+        ItemStack vanillaOutput = cir.getReturnValue();
+        if (vanillaOutput.isEmpty()) {
             return;
         }
+
+        ItemStack selectedOutput = MultiOutcomeBrewing.applyBatchOutcome(ingredient, input, vanillaOutput);
+        boolean layeredRule = AlchemyMixtureBrewing.canApplyBrewingStandIngredient(input, ingredient);
+        boolean vanillaChanged = !ItemStack.matches(input, selectedOutput);
+        ItemStack output = selectedOutput;
+        if (layeredRule || vanillaChanged) {
+            output = AlchemyMixtureBrewing.applyBrewingStandIngredient(
+                    ingredient,
+                    input,
+                    selectedOutput,
+                    MultiOutcomeBrewing.activeOutcome()
+            );
+        }
+        if (output.isEmpty()) {
+            return;
+        }
+
         if (ingredient.is(Items.RED_MUSHROOM)
                 && input.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER)
                 && output.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.AWKWARD)) {

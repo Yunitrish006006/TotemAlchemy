@@ -1,0 +1,23 @@
+{
+  "item.totem.alchemy.large_potion_flask": "大型藥水壺",
+  "item.totem.alchemy.mixture": "煉金混合藥水",
+  "message.deadrecall.alchemy.mixture_poured": "藥水已倒入煉藥鍋並與其中液體混合。",
+  "message.deadrecall.alchemy.mixture_bottled": "已依目前反應進度裝瓶。",
+  "message.deadrecall.alchemy.mixture_reaction_started": "新的反應開始；基礎反應時間約 %s 秒。",
+  "message.deadrecall.alchemy.large_flask_filled": "大型藥水壺已裝入 %s 份藥水。",
+  "message.deadrecall.alchemy.large_flask_poured": "已將大型藥水壺倒回煉藥鍋。",
+  "message.deadrecall.alchemy.mixture_bucket_filled": "已用水桶撈起三份藥水，效果與反應狀態已保留。",
+  "message.deadrecall.alchemy.mixture_bucket_poured": "已將水桶保存的藥水倒回煉藥鍋。",
+  "tooltip.deadrecall.alchemy.mixture.incomplete": "尚未完成反應的煉金混合液",
+  "tooltip.deadrecall.alchemy.mixture.complete": "混合煉金藥水",
+  "tooltip.deadrecall.alchemy.mixture.volume": "容量：%s / %s 份",
+  "tooltip.deadrecall.alchemy.mixture.stability": "穩定度：%s%%",
+  "tooltip.deadrecall.alchemy.mixture.reaction": "%s — 已反應 %s%%，約剩 %s 秒",
+  "tooltip.deadrecall.alchemy.mixture.drink_warning": "現在飲用只會套用已形成的效果。",
+  "tooltip.deadrecall.alchemy.mixture.repour_hint": "倒回煉藥鍋可從目前進度繼續反應。",
+  "book.deadrecall.alchemy_manual.page.15": "藥水混合",
+  "book.deadrecall.alchemy_manual.mixture.mix": "可將不同藥水倒在一起；三瓶剛好裝滿一鍋。",
+  "book.deadrecall.alchemy_manual.mixture.bottle_early": "提早裝瓶會保留未完成材料與目前反應時間。",
+  "book.deadrecall.alchemy_manual.mixture.resume": "將未完成的藥水倒回鍋內，可從原本進度繼續。",
+  "book.deadrecall.alchemy_manual.mixture.counteract": "相反效果會先互相抵消，再依剩餘液量計算濃度。"
+}

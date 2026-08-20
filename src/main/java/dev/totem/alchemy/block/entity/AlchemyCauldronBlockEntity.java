@@ -4,15 +4,20 @@ import dev.totem.alchemy.alchemy.AlchemyCauldronRecipe;
 import dev.totem.alchemy.alchemy.AlchemyCauldronRecipes;
 import dev.totem.alchemy.alchemy.AlchemyHandler;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import dev.totem.alchemy.mixture.AlchemyMixtureColor;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -30,6 +35,9 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     private boolean readyForExtraction;
     private int cookTime;
     private AlchemyMixtureState mixture = AlchemyMixtureState.empty();
+    private int lastSyncedColor = -1;
+    private int lastSyncedVolume = -1;
+    private long lastVisualSyncTick = Long.MIN_VALUE;
 
     public AlchemyCauldronBlockEntity(BlockPos pos, BlockState state) {
         super(AlchemyBlockEntities.ALCHEMY_CAULDRON, pos, state);
@@ -45,6 +53,10 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
 
     public AlchemyMixtureState mixtureSnapshot() {
         return mixture == null ? AlchemyMixtureState.empty() : mixture.copy();
+    }
+
+    public int mixtureColorRgb() {
+        return AlchemyMixtureColor.rgb(mixture);
     }
 
     public boolean initializeMixture(AlchemyMixtureState initial) {
@@ -84,12 +96,16 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public AlchemyMixtureState extractMixtureBottle() {
-        if (!hasMixture()) {
+        return extractMixtureUnits(1);
+    }
+
+    public AlchemyMixtureState extractMixtureUnits(int units) {
+        if (!hasMixture() || units <= 0) {
             return AlchemyMixtureState.empty();
         }
-        AlchemyMixtureState bottle = mixture.extractBottle();
+        AlchemyMixtureState extracted = mixture.extractUnits(units);
         setChanged();
-        return bottle;
+        return extracted;
     }
 
     public boolean canAddIngredient(AlchemyCauldronRecipe recipe, AlchemyCauldronRecipe.IngredientStep ingredient) {
@@ -139,8 +155,11 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, AlchemyCauldronBlockEntity cauldron) {
         if (cauldron.hasMixture()) {
-            if (cauldron.mixture.hasPendingReactions() && AlchemyHandler.hasLitCampfireBelow(level, pos)) {
-                if (cauldron.mixture.tickReactions(1)) {
+            if (AlchemyHandler.hasLitCampfireBelow(level, pos)) {
+                boolean changed = cauldron.mixture.hasPendingReactions()
+                        ? cauldron.mixture.tickReactions(1)
+                        : cauldron.mixture.tickOvercook(level.getRandom(), 1);
+                if (changed) {
                     cauldron.setChanged();
                 }
             }
@@ -295,6 +314,32 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         SoundEvent sound = AlchemyCauldronRecipes.getSound(soundId);
         if (sound != null) {
             level.playSound(null, pos, sound, SoundSource.BLOCKS, volume, pitch);
+        }
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public void setChanged() {
+        super.setChanged();
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        int color = mixtureColorRgb();
+        int volume = hasMixture() ? mixture.volumeUnits() : 0;
+        long gameTime = level.getGameTime();
+        boolean volumeChanged = volume != lastSyncedVolume;
+        boolean colorChanged = color != lastSyncedColor;
+        boolean intervalElapsed = lastVisualSyncTick == Long.MIN_VALUE || gameTime - lastVisualSyncTick >= 10L;
+        if (volumeChanged || (colorChanged && intervalElapsed)) {
+            BlockState state = getBlockState();
+            level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_ALL);
+            lastSyncedColor = color;
+            lastSyncedVolume = volume;
+            lastVisualSyncTick = gameTime;
         }
     }
 

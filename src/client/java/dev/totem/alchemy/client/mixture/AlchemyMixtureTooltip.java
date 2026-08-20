@@ -19,12 +19,20 @@ public final class AlchemyMixtureTooltip {
             if (!AlchemyMixtureBottle.hasStoredMixture(stack)) {
                 return;
             }
-            AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(stack);
+            AlchemyMixtureState state = AlchemyMixtureBottle.storedMixture(stack);
+            if (state.isEmpty()) {
+                return;
+            }
             lines.add(Component.translatable(
                     state.hasPendingReactions()
                             ? "tooltip.deadrecall.alchemy.mixture.incomplete"
                             : "tooltip.deadrecall.alchemy.mixture.complete"
             ).withStyle(state.hasPendingReactions() ? ChatFormatting.GOLD : ChatFormatting.GRAY));
+            lines.add(Component.translatable(
+                    "tooltip.deadrecall.alchemy.mixture.volume",
+                    state.volumeUnits(),
+                    AlchemyMixtureState.MAX_VOLUME_UNITS
+            ).withStyle(ChatFormatting.DARK_GRAY));
             lines.add(Component.translatable(
                     "tooltip.deadrecall.alchemy.mixture.stability",
                     state.stability()

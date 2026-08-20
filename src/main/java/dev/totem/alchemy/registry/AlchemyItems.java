@@ -2,6 +2,7 @@ package dev.totem.alchemy.registry;
 
 import dev.totem.core.api.v1.migration.LegacyItemMigrationRegistry;
 import dev.totem.alchemy.effect.AlchemyMobEffects;
+import dev.totem.alchemy.item.LargePotionFlaskItem;
 import dev.totem.alchemy.item.PigManureItem;
 import dev.totem.alchemy.item.StoneBowlItem;
 import net.minecraft.sounds.SoundEvents;
@@ -52,6 +53,9 @@ public final class AlchemyItems {
 
     public static final Item SULFUR_BOWL = canonical("sulfur_bowl",
             props -> new Item(props.stacksTo(1).craftRemainder(STONE_BOWL)));
+
+    public static final Item LARGE_POTION_FLASK = canonical("large_potion_flask",
+            props -> new LargePotionFlaskItem(props.stacksTo(1)));
 
     private AlchemyItems() {
     }
