@@ -1,5 +1,6 @@
 package dev.totem.alchemy.client;
 
+import dev.totem.alchemy.client.manual.AlchemyBaseDiscoveryOverlay;
 import dev.totem.alchemy.client.manual.AlchemyDiscoveryClientCache;
 import dev.totem.alchemy.client.manual.AlchemyManualPageOverlay;
 import dev.totem.alchemy.client.manual.AlchemyMixtureManualOverlay;
@@ -11,6 +12,7 @@ public final class TotemAlchemyClient implements ClientModInitializer {
     public void onInitializeClient() {
         AlchemyDiscoveryClientCache.register();
         AlchemyManualPageOverlay.register();
+        AlchemyBaseDiscoveryOverlay.register();
         AlchemyMixtureManualOverlay.register();
         AlchemyMixtureTooltip.register();
     }
