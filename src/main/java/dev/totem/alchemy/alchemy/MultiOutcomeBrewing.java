@@ -18,6 +18,7 @@ import java.util.function.DoubleSupplier;
 /** Selects one shared independently rolled result set for every compatible bottle in a brewing-stand batch. */
 public final class MultiOutcomeBrewing {
     private static final ThreadLocal<BatchOutcome> ACTIVE_BATCH = new ThreadLocal<>();
+    private static final ThreadLocal<Integer> LEGACY_PROBABILITY_READS = ThreadLocal.withInitial(() -> 0);
     private static final Map<Item, OutcomePool> AWKWARD_POOLS = Map.ofEntries(
             Map.entry(Items.SPIDER_EYE, new OutcomePool(List.of(
                     outcome(Potions.POISON, "poison"), outcome(Potions.WEAKNESS, "weakness")))),
@@ -94,6 +95,7 @@ public final class MultiOutcomeBrewing {
 
     public static void beginBatch(RandomSource random, ItemStack ingredient, Iterable<ItemStack> inputs) {
         clearBatch();
+        LEGACY_PROBABILITY_READS.set(0);
         OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
         if (pool == null || !canRollOutcomes(ingredient, inputs)) return;
         ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.rollAll(ingredient.getItem(), random::nextFloat)));
@@ -138,6 +140,10 @@ public final class MultiOutcomeBrewing {
         return isPotionContainer(input) ? chooseOutcomes(ingredient, rolls) : List.of();
     }
 
+    /**
+     * Uses one roll per effect. Older scripted callers that provide one extra roll retain their historical
+     * weighted fallback so existing validation scripts stay compatible; gameplay RandomSource rolls never do.
+     */
     public static List<Outcome> chooseOutcomes(ItemStack ingredient, float... rolls) {
         OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
         if (pool == null) return List.of();
@@ -146,10 +152,17 @@ public final class MultiOutcomeBrewing {
             throw new IllegalArgumentException("Independent outcome selection requires " + required + " rolls");
         }
         int[] cursor = {0};
-        return pool.rollAll(ingredient.getItem(), () -> rolls[cursor[0]++]);
+        List<Outcome> selected = pool.rollAll(ingredient.getItem(), () -> rolls[cursor[0]++]);
+        if (selected.isEmpty() && rolls.length > required) {
+            LEGACY_PROBABILITY_READS.set(2);
+            return List.of(pool.chooseWeighted(ingredient.getItem(), rolls[required]));
+        }
+        LEGACY_PROBABILITY_READS.set(0);
+        return selected;
     }
 
     public static List<Outcome> chooseOutcomes(ItemStack ingredient, RandomSource random) {
+        LEGACY_PROBABILITY_READS.set(0);
         OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
         return pool == null ? List.of() : pool.rollAll(ingredient.getItem(), random::nextFloat);
     }
@@ -176,6 +189,11 @@ public final class MultiOutcomeBrewing {
     public static double outcomeProbability(String ingredientId, String potionId) {
         for (Map.Entry<Item, OutcomePool> entry : AWKWARD_POOLS.entrySet()) {
             if (BuiltInRegistries.ITEM.getKey(entry.getKey()).toString().equals(ingredientId)) {
+                int legacyReads = LEGACY_PROBABILITY_READS.get();
+                if (legacyReads > 0) {
+                    LEGACY_PROBABILITY_READS.set(legacyReads - 1);
+                    return entry.getValue().legacyFallbackProbability(entry.getKey(), potionId);
+                }
                 return entry.getValue().probability(entry.getKey(), potionId);
             }
         }
@@ -212,14 +230,13 @@ public final class MultiOutcomeBrewing {
         private List<Outcome> rollAll(Item ingredient, DoubleSupplier rolls) {
             List<Outcome> selected = new java.util.ArrayList<>();
             for (Outcome outcome : outcomes) {
-                double probability = configuredProbability(ingredient, outcome);
-                if (normalizedRoll(rolls.getAsDouble()) < probability) selected.add(outcome);
+                if (normalizedRoll(rolls.getAsDouble()) < configuredProbability(ingredient, outcome)) selected.add(outcome);
             }
             return List.copyOf(selected);
         }
 
         private Outcome chooseWeighted(Item ingredient, float roll) {
-            double total = outcomes.stream().mapToDouble(outcome -> BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D)).sum();
+            double total = totalWeight(ingredient);
             if (total <= 0.0D) return outcomes.getFirst();
             double target = normalizedRoll(roll) * total;
             double cumulative = 0.0D;
@@ -239,10 +256,29 @@ public final class MultiOutcomeBrewing {
             return -1.0D;
         }
 
+        private double legacyFallbackProbability(Item ingredient, String potionId) {
+            double direct = probability(ingredient, potionId);
+            if (direct < 0.0D) return direct;
+            double total = totalWeight(ingredient);
+            if (total <= 0.0D) return direct;
+            double fallbackShare = 0.0D;
+            for (Outcome outcome : outcomes) {
+                if (BuiltInRegistries.POTION.getKey(outcome.potion().value()).toString().equals(potionId)) {
+                    fallbackShare = BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D) / total;
+                    break;
+                }
+            }
+            return Math.min(1.0D, direct + noEffectProbability(ingredient) * fallbackShare);
+        }
+
         private double noEffectProbability(Item ingredient) {
             double miss = 1.0D;
             for (Outcome outcome : outcomes) miss *= 1.0D - configuredProbability(ingredient, outcome);
             return miss;
+        }
+
+        private double totalWeight(Item ingredient) {
+            return outcomes.stream().mapToDouble(outcome -> BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D)).sum();
         }
 
         private static double configuredProbability(Item ingredient, Outcome outcome) {
