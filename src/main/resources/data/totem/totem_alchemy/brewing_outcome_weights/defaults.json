@@ -24,6 +24,6 @@
     {"ingredient":"minecraft:glow_berries","outcomes":{"minecraft:night_vision":94,"minecraft:regeneration":6}},
     {"ingredient":"minecraft:honey_bottle","outcomes":{"totem:alchemy/saturation":88,"minecraft:healing":8,"minecraft:regeneration":4}},
     {"ingredient":"minecraft:golden_apple","outcomes":{"minecraft:healing":40,"minecraft:regeneration":30,"totem:alchemy/resistance":20,"totem:alchemy/saturation":10}},
-    {"ingredient":"minecraft:enchanted_golden_apple","outcomes":{"minecraft:healing":40,"minecraft:regeneration":30,"totem:alchemy/resistance":20,"minecraft:fire_resistance":10}}
+    {"ingredient":"minecraft:enchanted_golden_apple","outcomes":{"minecraft:healing":65,"minecraft:regeneration":55,"totem:alchemy/resistance":40,"minecraft:fire_resistance":25}}
   ]
 }
