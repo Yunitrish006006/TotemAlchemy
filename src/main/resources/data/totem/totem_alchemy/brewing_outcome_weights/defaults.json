@@ -16,6 +16,14 @@
     {"ingredient":"minecraft:slime_block","outcomes":{"minecraft:oozing":55,"minecraft:leaping":30,"minecraft:slowness":15}},
     {"ingredient":"minecraft:stone","outcomes":{"minecraft:infested":50,"totem:alchemy/resistance":35,"minecraft:slowness":15}},
     {"ingredient":"minecraft:cobweb","outcomes":{"minecraft:weaving":55,"minecraft:slowness":30,"minecraft:weakness":15}},
-    {"ingredient":"minecraft:fermented_spider_eye","outcomes":{"minecraft:weakness":50,"minecraft:harming":35,"minecraft:invisibility":15}}
+    {"ingredient":"minecraft:fermented_spider_eye","outcomes":{"minecraft:weakness":50,"minecraft:harming":35,"minecraft:invisibility":15}},
+
+    {"ingredient":"minecraft:melon_slice","outcomes":{"totem:alchemy/saturation":96,"minecraft:healing":4}},
+    {"ingredient":"minecraft:apple","outcomes":{"totem:alchemy/saturation":97,"minecraft:healing":3}},
+    {"ingredient":"minecraft:sweet_berries","outcomes":{"minecraft:swiftness":96,"minecraft:regeneration":4}},
+    {"ingredient":"minecraft:glow_berries","outcomes":{"minecraft:night_vision":94,"minecraft:regeneration":6}},
+    {"ingredient":"minecraft:honey_bottle","outcomes":{"totem:alchemy/saturation":88,"minecraft:healing":8,"minecraft:regeneration":4}},
+    {"ingredient":"minecraft:golden_apple","outcomes":{"minecraft:healing":40,"minecraft:regeneration":30,"totem:alchemy/resistance":20,"totem:alchemy/saturation":10}},
+    {"ingredient":"minecraft:enchanted_golden_apple","outcomes":{"minecraft:healing":65,"minecraft:regeneration":55,"totem:alchemy/resistance":40,"minecraft:fire_resistance":25}}
   ]
 }

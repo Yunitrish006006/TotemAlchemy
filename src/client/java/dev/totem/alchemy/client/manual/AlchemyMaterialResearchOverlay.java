@@ -32,24 +32,19 @@ public final class AlchemyMaterialResearchOverlay {
             Map.entry(Items.FIREFLY_BUSH, "book.totem_alchemy.research.note.firefly_variant")
     );
 
-    private AlchemyMaterialResearchOverlay() {
-    }
+    private AlchemyMaterialResearchOverlay() {}
 
     public static void register() {
         TotemManualPageOverlayRegistry.register(
                 Identifier.fromNamespaceAndPath("totem-alchemy", "material_research_pages"),
-                AlchemyMaterialResearchOverlay::render
-        );
+                AlchemyMaterialResearchOverlay::render);
     }
 
     private static void render(TotemManualPageRenderContext context) {
         Item ingredient = MATERIAL_PAGES.get(context.pageKey());
-        if (ingredient == null) {
-            return;
-        }
+        if (ingredient == null) return;
         int top = context.pageTop() + 24;
-        ItemStack ingredientStack = new ItemStack(ingredient);
-        stack(context, ingredientStack, 18, top);
+        stack(context, new ItemStack(ingredient), 18, top);
 
         int samples = AlchemyResearchClientCache.samples(ingredient);
         context.graphics().text(context.font(), Component.translatable(
@@ -60,18 +55,14 @@ public final class AlchemyMaterialResearchOverlay {
         if (timeEstimate.isPresent()) {
             var estimate = timeEstimate.orElseThrow();
             Component processingTime = estimate.exact()
-                    ? Component.translatable(
-                            "book.totem_alchemy.research.processing_time_exact",
+                    ? Component.translatable("book.totem_alchemy.research.processing_time_exact",
                             formatTenths(estimate.lowerTenths()))
-                    : Component.translatable(
-                            "book.totem_alchemy.research.processing_time_range",
-                            formatTenths(estimate.lowerTenths()),
-                            formatTenths(estimate.upperTenths()));
+                    : Component.translatable("book.totem_alchemy.research.processing_time_range",
+                            formatTenths(estimate.lowerTenths()), formatTenths(estimate.upperTenths()));
             context.graphics().text(context.font(), processingTime,
                     context.pageLeft() + 18, top + 36, MUTED, false);
             context.graphics().text(context.font(), Component.translatable(
-                            "book.totem_alchemy.research.processing_time_accuracy",
-                            estimate.accuracyPercent()),
+                            "book.totem_alchemy.research.processing_time_accuracy", estimate.accuracyPercent()),
                     context.pageLeft() + 18, top + 48, MUTED, false);
         } else {
             context.graphics().text(context.font(), Component.translatable(
@@ -80,7 +71,7 @@ public final class AlchemyMaterialResearchOverlay {
         }
 
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
-        List<MultiOutcomeBrewing.Outcome> outcomes = MultiOutcomeBrewing.outcomesFor(ingredientStack, awkward);
+        List<MultiOutcomeBrewing.Outcome> outcomes = MultiOutcomeBrewing.outcomesFor(new ItemStack(ingredient), awkward);
         int y = top + 62;
         if (outcomes.isEmpty()) {
             String noteKey = MATERIAL_NOTES.get(ingredient);
@@ -94,41 +85,45 @@ public final class AlchemyMaterialResearchOverlay {
         for (MultiOutcomeBrewing.Outcome outcome : outcomes) {
             boolean discovered = AlchemyDiscoveryClientCache.has(ingredient, outcome.potion());
             if (discovered) {
-                ItemStack potion = PotionContents.createItemStack(Items.POTION, outcome.potion());
-                stack(context, potion, 20, y);
+                stack(context, PotionContents.createItemStack(Items.POTION, outcome.potion()), 20, y);
                 context.graphics().text(context.font(), Component.translatable(outcome.messageKey()),
                         context.pageLeft() + 43, y, INK, false);
-                Component detail = Component.translatable(
-                                AlchemyResearchClientCache.frequencyKey(ingredient, outcome.potion()))
+                Component detail = Component.translatable(AlchemyResearchClientCache.frequencyKey(ingredient, outcome.potion()))
                         .append(Component.literal(" · "))
-                        .append(Component.translatable(
-                                AlchemyResearchClientCache.tierKey(ingredient, outcome.potion())));
+                        .append(Component.translatable(AlchemyResearchClientCache.tierKey(ingredient, outcome.potion())));
                 context.graphics().text(context.font(), detail,
                         context.pageLeft() + 43, y + 11, MUTED, false);
             } else {
                 stack(context, new ItemStack(Items.GLASS_BOTTLE), 20, y);
                 context.graphics().text(context.font(), "?", context.pageLeft() + 26, y + 4, WARN, false);
-                context.graphics().text(context.font(), Component.translatable(
-                                "book.totem_alchemy.research.unknown_effect"),
+                context.graphics().text(context.font(), Component.translatable("book.totem_alchemy.research.unknown_effect"),
                         context.pageLeft() + 43, y + 5, WARN, false);
             }
             y += 25;
+        }
+
+        if (AlchemyResearchClientCache.hasNoEffectObservation(ingredient)) {
+            stack(context, new ItemStack(Items.GLASS_BOTTLE), 20, y);
+            context.graphics().text(context.font(), Component.translatable("book.totem_alchemy.research.no_effect"),
+                    context.pageLeft() + 43, y, INK, false);
+            Component detail = Component.translatable(AlchemyResearchClientCache.noEffectFrequencyKey(ingredient))
+                    .append(Component.literal(" · "))
+                    .append(Component.translatable(AlchemyResearchClientCache.noEffectTierKey(ingredient)));
+            context.graphics().text(context.font(), detail,
+                    context.pageLeft() + 43, y + 11, MUTED, false);
         }
     }
 
     private static void stack(TotemManualPageRenderContext context, ItemStack stack, int localX, int y) {
         int x = context.pageLeft() + localX;
         context.graphics().item(stack, x, y);
-        if (context.mouseX() >= x && context.mouseX() < x + 16
-                && context.mouseY() >= y && context.mouseY() < y + 16) {
+        if (context.mouseX() >= x && context.mouseX() < x + 16 && context.mouseY() >= y && context.mouseY() < y + 16) {
             context.graphics().setTooltipForNextFrame(context.font(), stack, context.mouseX(), context.mouseY());
         }
     }
 
     private static String formatTenths(int tenths) {
-        return tenths % 10 == 0
-                ? Integer.toString(tenths / 10)
-                : String.format(Locale.ROOT, "%.1f", tenths / 10.0D);
+        return tenths % 10 == 0 ? Integer.toString(tenths / 10) : String.format(Locale.ROOT, "%.1f", tenths / 10.0D);
     }
 
     private static Map<String, Item> createMaterialPages() {
@@ -151,6 +146,13 @@ public final class AlchemyMaterialResearchOverlay {
         pages.put("book.totem_alchemy.material.slime_block", Items.SLIME_BLOCK);
         pages.put("book.totem_alchemy.material.stone", Items.STONE);
         pages.put("book.totem_alchemy.material.cobweb", Items.COBWEB);
+        pages.put("book.totem_alchemy.material.melon_slice", Items.MELON_SLICE);
+        pages.put("book.totem_alchemy.material.apple", Items.APPLE);
+        pages.put("book.totem_alchemy.material.sweet_berries", Items.SWEET_BERRIES);
+        pages.put("book.totem_alchemy.material.glow_berries", Items.GLOW_BERRIES);
+        pages.put("book.totem_alchemy.material.honey_bottle", Items.HONEY_BOTTLE);
+        pages.put("book.totem_alchemy.material.golden_apple", Items.GOLDEN_APPLE);
+        pages.put("book.totem_alchemy.material.enchanted_golden_apple", Items.ENCHANTED_GOLDEN_APPLE);
         pages.put("book.totem_alchemy.material.cherry_leaves", Items.CHERRY_LEAVES);
         pages.put("book.totem_alchemy.material.firefly_bush", Items.FIREFLY_BUSH);
         pages.put("book.totem_alchemy.material.redstone", Items.REDSTONE);

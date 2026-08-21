@@ -44,6 +44,13 @@ public final class AlchemyManual {
             "book.totem_alchemy.material.slime_block",
             "book.totem_alchemy.material.stone",
             "book.totem_alchemy.material.cobweb",
+            "book.totem_alchemy.material.melon_slice",
+            "book.totem_alchemy.material.apple",
+            "book.totem_alchemy.material.sweet_berries",
+            "book.totem_alchemy.material.glow_berries",
+            "book.totem_alchemy.material.honey_bottle",
+            "book.totem_alchemy.material.golden_apple",
+            "book.totem_alchemy.material.enchanted_golden_apple",
             "book.totem_alchemy.material.cherry_leaves",
             "book.totem_alchemy.material.firefly_bush",
             "book.totem_alchemy.material.redstone",
@@ -56,26 +63,17 @@ public final class AlchemyManual {
             Identifier.fromNamespaceAndPath("totem", "alchemy/manual"), SECTION_ORDER,
             "book.deadrecall.alchemy_manual.title", PAGE_KEYS);
 
-    private AlchemyManual() {
-    }
+    private AlchemyManual() {}
 
     public static void register() {
-        if (!REGISTERED.compareAndSet(false, true)) {
-            return;
-        }
+        if (!REGISTERED.compareAndSet(false, true)) return;
         TotemManualRegistry.global().register(SECTION);
         TotemManualLifecycle.registerLoginRefresh();
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (player.isSpectator() || !isManualSource(world.getBlockState(hitResult.getBlockPos()))) {
-                return InteractionResult.PASS;
-            }
+            if (player.isSpectator() || !isManualSource(world.getBlockState(hitResult.getBlockPos()))) return InteractionResult.PASS;
             ItemStack stack = player.getItemInHand(hand);
-            if (!isManualRequest(stack)) {
-                return InteractionResult.PASS;
-            }
-            if (world.isClientSide()) {
-                return InteractionResult.SUCCESS;
-            }
+            if (!isManualRequest(stack)) return InteractionResult.PASS;
+            if (world.isClientSide()) return InteractionResult.SUCCESS;
             return grant((ServerPlayer) player, hand) ? InteractionResult.SUCCESS : InteractionResult.PASS;
         });
     }
@@ -90,18 +88,12 @@ public final class AlchemyManual {
     }
 
     public static boolean grant(ServerPlayer player, InteractionHand hand) {
-        if (player == null || hand == null) {
-            return false;
-        }
+        if (player == null || hand == null) return false;
         boolean handled = TotemManualPlayerHelper.acquireSections(
                 player, hand, List.of(SECTION), MANUAL_ADVANCEMENT, ignored -> false).handled();
-        if (handled) {
-            AlchemyDiscoveryService.send(player);
-        }
+        if (handled) AlchemyDiscoveryService.send(player);
         return handled;
     }
 
-    public static List<String> pageKeys() {
-        return PAGE_KEYS;
-    }
+    public static List<String> pageKeys() { return PAGE_KEYS; }
 }

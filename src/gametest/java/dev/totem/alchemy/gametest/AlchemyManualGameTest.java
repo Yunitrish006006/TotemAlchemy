@@ -38,8 +38,8 @@ public final class AlchemyManualGameTest {
                 helper.fail("Alchemy manual source did not create a canonical Totem manual");
                 return;
             }
-            if (AlchemyManual.pageKeys().size() != 27) {
-                helper.fail("Alchemy manual did not register two overview pages, twenty-four material pages, and the cauldron page");
+            if (AlchemyManual.pageKeys().size() != 34) {
+                helper.fail("Alchemy manual did not register two overview pages, thirty-one material pages, and the cauldron page");
                 return;
             }
             boolean hasAlchemySection = dev.totem.core.api.v1.manual.TotemManualRegistry.global()
