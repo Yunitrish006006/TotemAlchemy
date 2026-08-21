@@ -11,6 +11,7 @@ import dev.totem.alchemy.alchemy.BrewingOutcomeWeights;
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyBlockEntities;
 import dev.totem.alchemy.effect.AlchemyMobEffects;
+import dev.totem.alchemy.discovery.AlchemyDiscoveryConnectionSync;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import dev.totem.alchemy.manual.AlchemyManual;
 import dev.totem.alchemy.recipe.AlchemyRecipes;
@@ -40,6 +41,7 @@ public final class TotemAlchemy implements ModInitializer {
         AlchemyHandler.register();
         AlchemyPortableContainerInteractions.register();
         AlchemyDiscoveryService.register();
+        AlchemyDiscoveryConnectionSync.register();
         AlchemyManual.register();
         CherryBrewInteractions.register();
         FireflyStrengthInteractions.register();
