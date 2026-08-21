@@ -17,12 +17,17 @@ public final class VanillaBrewingChance {
     private static final Map<Item, Double> INGREDIENT_CHANCES = Map.ofEntries(
             Map.entry(Items.REDSTONE, 0.92D),
             Map.entry(Items.SUGAR, 0.90D),
+            Map.entry(Items.MELON_SLICE, 0.90D),
+            Map.entry(Items.APPLE, 0.90D),
             Map.entry(Items.NETHER_WART, 0.88D),
+            Map.entry(Items.SWEET_BERRIES, 0.88D),
             Map.entry(Items.STONE, 0.87D),
             Map.entry(Items.GOLDEN_CARROT, 0.86D),
             Map.entry(Items.SPIDER_EYE, 0.85D),
+            Map.entry(Items.GLOW_BERRIES, 0.85D),
             Map.entry(Items.MAGMA_CREAM, 0.84D),
             Map.entry(Items.GLISTERING_MELON_SLICE, 0.83D),
+            Map.entry(Items.HONEY_BOTTLE, 0.82D),
             Map.entry(Items.BLAZE_POWDER, 0.82D),
             Map.entry(Items.FIREFLY_BUSH, 0.82D),
             Map.entry(Items.SLIME_BLOCK, 0.81D),
@@ -38,11 +43,13 @@ public final class VanillaBrewingChance {
             Map.entry(Items.BREEZE_ROD, 0.72D),
             Map.entry(Items.TURTLE_HELMET, 0.71D),
             Map.entry(Items.DRAGON_BREATH, 0.68D),
-            Map.entry(Items.RED_MUSHROOM, 0.65D)
+            Map.entry(Items.RED_MUSHROOM, 0.65D),
+            // Expensive restorative ingredients are reliable to process; their effect rolls remain independent.
+            Map.entry(Items.GOLDEN_APPLE, 0.94D),
+            Map.entry(Items.ENCHANTED_GOLDEN_APPLE, 0.99D)
     );
 
-    private VanillaBrewingChance() {
-    }
+    private VanillaBrewingChance() {}
 
     public static double chanceFor(ItemStack ingredient) {
         return INGREDIENT_CHANCES.getOrDefault(ingredient.getItem(), DEFAULT_SUCCESS_CHANCE);
@@ -51,9 +58,7 @@ public final class VanillaBrewingChance {
     public static double chanceFor(ItemStack ingredient, Iterable<ItemStack> potionInputs) {
         double chance = chanceFor(ingredient);
         for (ItemStack potionInput : potionInputs) {
-            if (hasUnstableMushroomBase(potionInput)) {
-                return Math.max(0.0D, chance - UNSTABLE_BASE_PENALTY);
-            }
+            if (hasUnstableMushroomBase(potionInput)) return Math.max(0.0D, chance - UNSTABLE_BASE_PENALTY);
         }
         return chance;
     }
@@ -71,8 +76,7 @@ public final class VanillaBrewingChance {
     }
 
     public static boolean hasUnstableMushroomBase(ItemStack stack) {
-        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
-                .copyTag()
+        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
                 .getBooleanOr(TAG_UNSTABLE_MUSHROOM_BASE, false);
     }
 
@@ -83,8 +87,6 @@ public final class VanillaBrewingChance {
     }
 
     public static void carryUnstableMushroomBase(ItemStack input, ItemStack output) {
-        if (hasUnstableMushroomBase(input)) {
-            markUnstableMushroomBase(output);
-        }
+        if (hasUnstableMushroomBase(input)) markUnstableMushroomBase(output);
     }
 }
