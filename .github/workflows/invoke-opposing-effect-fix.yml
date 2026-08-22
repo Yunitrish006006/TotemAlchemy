@@ -87,73 +87,67 @@ jobs:
               'public void brewingBatchNeutralizesOpposingEffectsAcrossAllBottles(GameTestHelper helper)',
               1,
           )
-          old = '''                require(helper, state.effects().containsKey("minecraft:speed")
-                                  && state.effects().containsKey("minecraft:slowness"),
-                          "Produced bottle collapsed an independently selected opposing-effect pair");
-                  require(helper, state.preservesIndependentOutcomes(),
-                          "Produced bottle did not persist its independent outcome-set marker");'''.replace('                  ', '')
-          new = '''                require(helper, !(state.effects().containsKey("minecraft:speed")
-                                  && state.effects().containsKey("minecraft:slowness")),
-                          "Produced bottle retained mutually opposing speed and slowness effects");
-                  require(helper, !state.preservesIndependentOutcomes(),
-                          "Produced bottle retained the obsolete independent-outcome marker");'''.replace('                  ', '')
-          if old not in tests:
-              raise SystemExit('brewing bottle assertion block not found')
-          tests = tests.replace(old, new, 1)
-
-          old = '''            require(helper, restored.effects().containsKey("minecraft:speed")
-                              && restored.effects().containsKey("minecraft:slowness"),
-                      "Potion round-trip or duration/potency modifiers collapsed selected opposing effects");'''.replace('              ', '')
-          new = '''            require(helper, !(restored.effects().containsKey("minecraft:speed")
-                              && restored.effects().containsKey("minecraft:slowness")),
-                      "Potion round-trip or duration/potency modifiers restored opposing effects");'''.replace('              ', '')
-          if old not in tests:
-              raise SystemExit('round-trip assertion block not found')
-          tests = tests.replace(old, new, 1)
-
           tests = tests.replace(
               'public void cauldronCanScheduleSeveralIndependentEffectsInOneReaction(GameTestHelper helper)',
               'public void cauldronNeutralizesOpposingSelectedEffectsInOneReaction(GameTestHelper helper)',
               1,
           )
-          replacements = [
-              (
-                  '''        require(helper, state.effects().containsKey("minecraft:speed")
-                          && state.effects().containsKey("minecraft:slowness")
-                          && state.preservesIndependentOutcomes(),
-                  "Cauldron reaction did not retain a simultaneous swiftness/slowness outcome set");''',
-                  '''        require(helper, !(state.effects().containsKey("minecraft:speed")
+
+          pattern = (
+              r'require\(helper, state\.effects\(\)\.containsKey\("minecraft:speed"\)\s*'
+              r'&& state\.effects\(\)\.containsKey\("minecraft:slowness"\),\s*'
+              r'"Produced bottle collapsed an independently selected opposing-effect pair"\);\s*'
+              r'require\(helper, state\.preservesIndependentOutcomes\(\),\s*'
+              r'"Produced bottle did not persist its independent outcome-set marker"\);'
+          )
+          replacement = '''require(helper, !(state.effects().containsKey("minecraft:speed")
+                                  && state.effects().containsKey("minecraft:slowness")),
+                          "Produced bottle retained mutually opposing speed and slowness effects");
+                  require(helper, !state.preservesIndependentOutcomes(),
+                          "Produced bottle retained the obsolete independent-outcome marker");'''.replace('                  ', '')
+          tests, count = re.subn(pattern, replacement, tests, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'brewing bottle assertion replacement count={count}')
+
+          pattern = (
+              r'require\(helper, restored\.effects\(\)\.containsKey\("minecraft:speed"\)\s*'
+              r'&& restored\.effects\(\)\.containsKey\("minecraft:slowness"\),\s*'
+              r'"Potion round-trip or duration/potency modifiers collapsed selected opposing effects"\);'
+          )
+          replacement = '''require(helper, !(restored.effects().containsKey("minecraft:speed")
+                                  && restored.effects().containsKey("minecraft:slowness")),
+                          "Potion round-trip or duration/potency modifiers restored opposing effects");'''.replace('                  ', '')
+          tests, count = re.subn(pattern, replacement, tests, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'round-trip assertion replacement count={count}')
+
+          pattern = (
+              r'state\.effects\(\)\.containsKey\("minecraft:speed"\)\s*'
+              r'&& state\.effects\(\)\.containsKey\("minecraft:slowness"\)\s*'
+              r'&& state\.preservesIndependentOutcomes\(\)'
+          )
+          replacement = '''!(state.effects().containsKey("minecraft:speed")
                           && state.effects().containsKey("minecraft:slowness"))
-                          && !state.preservesIndependentOutcomes(),
-                  "Cauldron reaction retained simultaneous swiftness/slowness effects");'''
-              ),
-              (
-                  '''        require(helper, state.effects().containsKey("minecraft:speed")
-                          && state.effects().containsKey("minecraft:slowness")
-                          && state.preservesIndependentOutcomes(),
-                  "Delayed cauldron redstone reaction collapsed selected opposing effects");''',
-                  '''        require(helper, !(state.effects().containsKey("minecraft:speed")
-                          && state.effects().containsKey("minecraft:slowness"))
-                          && !state.preservesIndependentOutcomes(),
-                  "Delayed cauldron redstone reaction restored opposing effects");'''
-              ),
-              (
-                  '''        require(helper, state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH
-                          && state.effects().containsKey("minecraft:speed")
-                          && state.effects().containsKey("minecraft:slowness")
-                          && state.preservesIndependentOutcomes(),
-                  "Delayed delivery-form reaction collapsed selected opposing effects");''',
-                  '''        require(helper, state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH
-                          && !(state.effects().containsKey("minecraft:speed")
-                                  && state.effects().containsKey("minecraft:slowness"))
-                          && !state.preservesIndependentOutcomes(),
-                  "Delayed delivery-form reaction restored opposing effects");'''
-              ),
-          ]
-          for old, new in replacements:
-              if old not in tests:
-                  raise SystemExit('cauldron assertion block not found')
-              tests = tests.replace(old, new, 1)
+                          && !state.preservesIndependentOutcomes()'''.replace('                  ', '')
+          tests, count = re.subn(pattern, replacement, tests, flags=re.S)
+          if count != 3:
+              raise SystemExit(f'cauldron opposing assertion replacement count={count}')
+
+          tests = tests.replace(
+              'Cauldron reaction did not retain a simultaneous swiftness/slowness outcome set',
+              'Cauldron reaction retained simultaneous swiftness/slowness effects',
+              1,
+          )
+          tests = tests.replace(
+              'Delayed cauldron redstone reaction collapsed selected opposing effects',
+              'Delayed cauldron redstone reaction restored opposing effects',
+              1,
+          )
+          tests = tests.replace(
+              'Delayed delivery-form reaction collapsed selected opposing effects',
+              'Delayed delivery-form reaction restored opposing effects',
+              1,
+          )
           test_path.write_text(tests)
 
       - name: Commit applied fix
