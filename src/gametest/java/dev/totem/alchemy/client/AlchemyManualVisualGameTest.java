@@ -48,6 +48,9 @@ public final class AlchemyManualVisualGameTest implements FabricClientGameTest {
             if (!I18n.get("book.deadrecall.alchemy_manual.title").equals("Alchemy 煉金手冊")) {
                 throw new AssertionError("Traditional Chinese Alchemy manual resources were not loaded");
             }
+            if (!I18n.get("book.totem_alchemy.material_slot.red_mushroom").isEmpty()) {
+                throw new AssertionError("Undiscovered material page slot leaked its static label");
+            }
             client.options.guiScale().set(3);
         });
         context.getInput().resizeWindow(1280, 720);
@@ -102,12 +105,16 @@ public final class AlchemyManualVisualGameTest implements FabricClientGameTest {
                 player.teleportTo(target.getX() + 0.5D, target.getY(), target.getZ() - 3.5D);
             });
             context.waitFor(client -> AlchemyDiscoveryClientCache.has(Items.NETHER_WART, Potions.AWKWARD)
+                    && AlchemyResearchClientCache.isMaterialKnown(Items.NETHER_WART)
                     && AlchemyResearchClientCache.samples(Items.NETHER_WART) > 0
                     && isLowConfidenceTwentySecondEstimate(Items.NETHER_WART)
                     && AlchemyDiscoveryClientCache.has(Items.SPIDER_EYE, Potions.POISON)
+                    && AlchemyResearchClientCache.isMaterialKnown(Items.SPIDER_EYE)
                     && AlchemyDiscoveryClientCache.has(Items.SUGAR, Potions.SWIFTNESS)
                     && AlchemyDiscoveryClientCache.has(Items.SUGAR, Potions.SLOWNESS)
                     && AlchemyDiscoveryClientCache.has(Items.SUGAR, AlchemyPotions.SATURATION)
+                    && AlchemyResearchClientCache.isMaterialKnown(Items.SUGAR)
+                    && !AlchemyResearchClientCache.isMaterialKnown(Items.RED_MUSHROOM)
                     && AlchemyResearchClientCache.samples(Items.SUGAR) == 1
                     && isLowConfidenceTwentySecondEstimate(Items.SUGAR));
             ItemStack manual = TotemManualAssembler.create();

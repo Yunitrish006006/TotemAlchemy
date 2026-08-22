@@ -21,7 +21,7 @@ public final class AlchemyMaterialResearchOverlay {
     private static final int INK = 0xFF4B3826;
     private static final int MUTED = 0xFF765B3D;
     private static final int WARN = 0xFFA33A2B;
-    private static final Map<String, Item> MATERIAL_PAGES = createMaterialPages();
+    private static final Map<String, MaterialPage> MATERIAL_PAGES = createMaterialPages();
     private static final Map<Item, String> MATERIAL_NOTES = Map.ofEntries(
             Map.entry(Items.NETHER_WART, "book.totem_alchemy.research.note.base"),
             Map.entry(Items.REDSTONE, "book.totem_alchemy.research.note.extend"),
@@ -41,10 +41,20 @@ public final class AlchemyMaterialResearchOverlay {
     }
 
     private static void render(TotemManualPageRenderContext context) {
-        Item ingredient = MATERIAL_PAGES.get(context.pageKey());
-        if (ingredient == null) return;
+        MaterialPage materialPage = MATERIAL_PAGES.get(context.pageKey());
+        if (materialPage == null) return;
+        Item ingredient = materialPage.ingredient();
         int top = context.pageTop() + 24;
+
+        if (!AlchemyResearchClientCache.isMaterialKnown(ingredient)) {
+            context.graphics().text(context.font(), "?",
+                    context.pageLeft() + 20, top + 4, WARN, false);
+            return;
+        }
+
         stack(context, new ItemStack(ingredient), 18, top);
+        context.graphics().text(context.font(), Component.translatable(materialPage.nameKey()),
+                context.pageLeft() + 43, top + 4, INK, false);
 
         int samples = AlchemyResearchClientCache.samples(ingredient);
         context.graphics().text(context.font(), Component.translatable(
@@ -126,39 +136,46 @@ public final class AlchemyMaterialResearchOverlay {
         return tenths % 10 == 0 ? Integer.toString(tenths / 10) : String.format(Locale.ROOT, "%.1f", tenths / 10.0D);
     }
 
-    private static Map<String, Item> createMaterialPages() {
-        Map<String, Item> pages = new LinkedHashMap<>();
-        pages.put("book.totem_alchemy.material.nether_wart", Items.NETHER_WART);
-        pages.put("book.totem_alchemy.material.red_mushroom", Items.RED_MUSHROOM);
-        pages.put("book.totem_alchemy.material.spider_eye", Items.SPIDER_EYE);
-        pages.put("book.totem_alchemy.material.fermented_spider_eye", Items.FERMENTED_SPIDER_EYE);
-        pages.put("book.totem_alchemy.material.sugar", Items.SUGAR);
-        pages.put("book.totem_alchemy.material.rabbit_foot", Items.RABBIT_FOOT);
-        pages.put("book.totem_alchemy.material.magma_cream", Items.MAGMA_CREAM);
-        pages.put("book.totem_alchemy.material.glistering_melon_slice", Items.GLISTERING_MELON_SLICE);
-        pages.put("book.totem_alchemy.material.golden_carrot", Items.GOLDEN_CARROT);
-        pages.put("book.totem_alchemy.material.blaze_powder", Items.BLAZE_POWDER);
-        pages.put("book.totem_alchemy.material.ghast_tear", Items.GHAST_TEAR);
-        pages.put("book.totem_alchemy.material.pufferfish", Items.PUFFERFISH);
-        pages.put("book.totem_alchemy.material.turtle_helmet", Items.TURTLE_HELMET);
-        pages.put("book.totem_alchemy.material.phantom_membrane", Items.PHANTOM_MEMBRANE);
-        pages.put("book.totem_alchemy.material.breeze_rod", Items.BREEZE_ROD);
-        pages.put("book.totem_alchemy.material.slime_block", Items.SLIME_BLOCK);
-        pages.put("book.totem_alchemy.material.stone", Items.STONE);
-        pages.put("book.totem_alchemy.material.cobweb", Items.COBWEB);
-        pages.put("book.totem_alchemy.material.melon_slice", Items.MELON_SLICE);
-        pages.put("book.totem_alchemy.material.apple", Items.APPLE);
-        pages.put("book.totem_alchemy.material.sweet_berries", Items.SWEET_BERRIES);
-        pages.put("book.totem_alchemy.material.glow_berries", Items.GLOW_BERRIES);
-        pages.put("book.totem_alchemy.material.honey_bottle", Items.HONEY_BOTTLE);
-        pages.put("book.totem_alchemy.material.golden_apple", Items.GOLDEN_APPLE);
-        pages.put("book.totem_alchemy.material.enchanted_golden_apple", Items.ENCHANTED_GOLDEN_APPLE);
-        pages.put("book.totem_alchemy.material.cherry_leaves", Items.CHERRY_LEAVES);
-        pages.put("book.totem_alchemy.material.firefly_bush", Items.FIREFLY_BUSH);
-        pages.put("book.totem_alchemy.material.redstone", Items.REDSTONE);
-        pages.put("book.totem_alchemy.material.glowstone_dust", Items.GLOWSTONE_DUST);
-        pages.put("book.totem_alchemy.material.gunpowder", Items.GUNPOWDER);
-        pages.put("book.totem_alchemy.material.dragon_breath", Items.DRAGON_BREATH);
+    private static Map<String, MaterialPage> createMaterialPages() {
+        Map<String, MaterialPage> pages = new LinkedHashMap<>();
+        addMaterialPage(pages, "nether_wart", Items.NETHER_WART);
+        addMaterialPage(pages, "red_mushroom", Items.RED_MUSHROOM);
+        addMaterialPage(pages, "spider_eye", Items.SPIDER_EYE);
+        addMaterialPage(pages, "fermented_spider_eye", Items.FERMENTED_SPIDER_EYE);
+        addMaterialPage(pages, "sugar", Items.SUGAR);
+        addMaterialPage(pages, "rabbit_foot", Items.RABBIT_FOOT);
+        addMaterialPage(pages, "magma_cream", Items.MAGMA_CREAM);
+        addMaterialPage(pages, "glistering_melon_slice", Items.GLISTERING_MELON_SLICE);
+        addMaterialPage(pages, "golden_carrot", Items.GOLDEN_CARROT);
+        addMaterialPage(pages, "blaze_powder", Items.BLAZE_POWDER);
+        addMaterialPage(pages, "ghast_tear", Items.GHAST_TEAR);
+        addMaterialPage(pages, "pufferfish", Items.PUFFERFISH);
+        addMaterialPage(pages, "turtle_helmet", Items.TURTLE_HELMET);
+        addMaterialPage(pages, "phantom_membrane", Items.PHANTOM_MEMBRANE);
+        addMaterialPage(pages, "breeze_rod", Items.BREEZE_ROD);
+        addMaterialPage(pages, "slime_block", Items.SLIME_BLOCK);
+        addMaterialPage(pages, "stone", Items.STONE);
+        addMaterialPage(pages, "cobweb", Items.COBWEB);
+        addMaterialPage(pages, "melon_slice", Items.MELON_SLICE);
+        addMaterialPage(pages, "apple", Items.APPLE);
+        addMaterialPage(pages, "sweet_berries", Items.SWEET_BERRIES);
+        addMaterialPage(pages, "glow_berries", Items.GLOW_BERRIES);
+        addMaterialPage(pages, "honey_bottle", Items.HONEY_BOTTLE);
+        addMaterialPage(pages, "golden_apple", Items.GOLDEN_APPLE);
+        addMaterialPage(pages, "enchanted_golden_apple", Items.ENCHANTED_GOLDEN_APPLE);
+        addMaterialPage(pages, "cherry_leaves", Items.CHERRY_LEAVES);
+        addMaterialPage(pages, "firefly_bush", Items.FIREFLY_BUSH);
+        addMaterialPage(pages, "redstone", Items.REDSTONE);
+        addMaterialPage(pages, "glowstone_dust", Items.GLOWSTONE_DUST);
+        addMaterialPage(pages, "gunpowder", Items.GUNPOWDER);
+        addMaterialPage(pages, "dragon_breath", Items.DRAGON_BREATH);
         return Map.copyOf(pages);
     }
+
+    private static void addMaterialPage(Map<String, MaterialPage> pages, String id, Item ingredient) {
+        pages.put("book.totem_alchemy.material_slot." + id,
+                new MaterialPage(ingredient, "book.totem_alchemy.material." + id));
+    }
+
+    private record MaterialPage(Item ingredient, String nameKey) {}
 }

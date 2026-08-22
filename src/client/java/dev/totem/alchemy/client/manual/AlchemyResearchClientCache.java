@@ -37,6 +37,11 @@ public final class AlchemyResearchClientCache {
         });
     }
 
+    /** A material stays anonymous until the server has recorded at least one observation for it. */
+    public static boolean isMaterialKnown(Item ingredient) {
+        return samples(ingredient) > 0;
+    }
+
     public static int samples(Item ingredient) {
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient).toString();
         Integer samples = samplesByIngredient.get(ingredientId);
