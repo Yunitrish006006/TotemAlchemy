@@ -1,6 +1,7 @@
 package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.manual.AlchemyManual;
+import dev.totem.alchemy.manual.AlchemyMaterialCatalog;
 import dev.totem.alchemy.alchemy.AlchemyPotions;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryKey;
@@ -38,8 +39,10 @@ public final class AlchemyManualGameTest {
                 helper.fail("Alchemy manual source did not create a canonical Totem manual");
                 return;
             }
-            if (AlchemyManual.pageKeys().size() != 34) {
-                helper.fail("Alchemy manual did not register two overview pages, thirty-one material pages, and the cauldron page");
+            int expectedPageCount = AlchemyMaterialCatalog.entries().size() + 3;
+            if (AlchemyManual.pageKeys().size() != expectedPageCount) {
+                helper.fail("Alchemy manual page count did not follow the material catalog: expected "
+                        + expectedPageCount + ", got " + AlchemyManual.pageKeys().size());
                 return;
             }
             boolean hasAlchemySection = dev.totem.core.api.v1.manual.TotemManualRegistry.global()
