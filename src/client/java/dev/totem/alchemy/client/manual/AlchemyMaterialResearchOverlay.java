@@ -1,6 +1,7 @@
 package dev.totem.alchemy.client.manual;
 
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.manual.AlchemyMaterialCatalog;
 import dev.totem.core.api.v1.client.manual.TotemManualPageOverlayRegistry;
 import dev.totem.core.api.v1.client.manual.TotemManualPageRenderContext;
 import net.minecraft.network.chat.Component;
@@ -11,7 +12,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -21,7 +21,6 @@ public final class AlchemyMaterialResearchOverlay {
     private static final int INK = 0xFF4B3826;
     private static final int MUTED = 0xFF765B3D;
     private static final int WARN = 0xFFA33A2B;
-    private static final Map<String, MaterialPage> MATERIAL_PAGES = createMaterialPages();
     private static final Map<Item, String> MATERIAL_NOTES = Map.ofEntries(
             Map.entry(Items.NETHER_WART, "book.totem_alchemy.research.note.base"),
             Map.entry(Items.REDSTONE, "book.totem_alchemy.research.note.extend"),
@@ -41,9 +40,9 @@ public final class AlchemyMaterialResearchOverlay {
     }
 
     private static void render(TotemManualPageRenderContext context) {
-        MaterialPage materialPage = MATERIAL_PAGES.get(context.pageKey());
+        AlchemyMaterialCatalog.Entry materialPage = AlchemyMaterialCatalog.byPageKey(context.pageKey());
         if (materialPage == null) return;
-        Item ingredient = materialPage.ingredient();
+        Item ingredient = materialPage.item();
         int top = context.pageTop() + 24;
 
         if (!AlchemyResearchClientCache.isMaterialKnown(ingredient)) {
@@ -52,8 +51,9 @@ public final class AlchemyMaterialResearchOverlay {
             return;
         }
 
-        stack(context, new ItemStack(ingredient), 18, top);
-        context.graphics().text(context.font(), Component.translatable(materialPage.nameKey()),
+        ItemStack ingredientStack = new ItemStack(ingredient);
+        stack(context, ingredientStack, 18, top);
+        context.graphics().text(context.font(), ingredientStack.getHoverName(),
                 context.pageLeft() + 43, top + 4, INK, false);
 
         int samples = AlchemyResearchClientCache.samples(ingredient);
@@ -135,47 +135,4 @@ public final class AlchemyMaterialResearchOverlay {
     private static String formatTenths(int tenths) {
         return tenths % 10 == 0 ? Integer.toString(tenths / 10) : String.format(Locale.ROOT, "%.1f", tenths / 10.0D);
     }
-
-    private static Map<String, MaterialPage> createMaterialPages() {
-        Map<String, MaterialPage> pages = new LinkedHashMap<>();
-        addMaterialPage(pages, "nether_wart", Items.NETHER_WART);
-        addMaterialPage(pages, "red_mushroom", Items.RED_MUSHROOM);
-        addMaterialPage(pages, "spider_eye", Items.SPIDER_EYE);
-        addMaterialPage(pages, "fermented_spider_eye", Items.FERMENTED_SPIDER_EYE);
-        addMaterialPage(pages, "sugar", Items.SUGAR);
-        addMaterialPage(pages, "rabbit_foot", Items.RABBIT_FOOT);
-        addMaterialPage(pages, "magma_cream", Items.MAGMA_CREAM);
-        addMaterialPage(pages, "glistering_melon_slice", Items.GLISTERING_MELON_SLICE);
-        addMaterialPage(pages, "golden_carrot", Items.GOLDEN_CARROT);
-        addMaterialPage(pages, "blaze_powder", Items.BLAZE_POWDER);
-        addMaterialPage(pages, "ghast_tear", Items.GHAST_TEAR);
-        addMaterialPage(pages, "pufferfish", Items.PUFFERFISH);
-        addMaterialPage(pages, "turtle_helmet", Items.TURTLE_HELMET);
-        addMaterialPage(pages, "phantom_membrane", Items.PHANTOM_MEMBRANE);
-        addMaterialPage(pages, "breeze_rod", Items.BREEZE_ROD);
-        addMaterialPage(pages, "slime_block", Items.SLIME_BLOCK);
-        addMaterialPage(pages, "stone", Items.STONE);
-        addMaterialPage(pages, "cobweb", Items.COBWEB);
-        addMaterialPage(pages, "melon_slice", Items.MELON_SLICE);
-        addMaterialPage(pages, "apple", Items.APPLE);
-        addMaterialPage(pages, "sweet_berries", Items.SWEET_BERRIES);
-        addMaterialPage(pages, "glow_berries", Items.GLOW_BERRIES);
-        addMaterialPage(pages, "honey_bottle", Items.HONEY_BOTTLE);
-        addMaterialPage(pages, "golden_apple", Items.GOLDEN_APPLE);
-        addMaterialPage(pages, "enchanted_golden_apple", Items.ENCHANTED_GOLDEN_APPLE);
-        addMaterialPage(pages, "cherry_leaves", Items.CHERRY_LEAVES);
-        addMaterialPage(pages, "firefly_bush", Items.FIREFLY_BUSH);
-        addMaterialPage(pages, "redstone", Items.REDSTONE);
-        addMaterialPage(pages, "glowstone_dust", Items.GLOWSTONE_DUST);
-        addMaterialPage(pages, "gunpowder", Items.GUNPOWDER);
-        addMaterialPage(pages, "dragon_breath", Items.DRAGON_BREATH);
-        return Map.copyOf(pages);
-    }
-
-    private static void addMaterialPage(Map<String, MaterialPage> pages, String id, Item ingredient) {
-        pages.put("book.totem_alchemy.material_slot." + id,
-                new MaterialPage(ingredient, "book.totem_alchemy.material." + id));
-    }
-
-    private record MaterialPage(Item ingredient, String nameKey) {}
 }

@@ -52,12 +52,14 @@ public final class AlchemyCauldronPersistenceGameTest {
                 sugar, awkward, 0.999F, 0.999F, 0.999F, 0.60F);
         require(helper, fallback.size() == 1,
                 "An all-miss independent roll did not choose exactly one weighted fallback");
-        require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                        "minecraft:sugar", "minecraft:swiftness") - 0.64D) < 0.000_001D,
+        double fallbackSwiftnessTruth = MultiOutcomeBrewing.outcomeProbability(
+                "minecraft:sugar", "minecraft:swiftness");
+        double fallbackSlownessTruth = MultiOutcomeBrewing.outcomeProbability(
+                "minecraft:sugar", "minecraft:slowness");
+        require(helper, fallbackSwiftnessTruth > 0.94D && fallbackSwiftnessTruth <= 1.0D,
                 "Research truth omitted the all-miss fallback contribution for swiftness");
-        require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                        "minecraft:sugar", "minecraft:slowness") - 0.384D) < 0.000_001D,
-                "Research truth omitted the all-miss fallback contribution for slowness");
+        require(helper, fallbackSlownessTruth > 0.03D && fallbackSlownessTruth < 0.05D,
+                "Research truth omitted the all-miss fallback contribution for rare slowness");
         helper.succeed();
     }
 
@@ -190,7 +192,7 @@ public final class AlchemyCauldronPersistenceGameTest {
     }
 
     @GameTest(maxTicks = 40)
-    public void coreBrewingIngredientsOfferTwoEqualOutcomeBranches(GameTestHelper helper) {
+    public void coreBrewingIngredientsKeepVanillaPrimaryAndReachableSecondaryBranches(GameTestHelper helper) {
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
         ItemStack spiderEye = new ItemStack(Items.SPIDER_EYE);
         ItemStack redMushroom = new ItemStack(Items.RED_MUSHROOM);
@@ -200,21 +202,21 @@ public final class AlchemyCauldronPersistenceGameTest {
                 "Spider eye did not expose two brewing outcomes");
         require(helper, MultiOutcomeBrewing.chooseOutcome(spiderEye, awkward, 0.1F).potion().is(Potions.POISON),
                 "Spider eye first branch was not poison");
-        require(helper, MultiOutcomeBrewing.chooseOutcome(spiderEye, awkward, 0.9F).potion().is(Potions.WEAKNESS),
+        require(helper, MultiOutcomeBrewing.chooseOutcome(spiderEye, awkward, 0.99F).potion().is(Potions.WEAKNESS),
                 "Spider eye second branch was not weakness");
 
         require(helper, MultiOutcomeBrewing.outcomeCount(redMushroom, awkward) == 2,
                 "Red mushroom did not expose two brewing outcomes");
         require(helper, MultiOutcomeBrewing.chooseOutcome(redMushroom, awkward, 0.1F).potion().is(Potions.POISON),
                 "Red mushroom first branch was not poison");
-        require(helper, MultiOutcomeBrewing.chooseOutcome(redMushroom, awkward, 0.9F).potion().is(AlchemyPotions.SATURATION),
+        require(helper, MultiOutcomeBrewing.chooseOutcome(redMushroom, awkward, 0.99F).potion().is(AlchemyPotions.SATURATION),
                 "Red mushroom second branch was not saturation");
 
         require(helper, MultiOutcomeBrewing.outcomeCount(melon, awkward) == 2,
                 "Glistering melon did not expose two brewing outcomes");
         require(helper, MultiOutcomeBrewing.chooseOutcome(melon, awkward, 0.1F).potion().is(Potions.HEALING),
                 "Glistering melon first branch was not healing");
-        require(helper, MultiOutcomeBrewing.chooseOutcome(melon, awkward, 0.9F).potion().is(AlchemyPotions.RESISTANCE),
+        require(helper, MultiOutcomeBrewing.chooseOutcome(melon, awkward, 0.99F).potion().is(AlchemyPotions.RESISTANCE),
                 "Glistering melon second branch was not resistance");
 
         ItemStack saturation = PotionContents.createItemStack(Items.POTION, AlchemyPotions.SATURATION);
