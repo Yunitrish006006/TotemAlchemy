@@ -3,14 +3,15 @@ name: Apply dynamic Alchemy test updates
 on:
   push:
     branches: [feature/dynamic-alchemy-materials]
-    paths:
-      - .github/workflows/apply-dynamic-alchemy-test-updates.yml
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   update-tests:
+    if: github.event_name == 'push' || github.head_ref == 'feature/dynamic-alchemy-materials'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
