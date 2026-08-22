@@ -2,6 +2,7 @@ package dev.totem.alchemy.manual;
 
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
+import dev.totem.core.api.v1.manual.TotemManualChapterRecorder;
 import dev.totem.core.api.v1.manual.TotemManualLifecycle;
 import dev.totem.core.api.v1.manual.TotemManualPlayerHelper;
 import dev.totem.core.api.v1.manual.TotemManualRegistry;
@@ -89,7 +90,7 @@ public final class AlchemyManual {
 
     public static boolean grant(ServerPlayer player, InteractionHand hand) {
         if (player == null || hand == null) return false;
-        boolean handled = TotemManualPlayerHelper.acquireSections(
+        boolean handled = TotemManualChapterRecorder.acquireSections(
                 player, hand, List.of(SECTION), MANUAL_ADVANCEMENT, ignored -> false).handled();
         if (handled) AlchemyDiscoveryService.send(player);
         return handled;
