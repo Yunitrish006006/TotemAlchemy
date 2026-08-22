@@ -116,5 +116,16 @@
   "book.totem_alchemy.material.redstone": "Redstone Dust",
   "book.totem_alchemy.material.glowstone_dust": "Glowstone Dust",
   "book.totem_alchemy.material.gunpowder": "Gunpowder",
-  "book.totem_alchemy.material.dragon_breath": "Dragon's Breath"
+  "book.totem_alchemy.material.dragon_breath": "Dragon's Breath",
+  "book.totem_alchemy.reaction_research.slot": "",
+  "book.totem_alchemy.reaction.title": "Reaction Research",
+  "book.totem_alchemy.reaction.intro.1": "Some potion effects chemically oppose each other.",
+  "book.totem_alchemy.reaction.intro.2": "Their effective amounts cancel; the stronger side remains.",
+  "book.totem_alchemy.reaction.strength_family": "Strength family",
+  "book.totem_alchemy.reaction.observed": "Observed:",
+  "book.totem_alchemy.reaction.result.unknown": "Resolution not confirmed",
+  "book.totem_alchemy.reaction.result.complete": "Complete neutralization",
+  "book.totem_alchemy.reaction.result.positive_remains": "Left-side effect remains",
+  "book.totem_alchemy.reaction.result.negative_remains": "Right-side effect remains",
+  "message.deadrecall.alchemy.conflict_discovery_recorded": "The manual recorded a new opposing reaction."
 }
