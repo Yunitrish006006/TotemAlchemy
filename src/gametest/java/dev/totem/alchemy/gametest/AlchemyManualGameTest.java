@@ -39,7 +39,7 @@ public final class AlchemyManualGameTest {
                 helper.fail("Alchemy manual source did not create a canonical Totem manual");
                 return;
             }
-            int expectedPageCount = AlchemyMaterialCatalog.entries().size() + 3;
+            int expectedPageCount = AlchemyMaterialCatalog.entries().size() + 4;
             if (AlchemyManual.pageKeys().size() != expectedPageCount) {
                 helper.fail("Alchemy manual page count did not follow the material catalog: expected "
                         + expectedPageCount + ", got " + AlchemyManual.pageKeys().size());

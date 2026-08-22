@@ -15,9 +15,9 @@ import java.util.HashSet;
 public final class AlchemyMaterialCatalogGameTest {
     @GameTest(maxTicks = 20)
     public void manualPageCountTracksMaterialCatalog(GameTestHelper helper) {
-        int expected = AlchemyMaterialCatalog.entries().size() + 3;
+        int expected = AlchemyMaterialCatalog.entries().size() + 4;
         if (AlchemyManual.pageKeys().size() != expected) {
-            helper.fail("Alchemy manual page count did not follow its material catalog: expected "
+            helper.fail("Alchemy manual page count did not follow its material catalog plus reaction research: expected "
                     + expected + ", got " + AlchemyManual.pageKeys().size());
             return;
         }

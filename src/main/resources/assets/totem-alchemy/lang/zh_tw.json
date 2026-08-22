@@ -116,5 +116,16 @@
   "book.totem_alchemy.material.redstone": "紅石粉",
   "book.totem_alchemy.material.glowstone_dust": "螢石粉",
   "book.totem_alchemy.material.gunpowder": "火藥",
-  "book.totem_alchemy.material.dragon_breath": "龍之吐息"
+  "book.totem_alchemy.material.dragon_breath": "龍之吐息",
+  "book.totem_alchemy.reaction_research.slot": "",
+  "book.totem_alchemy.reaction.title": "反應研究",
+  "book.totem_alchemy.reaction.intro.1": "部分藥水效果彼此相衝。",
+  "book.totem_alchemy.reaction.intro.2": "有效量互相抵銷，較強的一側會留下。",
+  "book.totem_alchemy.reaction.strength_family": "力量系",
+  "book.totem_alchemy.reaction.observed": "已觀察：",
+  "book.totem_alchemy.reaction.result.unknown": "結果尚未確認",
+  "book.totem_alchemy.reaction.result.complete": "完全中和",
+  "book.totem_alchemy.reaction.result.positive_remains": "左側效果殘留",
+  "book.totem_alchemy.reaction.result.negative_remains": "右側效果殘留",
+  "message.deadrecall.alchemy.conflict_discovery_recorded": "手冊記錄了新的相衝反應。"
 }

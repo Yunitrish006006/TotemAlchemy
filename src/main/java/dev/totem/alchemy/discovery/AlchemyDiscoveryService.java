@@ -1,6 +1,8 @@
 package dev.totem.alchemy.discovery;
 
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.network.AlchemyDiscoveriesPayload;
 import dev.totem.alchemy.network.AlchemyResearchPayload;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -19,6 +21,7 @@ import net.minecraft.world.item.alchemy.PotionContents;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -102,6 +105,9 @@ public final class AlchemyDiscoveryService {
         data.recordMaterialSample(subjectId, ingredientId);
         if (processingTicks > 0) data.recordProcessingTime(subjectId, ingredientId, processingTicks);
 
+        recordConflictObservations(subjectId, livePlayer,
+                conflictObservations(inputs, outputs, explicitResults), data);
+
         if (results.isEmpty()) {
             // A material may process successfully while none of its independent effect rolls hit.
             data.recordResearch(subjectId, ingredientId + ">" + NO_EFFECT_ID);
@@ -119,6 +125,81 @@ public final class AlchemyDiscoveryService {
             }
         }
         if (livePlayer != null) send(livePlayer);
+    }
+
+    /** Records a conflict created by directly mixing two liquids, such as pouring one potion into a cauldron mixture. */
+    public static void recordMixtureConflict(
+            ServerLevel level,
+            BlockPos pos,
+            AlchemyMixtureState first,
+            AlchemyMixtureState second,
+            AlchemyMixtureState resolved
+    ) {
+        ServerPlayer player = nearestPlayer(level, pos);
+        if (player == null) {
+            return;
+        }
+        AlchemyDiscoverySavedData data = AlchemyDiscoverySavedData.get(level.getServer());
+        boolean changed = recordConflictObservations(
+                player.getUUID(), player, AlchemyConflictCatalog.observe(first, second, resolved), data);
+        if (changed) {
+            send(player);
+        }
+    }
+
+    private static List<AlchemyConflictCatalog.Observation> conflictObservations(
+            List<ItemStack> inputs,
+            List<ItemStack> outputs,
+            List<Holder<Potion>> explicitResults
+    ) {
+        Map<String, AlchemyMixtureState.EffectDose> raw = new LinkedHashMap<>();
+        inputs.stream()
+                .filter(stack -> stack != null && !stack.isEmpty())
+                .findFirst()
+                .map(AlchemyMixtureBottle::fromPotion)
+                .ifPresent(state -> AlchemyConflictCatalog.mergeEffects(raw, state.effects()));
+        for (Holder<Potion> potion : explicitResults) {
+            if (potion == null) {
+                continue;
+            }
+            AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(
+                    PotionContents.createItemStack(net.minecraft.world.item.Items.POTION, potion));
+            AlchemyConflictCatalog.mergeEffects(raw, state.effects());
+        }
+        if (raw.isEmpty()) {
+            return List.of();
+        }
+        Map<String, AlchemyMixtureState.EffectDose> resolved = outputs.stream()
+                .filter(stack -> stack != null && !stack.isEmpty())
+                .findFirst()
+                .map(AlchemyMixtureBottle::fromPotion)
+                .map(AlchemyMixtureState::effects)
+                .orElse(Map.of());
+        return resolved.isEmpty()
+                ? AlchemyConflictCatalog.observeRaw(raw)
+                : AlchemyConflictCatalog.observeRaw(raw, resolved);
+    }
+
+    private static boolean recordConflictObservations(
+            UUID playerId,
+            ServerPlayer livePlayer,
+            List<AlchemyConflictCatalog.Observation> observations,
+            AlchemyDiscoverySavedData data
+    ) {
+        boolean changed = false;
+        for (AlchemyConflictCatalog.Observation observation : observations) {
+            String relationKey = AlchemyConflictCatalog.relationKey(observation.entry());
+            boolean firstRelation = data.record(playerId, relationKey);
+            boolean firstResolution = data.record(
+                    playerId,
+                    AlchemyConflictCatalog.resolutionKey(observation.entry(), observation.resolution()));
+            changed |= firstRelation || firstResolution;
+            if (firstRelation && livePlayer != null) {
+                livePlayer.sendOverlayMessage(Component.translatable(
+                        "message.deadrecall.alchemy.conflict_discovery_recorded"));
+            }
+        }
+        return changed;
     }
 
     public static void recordProcessingAttempt(ServerLevel level, BlockPos pos, ItemStack ingredient, int processingTicks) {

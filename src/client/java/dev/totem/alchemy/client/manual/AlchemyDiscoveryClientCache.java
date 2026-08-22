@@ -30,6 +30,10 @@ public final class AlchemyDiscoveryClientCache {
         return discoveries.contains(key) || AlchemyResearchClientCache.hasOutcome(ingredient, potion);
     }
 
+    public static boolean hasKey(String key) {
+        return key != null && discoveries.contains(key);
+    }
+
     static void replace(Iterable<String> updatedDiscoveries) {
         java.util.HashSet<String> copy = new java.util.HashSet<>();
         updatedDiscoveries.forEach(copy::add);
