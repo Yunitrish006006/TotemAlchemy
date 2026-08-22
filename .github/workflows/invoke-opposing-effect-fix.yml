@@ -5,6 +5,10 @@ on:
     branches: [fix/opposing-effects-and-pufferfish]
     paths:
       - .github/trigger-opposing-effect-fix.txt
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/trigger-opposing-effect-fix.txt
 
 permissions:
   contents: write
