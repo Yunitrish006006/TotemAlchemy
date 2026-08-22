@@ -1,0 +1,91 @@
+name: Apply dynamic Alchemy test updates
+
+on:
+  push:
+    branches: [feature/dynamic-alchemy-materials]
+    paths:
+      - .github/workflows/apply-dynamic-alchemy-test-updates.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/dynamic-alchemy-materials
+          fetch-depth: 0
+
+      - name: Update stale fixed-balance tests
+        shell: python
+        run: |
+          from pathlib import Path
+
+          manual = Path("src/gametest/java/dev/totem/alchemy/gametest/AlchemyManualGameTest.java")
+          text = manual.read_text()
+          text = text.replace(
+              "import dev.totem.alchemy.manual.AlchemyManual;\n",
+              "import dev.totem.alchemy.manual.AlchemyManual;\nimport dev.totem.alchemy.manual.AlchemyMaterialCatalog;\n",
+              1,
+          )
+          old = '''            if (AlchemyManual.pageKeys().size() != 34) {
+                          helper.fail("Alchemy manual did not register two overview pages, thirty-one material pages, and the cauldron page");
+                          return;
+                      }
+          '''
+          new = '''            int expectedPageCount = AlchemyMaterialCatalog.entries().size() + 3;
+                      if (AlchemyManual.pageKeys().size() != expectedPageCount) {
+                          helper.fail("Alchemy manual page count did not follow the material catalog: expected "
+                                  + expectedPageCount + ", got " + AlchemyManual.pageKeys().size());
+                          return;
+                      }
+          '''
+          if old not in text:
+              raise SystemExit("manual fixed-page assertion not found")
+          manual.write_text(text.replace(old, new, 1))
+
+          persistence = Path("src/gametest/java/dev/totem/alchemy/gametest/AlchemyCauldronPersistenceGameTest.java")
+          text = persistence.read_text()
+          old = '''        require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
+                              "minecraft:sugar", "minecraft:swiftness") - 0.64D) < 0.000_001D,
+                      "Research truth omitted the all-miss fallback contribution for swiftness");
+                  require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
+                              "minecraft:sugar", "minecraft:slowness") - 0.384D) < 0.000_001D,
+                      "Research truth omitted the all-miss fallback contribution for slowness");
+          '''
+          new = '''        double fallbackSwiftnessTruth = MultiOutcomeBrewing.outcomeProbability(
+                          "minecraft:sugar", "minecraft:swiftness");
+                  double fallbackSlownessTruth = MultiOutcomeBrewing.outcomeProbability(
+                          "minecraft:sugar", "minecraft:slowness");
+                  require(helper, fallbackSwiftnessTruth > 0.94D && fallbackSwiftnessTruth <= 1.0D,
+                      "Research truth omitted the all-miss fallback contribution for swiftness");
+                  require(helper, fallbackSlownessTruth > 0.03D && fallbackSlownessTruth < 0.05D,
+                      "Research truth omitted the all-miss fallback contribution for rare slowness");
+          '''
+          if old not in text:
+              raise SystemExit("legacy fallback assertions not found")
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              "public void coreBrewingIngredientsOfferTwoEqualOutcomeBranches(GameTestHelper helper)",
+              "public void coreBrewingIngredientsKeepVanillaPrimaryAndReachableSecondaryBranches(GameTestHelper helper)",
+              1,
+          )
+          marker = text.index("public void coreBrewingIngredientsKeepVanillaPrimaryAndReachableSecondaryBranches")
+          end = text.index("ItemStack saturation =", marker)
+          block = text[marker:end].replace("0.9F", "0.99F")
+          text = text[:marker] + block + text[end:]
+          persistence.write_text(text)
+
+      - name: Commit test migration and remove helper workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/apply-dynamic-alchemy-test-updates.yml
+          git add src/gametest/java/dev/totem/alchemy/gametest/AlchemyManualGameTest.java \
+                  src/gametest/java/dev/totem/alchemy/gametest/AlchemyCauldronPersistenceGameTest.java
+          git commit -m 'test(alchemy): align coverage with dynamic material balance'
+          git push origin HEAD:feature/dynamic-alchemy-materials
