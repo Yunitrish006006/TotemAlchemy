@@ -4,6 +4,7 @@ import dev.totem.alchemy.discovery.AlchemyConflictCatalog;
 import dev.totem.core.api.v1.client.manual.TotemManualPageOverlayRegistry;
 import dev.totem.core.api.v1.client.manual.TotemManualPageRenderContext;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
@@ -79,7 +80,8 @@ public final class AlchemyReactionResearchOverlay {
         if (observed.isEmpty()) {
             return Component.translatable("book.totem_alchemy.reaction.result.unknown");
         }
-        Component out = Component.translatable("book.totem_alchemy.reaction.observed").append(Component.literal(" "));
+        MutableComponent out = Component.translatable("book.totem_alchemy.reaction.observed")
+                .append(Component.literal(" "));
         for (int index = 0; index < observed.size(); index++) {
             if (index > 0) {
                 out.append(Component.literal(" / "));
