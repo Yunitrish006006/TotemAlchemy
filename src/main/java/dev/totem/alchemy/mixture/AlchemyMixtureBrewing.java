@@ -109,7 +109,7 @@ public final class AlchemyMixtureBrewing {
             targetPotion = targetState.canonicalPotionId();
         }
 
-        String reactionPrefix = outcomeIngredient || state.preservesIndependentOutcomes() ? "brewset:" : "brew:";
+        String reactionPrefix = "brew:";
         String id = reactionPrefix + (sourcePotion == null ? "mixed" : sourcePotion)
                 + ">" + ingredientId + ">" + (targetPotion == null ? "mixed" : targetPotion);
         int processingTicks = BrewingMaterialSettings.processingTicks(ingredient.getItem());
@@ -192,7 +192,7 @@ public final class AlchemyMixtureBrewing {
                     ? (AlchemyMixtureBottle.isPotionContainer(vanillaOutput)
                         ? AlchemyMixtureBottle.fromPotion(vanillaOutput).effects() : Map.of())
                     : effectsForOutcomes(chosenOutcomes);
-            state.addIndependentOutcomeEffects(scaleEffects(additions, state.volumeUnits()));
+            state.addEffects(scaleEffects(additions, state.volumeUnits()));
             state.setCanonicalPotionId(null);
             state.addProvenance(chosenOutcomes != null && chosenOutcomes.isEmpty()
                     ? "reaction:no_effect:" + ingredientId : "reaction:" + ingredientId);

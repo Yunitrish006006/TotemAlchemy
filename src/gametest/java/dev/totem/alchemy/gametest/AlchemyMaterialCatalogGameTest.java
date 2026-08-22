@@ -3,6 +3,7 @@ package dev.totem.alchemy.gametest;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.manual.AlchemyManual;
 import dev.totem.alchemy.manual.AlchemyMaterialCatalog;
+import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -58,6 +59,38 @@ public final class AlchemyMaterialCatalogGameTest {
         if (swiftness < 0.90D || slowness > 0.05D || healing < 0.90D || fireResistance < 0.90D) {
             helper.fail("Vanilla-like primary effects are not sufficiently dominant: sugar="
                     + swiftness + "/" + slowness + ", melon=" + healing + ", magma=" + fireResistance);
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void pufferfishKeepsStrongPoisonSideEffect(GameTestHelper helper) {
+        double waterBreathing = MultiOutcomeBrewing.outcomeProbability(
+                "minecraft:pufferfish", "minecraft:water_breathing");
+        double poison = MultiOutcomeBrewing.outcomeProbability(
+                "minecraft:pufferfish", "minecraft:poison");
+        double weakness = MultiOutcomeBrewing.outcomeProbability(
+                "minecraft:pufferfish", "minecraft:weakness");
+        if (waterBreathing < 0.90D || poison < 0.35D || poison > 0.60D || weakness < 0.05D) {
+            helper.fail("Pufferfish no longer has a strong poisonous side-effect profile: water="
+                    + waterBreathing + ", poison=" + poison + ", weakness=" + weakness);
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void regenerationAndPoisonNeutralizeByPotency(GameTestHelper helper) {
+        AlchemyMixtureState state = new AlchemyMixtureState(1);
+        state.putEffect("minecraft:regeneration", 1200.0D, 0);
+        state.putEffect("minecraft:poison", 400.0D, 0);
+
+        AlchemyMixtureState.EffectDose regeneration = state.effects().get("minecraft:regeneration");
+        if (regeneration == null
+                || state.effects().containsKey("minecraft:poison")
+                || Math.abs(regeneration.potencyTicks() - 800.0D) > 0.0001D) {
+            helper.fail("Regeneration and poison did not neutralize by potency: " + state.effects());
             return;
         }
         helper.succeed();

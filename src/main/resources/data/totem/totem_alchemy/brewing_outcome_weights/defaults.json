@@ -11,7 +11,7 @@
     {"ingredient":"minecraft:blaze_powder","outcomes":{"minecraft:strength":95,"minecraft:fire_resistance":4,"minecraft:harming":1}},
     {"ingredient":"minecraft:blaze_rod","outcomes":{"minecraft:strength":85,"minecraft:fire_resistance":12}},
     {"ingredient":"minecraft:ghast_tear","outcomes":{"minecraft:regeneration":95,"minecraft:healing":4,"minecraft:weakness":1}},
-    {"ingredient":"minecraft:pufferfish","outcomes":{"minecraft:water_breathing":96,"minecraft:poison":3,"minecraft:weakness":1}},
+    {"ingredient":"minecraft:pufferfish","outcomes":{"minecraft:water_breathing":96,"minecraft:poison":45,"minecraft:weakness":8}},
     {"ingredient":"minecraft:turtle_helmet","outcomes":{"minecraft:turtle_master":94,"minecraft:water_breathing":5,"totem:alchemy/resistance":3}},
     {"ingredient":"minecraft:phantom_membrane","outcomes":{"minecraft:slow_falling":96,"minecraft:invisibility":3,"minecraft:night_vision":1}},
     {"ingredient":"minecraft:breeze_rod","outcomes":{"minecraft:wind_charged":96,"minecraft:slow_falling":3,"minecraft:leaping":2}},
