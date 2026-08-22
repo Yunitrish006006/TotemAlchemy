@@ -22,6 +22,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Alchemy chapter in the shared Totem manual and its brewing-source acquisition hooks. */
 public final class AlchemyManual {
     public static final int SECTION_ORDER = 0;
+    public static final String REACTION_RESEARCH_PAGE = "book.totem_alchemy.reaction_research.slot";
+
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
     private static final Identifier MANUAL_ADVANCEMENT = Identifier.fromNamespaceAndPath("deadrecall", "alchemy_manual");
     private static final List<String> PAGE_KEYS = buildPageKeys();
@@ -32,10 +34,11 @@ public final class AlchemyManual {
     private AlchemyManual() {}
 
     private static List<String> buildPageKeys() {
-        List<String> pages = new ArrayList<>(AlchemyMaterialCatalog.entries().size() + 3);
+        List<String> pages = new ArrayList<>(AlchemyMaterialCatalog.entries().size() + 4);
         pages.add("book.totem_alchemy.guide.principles");
         pages.add("book.totem_alchemy.guide.stations");
         pages.addAll(AlchemyMaterialCatalog.pageKeys());
+        pages.add(REACTION_RESEARCH_PAGE);
         pages.add("book.deadrecall.alchemy_manual.page.8");
         return List.copyOf(pages);
     }
