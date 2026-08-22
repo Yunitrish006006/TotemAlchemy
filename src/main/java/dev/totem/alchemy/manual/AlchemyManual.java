@@ -34,7 +34,7 @@ public final class AlchemyManual {
     private AlchemyManual() {}
 
     private static List<String> buildPageKeys() {
-        List<String> pages = new ArrayList<>(AlchemyMaterialCatalog.entries().size() + 4);
+        List<String> pages = new ArrayList<>(AlchemyMaterialCatalog.pageCount() + 4);
         pages.add("book.totem_alchemy.guide.principles");
         pages.add("book.totem_alchemy.guide.stations");
         pages.addAll(AlchemyMaterialCatalog.pageKeys());
