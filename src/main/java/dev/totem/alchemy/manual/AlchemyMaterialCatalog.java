@@ -4,15 +4,19 @@ import dev.totem.alchemy.registry.AlchemyItems;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Single ordered source of truth for materials that receive research pages.
- * Manual page count therefore grows automatically when entries are added here.
+ * Single ordered source of truth for materials represented in Alchemy research.
+ * Several materials share each manual page so adding catalog entries grows the
+ * chapter gradually instead of allocating one mostly-empty page per material.
  */
 public final class AlchemyMaterialCatalog {
+    public static final int MATERIALS_PER_PAGE = 6;
+
     private static final List<Entry> ENTRIES = List.of(
             entry("nether_wart", Items.NETHER_WART),
             entry("red_mushroom", Items.RED_MUSHROOM),
@@ -76,6 +80,7 @@ public final class AlchemyMaterialCatalog {
             entry("dragon_breath", Items.DRAGON_BREATH)
     );
     private static final Map<String, Entry> BY_PAGE_KEY = buildByPageKey();
+    private static final List<String> PAGE_KEYS = buildPageKeys();
 
     private AlchemyMaterialCatalog() {}
 
@@ -83,10 +88,27 @@ public final class AlchemyMaterialCatalog {
         return ENTRIES;
     }
 
+    /** One existing anonymous slot key becomes the anchor for each compact material page. */
     public static List<String> pageKeys() {
-        return ENTRIES.stream().map(Entry::pageKey).toList();
+        return PAGE_KEYS;
     }
 
+    public static int pageCount() {
+        return PAGE_KEYS.size();
+    }
+
+    /** Returns the ordered material rows represented by one compact manual page. */
+    public static List<Entry> entriesForPage(String pageKey) {
+        if (pageKey == null) return List.of();
+        for (int start = 0; start < ENTRIES.size(); start += MATERIALS_PER_PAGE) {
+            if (ENTRIES.get(start).pageKey().equals(pageKey)) {
+                return ENTRIES.subList(start, Math.min(start + MATERIALS_PER_PAGE, ENTRIES.size()));
+            }
+        }
+        return List.of();
+    }
+
+    /** Kept for callers that need to resolve a legacy individual material slot key. */
     public static Entry byPageKey(String pageKey) {
         return pageKey == null ? null : BY_PAGE_KEY.get(pageKey);
     }
@@ -108,6 +130,14 @@ public final class AlchemyMaterialCatalog {
             }
         }
         return Map.copyOf(result);
+    }
+
+    private static List<String> buildPageKeys() {
+        List<String> result = new ArrayList<>((ENTRIES.size() + MATERIALS_PER_PAGE - 1) / MATERIALS_PER_PAGE);
+        for (int start = 0; start < ENTRIES.size(); start += MATERIALS_PER_PAGE) {
+            result.add(ENTRIES.get(start).pageKey());
+        }
+        return List.copyOf(result);
     }
 
     public record Entry(String id, Item item, String pageKey) {}
