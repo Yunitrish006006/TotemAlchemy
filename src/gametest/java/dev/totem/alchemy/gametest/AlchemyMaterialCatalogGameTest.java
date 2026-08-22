@@ -24,6 +24,10 @@ public final class AlchemyMaterialCatalogGameTest {
             helper.fail("Alchemy material catalog contains duplicate page keys");
             return;
         }
+        if (AlchemyMaterialCatalog.entries().size() < 50) {
+            helper.fail("Expanded Alchemy material catalog unexpectedly shrank below the broad organic/crafting set");
+            return;
+        }
         helper.succeed();
     }
 
@@ -31,9 +35,13 @@ public final class AlchemyMaterialCatalogGameTest {
     public void organicAndCraftMaterialsJoinAlchemyResearch(GameTestHelper helper) {
         if (!AlchemyMaterialCatalog.contains(Items.RESIN_CLUMP)
                 || !AlchemyMaterialCatalog.contains(Items.HONEY_BLOCK)
+                || !AlchemyMaterialCatalog.contains(Items.FEATHER)
+                || !AlchemyMaterialCatalog.contains(Items.STRING)
                 || !AlchemyMaterialCatalog.contains(AlchemyItems.PIG_MANURE)
                 || !MultiOutcomeBrewing.isOutcomeIngredient(new ItemStack(Items.RESIN_CLUMP))
                 || !MultiOutcomeBrewing.isOutcomeIngredient(new ItemStack(Items.HONEY_BLOCK))
+                || !MultiOutcomeBrewing.isOutcomeIngredient(new ItemStack(Items.FEATHER))
+                || !MultiOutcomeBrewing.isOutcomeIngredient(new ItemStack(Items.STRING))
                 || !MultiOutcomeBrewing.isOutcomeIngredient(new ItemStack(AlchemyItems.PIG_MANURE))) {
             helper.fail("Expanded organic/material ingredients were not wired into both research and brewing");
             return;
