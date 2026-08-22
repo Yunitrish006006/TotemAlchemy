@@ -58,9 +58,9 @@ public final class AlchemyManualGameTest {
                     .map(section -> section.id().toString())
                     .toList();
             List<String> expectedSectionIds = List.of(
-                    "totem:alchemy/manual",
-                    TotemManualOnboarding.SECTION_ID.toString()
-            ).stream().sorted().toList();
+                    TotemManualOnboarding.SECTION_ID.toString(),
+                    "totem:alchemy/manual"
+            );
             if (alchemySection.order() != AlchemyManual.SECTION_ORDER
                     || !recordedSectionIds.equals(expectedSectionIds)
                     || content.pages().size() != 2
