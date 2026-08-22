@@ -54,9 +54,18 @@ public final class AlchemyManualGameTest {
                     .filter(section -> section.id().toString().equals("totem:alchemy/manual"))
                     .findFirst()
                     .orElseThrow();
+            List<dev.totem.core.api.v1.manual.TotemManualSection> recordedSections =
+                    TotemManualAssembler.sections(manual);
+            int expectedVirtualPages = 1
+                    + TotemManualAssembler.contentsPageCount(recordedSections.size())
+                    + 1
+                    + AlchemyManual.pageKeys().size();
             if (alchemySection.order() != AlchemyManual.SECTION_ORDER
-                    || content.pages().size() != TotemManualAssembler.validatePageLimit(java.util.List.of(alchemySection))) {
-                helper.fail("Alchemy guide did not contain exactly its ordered module section");
+                    || recordedSections.size() != 1
+                    || !recordedSections.getFirst().id().equals(alchemySection.id())
+                    || content.pages().size() != 2
+                    || TotemManualAssembler.virtualPages(recordedSections).size() != expectedVirtualPages) {
+                helper.fail("Alchemy guide did not preserve its ordered section in the virtual Totem manual");
                 return;
             }
             var advancement = player.level().getServer().getAdvancements().get(
