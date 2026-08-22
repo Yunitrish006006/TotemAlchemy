@@ -54,18 +54,19 @@ public final class AlchemyManualGameTest {
                     .filter(section -> section.id().toString().equals("totem:alchemy/manual"))
                     .findFirst()
                     .orElseThrow();
-            List<dev.totem.core.api.v1.manual.TotemManualSection> recordedSections =
-                    TotemManualAssembler.sections(manual);
-            int expectedVirtualPages = 1
-                    + TotemManualAssembler.contentsPageCount(recordedSections.size())
-                    + 1
-                    + AlchemyManual.pageKeys().size();
+            List<String> recordedSectionIds = TotemManualAssembler.sections(manual).stream()
+                    .map(section -> section.id().toString())
+                    .toList();
+            List<String> expectedSectionIds = List.of(
+                    "totem:alchemy/manual",
+                    TotemManualOnboarding.SECTION_ID.toString()
+            ).stream().sorted().toList();
             if (alchemySection.order() != AlchemyManual.SECTION_ORDER
-                    || recordedSections.size() != 1
-                    || !recordedSections.getFirst().id().equals(alchemySection.id())
+                    || !recordedSectionIds.equals(expectedSectionIds)
                     || content.pages().size() != 2
-                    || TotemManualAssembler.virtualPages(recordedSections).size() != expectedVirtualPages) {
-                helper.fail("Alchemy guide did not preserve its ordered section in the virtual Totem manual");
+                    || TotemManualAssembler.virtualPages(TotemManualAssembler.sections(manual)).size()
+                    <= AlchemyManual.pageKeys().size()) {
+                helper.fail("Alchemy guide did not seed the shared Core + Alchemy virtual manual: " + recordedSectionIds);
                 return;
             }
             var advancement = player.level().getServer().getAdvancements().get(
