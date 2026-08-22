@@ -1,0 +1,50 @@
+name: Invoke opposing-effect chemistry fix
+
+on:
+  push:
+    branches: [fix/opposing-effects-and-pufferfish]
+    paths:
+      - .github/trigger-opposing-effect-fix.txt
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/opposing-effects-and-pufferfish
+          fetch-depth: 0
+
+      - name: Execute patch body
+        shell: python
+        run: |
+          from pathlib import Path
+          lines = Path('.github/workflows/apply-opposing-effect-fix.yml').read_text().splitlines()
+          marker = lines.index('      - name: Apply chemistry and balance changes')
+          run_line = next(i for i in range(marker + 1, len(lines)) if lines[i] == '        run: |')
+          body = []
+          for line in lines[run_line + 1:]:
+              if line.startswith('      - name:'):
+                  break
+              body.append(line[10:] if line.startswith('          ') else line)
+          code = '\n'.join(body) + '\n'
+          exec(compile(code, 'apply-opposing-effect-fix', 'exec'))
+
+      - name: Commit applied fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/apply-opposing-effect-fix.yml \
+                 .github/workflows/invoke-opposing-effect-fix.yml \
+                 .github/trigger-opposing-effect-fix.txt
+          git add src/main/java/dev/totem/alchemy/mixture/AlchemyMixtureState.java \
+                  src/main/java/dev/totem/alchemy/mixture/AlchemyMixtureBrewing.java \
+                  src/main/resources/data/totem/totem_alchemy/brewing_outcome_weights/defaults.json \
+                  src/gametest/java/dev/totem/alchemy/gametest/AlchemyCauldronPersistenceGameTest.java
+          git commit -m 'fix(alchemy): neutralize opposing outcomes and strengthen pufferfish poison'
+          git push origin HEAD:fix/opposing-effects-and-pufferfish
