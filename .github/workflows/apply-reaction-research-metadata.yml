@@ -1,0 +1,81 @@
+name: Apply reaction research metadata
+
+on:
+  push:
+    branches: [feature/reaction-research-notes]
+    paths:
+      - .github/reaction-research-metadata.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/reaction-research-notes
+          fetch-depth: 0
+
+      - name: Update localized notes and dynamic page test
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          translations = {
+              "zh_tw": {
+                  "book.totem_alchemy.reaction_research.slot": "",
+                  "book.totem_alchemy.reaction.title": "反應研究",
+                  "book.totem_alchemy.reaction.intro.1": "部分藥水效果彼此相衝。",
+                  "book.totem_alchemy.reaction.intro.2": "有效量互相抵銷，較強的一側會留下。",
+                  "book.totem_alchemy.reaction.strength_family": "力量系",
+                  "book.totem_alchemy.reaction.observed": "已觀察：",
+                  "book.totem_alchemy.reaction.result.unknown": "結果尚未確認",
+                  "book.totem_alchemy.reaction.result.complete": "完全中和",
+                  "book.totem_alchemy.reaction.result.positive_remains": "左側效果殘留",
+                  "book.totem_alchemy.reaction.result.negative_remains": "右側效果殘留",
+                  "message.deadrecall.alchemy.conflict_discovery_recorded": "手冊記錄了新的相衝反應。"
+              },
+              "en_us": {
+                  "book.totem_alchemy.reaction_research.slot": "",
+                  "book.totem_alchemy.reaction.title": "Reaction Research",
+                  "book.totem_alchemy.reaction.intro.1": "Some potion effects chemically oppose each other.",
+                  "book.totem_alchemy.reaction.intro.2": "Their effective amounts cancel; the stronger side remains.",
+                  "book.totem_alchemy.reaction.strength_family": "Strength family",
+                  "book.totem_alchemy.reaction.observed": "Observed:",
+                  "book.totem_alchemy.reaction.result.unknown": "Resolution not confirmed",
+                  "book.totem_alchemy.reaction.result.complete": "Complete neutralization",
+                  "book.totem_alchemy.reaction.result.positive_remains": "Left-side effect remains",
+                  "book.totem_alchemy.reaction.result.negative_remains": "Right-side effect remains",
+                  "message.deadrecall.alchemy.conflict_discovery_recorded": "The manual recorded a new opposing reaction."
+              }
+          }
+
+          for locale, additions in translations.items():
+              path = Path(f"src/main/resources/assets/totem-alchemy/lang/{locale}.json")
+              data = json.loads(path.read_text())
+              data.update(additions)
+              path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+
+          test = Path("src/gametest/java/dev/totem/alchemy/gametest/AlchemyManualGameTest.java")
+          text = test.read_text()
+          old = "int expectedPageCount = AlchemyMaterialCatalog.entries().size() + 3;"
+          new = "int expectedPageCount = AlchemyMaterialCatalog.entries().size() + 4;"
+          if old not in text:
+              raise SystemExit("AlchemyManualGameTest fixed page count assertion not found")
+          test.write_text(text.replace(old, new, 1))
+
+      - name: Commit metadata update and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/apply-reaction-research-metadata.yml .github/reaction-research-metadata.trigger
+          git add src/main/resources/assets/totem-alchemy/lang/zh_tw.json \
+                  src/main/resources/assets/totem-alchemy/lang/en_us.json \
+                  src/gametest/java/dev/totem/alchemy/gametest/AlchemyManualGameTest.java
+          git commit -m 'feat(alchemy): localize reaction research notes'
+          git push origin HEAD:feature/reaction-research-notes
