@@ -1,0 +1,218 @@
+name: Apply opposing-effect chemistry fix
+
+on:
+  push:
+    branches: [fix/opposing-effects-and-pufferfish]
+    paths:
+      - .github/workflows/apply-opposing-effect-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/opposing-effects-and-pufferfish
+          fetch-depth: 0
+
+      - name: Apply chemistry and balance changes
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          state_path = Path('src/main/java/dev/totem/alchemy/mixture/AlchemyMixtureState.java')
+          state = state_path.read_text()
+          old = '''    /** Adds one independently rolled outcome set without collapsing intentionally coexisting opposites. */
+          public void addIndependentOutcomeEffects(Map<String, EffectDose> additions) {
+              if (additions == null) {
+                  return;
+              }
+              additions.forEach((id, dose) -> {
+                  if (id != null && !id.isBlank() && dose != null && dose.potencyTicks() > 0.0001D) {
+                      effects.merge(id, dose, EffectDose::merge);
+                  }
+              });
+              provenance.add(PRESERVE_INDEPENDENT_OUTCOMES);
+          }
+          '''
+          new = '''    /** Adds one independently rolled outcome set, then resolves chemically opposing effects. */
+          public void addIndependentOutcomeEffects(Map<String, EffectDose> additions) {
+              addEffects(additions);
+          }
+          '''
+          if old not in state:
+              raise SystemExit('independent outcome method not found')
+          state = state.replace(old, new, 1)
+
+          old = '''    private void neutralizeOpposites() {
+              neutralizePair("minecraft:speed", "minecraft:slowness");
+              neutralizePair("minecraft:instant_health", "minecraft:instant_damage");
+              neutralizePowerFamily();
+              effects.entrySet().removeIf(entry -> entry.getValue().potencyTicks() <= 0.0001D);
+          }
+          '''
+          new = '''    private void neutralizeOpposites() {
+              neutralizePair("minecraft:speed", "minecraft:slowness");
+              neutralizePair("minecraft:instant_health", "minecraft:instant_damage");
+              neutralizePair("minecraft:regeneration", "minecraft:poison");
+              neutralizePowerFamily();
+              effects.entrySet().removeIf(entry -> entry.getValue().potencyTicks() <= 0.0001D);
+          }
+          '''
+          if old not in state:
+              raise SystemExit('neutralizeOpposites block not found')
+          state = state.replace(old, new, 1)
+
+          old = '''        if (!state.provenance.contains(PRESERVE_INDEPENDENT_OUTCOMES)) {
+              state.neutralizeOpposites();
+          }
+          '''
+          new = '''        // Older builds persisted an exception that allowed opposing independently rolled effects
+          // to coexist. Remove that marker on load and normalize the stored mixture as a migration.
+          state.provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
+          state.neutralizeOpposites();
+          '''
+          if old not in state:
+              raise SystemExit('decode preservation block not found')
+          state = state.replace(old, new, 1)
+          state_path.write_text(state)
+
+          brewing_path = Path('src/main/java/dev/totem/alchemy/mixture/AlchemyMixtureBrewing.java')
+          brewing = brewing_path.read_text()
+          old = '        String reactionPrefix = outcomeIngredient || state.preservesIndependentOutcomes() ? "brewset:" : "brew:";'
+          new = '        String reactionPrefix = "brew:";'
+          if old not in brewing:
+              raise SystemExit('reaction prefix line not found')
+          brewing = brewing.replace(old, new, 1)
+          old = '            state.addIndependentOutcomeEffects(scaleEffects(additions, state.volumeUnits()));'
+          new = '            state.addEffects(scaleEffects(additions, state.volumeUnits()));'
+          if old not in brewing:
+              raise SystemExit('brewing stand outcome add line not found')
+          brewing = brewing.replace(old, new, 1)
+          brewing_path.write_text(brewing)
+
+          weights_path = Path('src/main/resources/data/totem/totem_alchemy/brewing_outcome_weights/defaults.json')
+          weights = weights_path.read_text()
+          old = '{"ingredient":"minecraft:pufferfish","outcomes":{"minecraft:water_breathing":96,"minecraft:poison":3,"minecraft:weakness":1}}'
+          new = '{"ingredient":"minecraft:pufferfish","outcomes":{"minecraft:water_breathing":96,"minecraft:poison":45,"minecraft:weakness":8}}'
+          if old not in weights:
+              raise SystemExit('pufferfish outcome weights not found')
+          weights_path.write_text(weights.replace(old, new, 1))
+
+          test_path = Path('src/gametest/java/dev/totem/alchemy/gametest/AlchemyCauldronPersistenceGameTest.java')
+          tests = test_path.read_text()
+
+          pattern = r'''    @GameTest\(maxTicks = 40\)\n    public void brewingBatchSharesExactOpposingEffectSetAcrossAllBottles\(GameTestHelper helper\) \{.*?\n    \}\n\n(?=    @GameTest)'''
+          replacement = '''    @GameTest(maxTicks = 40)
+          public void brewingBatchNeutralizesOpposingEffectsAcrossAllBottles(GameTestHelper helper) {
+              ItemStack sugar = new ItemStack(Items.SUGAR);
+              List<ItemStack> inputs = List.of(
+                      PotionContents.createItemStack(Items.POTION, Potions.AWKWARD),
+                      PotionContents.createItemStack(Items.POTION, Potions.AWKWARD),
+                      PotionContents.createItemStack(Items.POTION, Potions.AWKWARD)
+              );
+              MultiOutcomeBrewing.beginBatch(sugar, inputs, 0.0F, 0.0F, 0.999F, 0.0F);
+              try {
+                  require(helper, MultiOutcomeBrewing.activeOutcomes().size() == 2,
+                          "Brewing batch did not retain both independently selected raw outcomes");
+                  List<ItemStack> outputs = inputs.stream()
+                          .map(input -> helper.getLevel().potionBrewing().mix(sugar, input))
+                          .toList();
+                  String expectedState = null;
+                  for (ItemStack output : outputs) {
+                      require(helper, output.is(Items.POTION),
+                              "Independent outcome set changed the bottle container type");
+                      AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(output);
+                      require(helper, !(state.effects().containsKey("minecraft:speed")
+                                      && state.effects().containsKey("minecraft:slowness")),
+                              "Produced bottle retained mutually opposing speed and slowness effects");
+                      require(helper, !state.preservesIndependentOutcomes(),
+                              "Produced bottle retained the obsolete opposing-effect preservation marker");
+                      if (expectedState == null) {
+                          expectedState = state.encode();
+                      } else {
+                          require(helper, expectedState.equals(state.encode()),
+                                  "Bottles in one Brewing Stand batch received different resolved effect sets");
+                      }
+                  }
+
+                  AlchemyMixtureState modified = AlchemyMixtureState.decode(expectedState);
+                  modified.applyRedstoneModifier();
+                  modified.applyGlowstoneModifier();
+                  ItemStack roundTrip = AlchemyMixtureBottle.toPotion(modified);
+                  AlchemyMixtureState restored = AlchemyMixtureBottle.fromPotion(roundTrip);
+                  require(helper, !(restored.effects().containsKey("minecraft:speed")
+                                  && restored.effects().containsKey("minecraft:slowness")),
+                          "Potion round-trip or duration/potency modifiers restored opposing effects");
+                  helper.succeed();
+              } finally {
+                  MultiOutcomeBrewing.clearBatch();
+              }
+          }
+
+          '''
+          tests, count = re.subn(pattern, replacement, tests, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'brewing opposing-effect test replacement count={count}')
+
+          pattern = r'''    @GameTest\(maxTicks = 40\)\n    public void cauldronCanScheduleSeveralIndependentEffectsInOneReaction\(GameTestHelper helper\) \{.*?\n    \}\n\n(?=    @GameTest)'''
+          replacement = '''    @GameTest(maxTicks = 40)
+          public void cauldronNeutralizesOpposingSelectedEffectsInOneReaction(GameTestHelper helper) {
+              ItemStack sugar = new ItemStack(Items.SUGAR);
+              ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+              List<MultiOutcomeBrewing.Outcome> selected = MultiOutcomeBrewing.chooseOutcomes(
+                      sugar, awkward, 0.0F, 0.0F, 0.999F, 0.0F);
+              AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(awkward);
+              require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                              helper.getLevel(), state, sugar, selected),
+                      "Cauldron refused a selected multi-outcome set");
+              state.tickReactions(Integer.MAX_VALUE);
+              require(helper, !(state.effects().containsKey("minecraft:speed")
+                              && state.effects().containsKey("minecraft:slowness"))
+                              && !state.preservesIndependentOutcomes(),
+                      "Cauldron reaction retained simultaneous swiftness/slowness effects");
+
+              require(helper, AlchemyMixtureBrewing.schedule(
+                              helper.getLevel(), state, new ItemStack(Items.REDSTONE)),
+                      "Cauldron refused redstone for the resolved outcome set");
+              state.tickReactions(Integer.MAX_VALUE);
+              require(helper, !(state.effects().containsKey("minecraft:speed")
+                              && state.effects().containsKey("minecraft:slowness"))
+                              && !state.preservesIndependentOutcomes(),
+                      "Delayed cauldron redstone reaction restored opposing effects");
+
+              require(helper, AlchemyMixtureBrewing.schedule(
+                              helper.getLevel(), state, new ItemStack(Items.GUNPOWDER)),
+                      "Cauldron refused gunpowder for the resolved outcome set");
+              state.tickReactions(Integer.MAX_VALUE);
+              require(helper, state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH
+                              && !(state.effects().containsKey("minecraft:speed")
+                                      && state.effects().containsKey("minecraft:slowness"))
+                              && !state.preservesIndependentOutcomes(),
+                      "Delayed delivery-form reaction restored opposing effects");
+              helper.succeed();
+          }
+
+          '''
+          tests, count = re.subn(pattern, replacement, tests, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'cauldron opposing-effect test replacement count={count}')
+          test_path.write_text(tests)
+
+      - name: Commit fix and remove helper workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/apply-opposing-effect-fix.yml
+          git add src/main/java/dev/totem/alchemy/mixture/AlchemyMixtureState.java \
+                  src/main/java/dev/totem/alchemy/mixture/AlchemyMixtureBrewing.java \
+                  src/main/resources/data/totem/totem_alchemy/brewing_outcome_weights/defaults.json \
+                  src/gametest/java/dev/totem/alchemy/gametest/AlchemyCauldronPersistenceGameTest.java
+          git commit -m 'fix(alchemy): neutralize opposing outcomes and strengthen pufferfish poison'
+          git push origin HEAD:fix/opposing-effects-and-pufferfish
