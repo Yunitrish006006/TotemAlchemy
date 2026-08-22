@@ -1,44 +1,86 @@
 name: Publish Modrinth
+
 on:
   push:
     branches: [main]
     paths:
       - gradle.properties
       - .github/workflows/publish-modrinth.yml
-      - .github/staging/modrinth-project-body.md
   workflow_dispatch:
     inputs:
-      dry_run: {description: Validate without publishing, required: true, default: true, type: boolean}
-permissions: {contents: write}
-concurrency: {group: 'modrinth-${{ github.workflow }}-${{ github.ref }}', cancel-in-progress: false}
+      dry_run:
+        description: Validate without publishing
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: modrinth-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   MODULE_ID: totem-alchemy
-  CORE_REF: 5be940a1fb91d250bb6781193bd49f0f24b40a43
+  CORE_REF: d6570474056a6dc8eff9f94527e633c9c7cc4d91
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-        with: {fetch-depth: 0}
-      - id: release
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether this is a release
+        id: release
         shell: bash
-        env: {EVENT_NAME: '${{ github.event_name }}', BEFORE_SHA: '${{ github.event.before }}', REQUESTED_DRY_RUN: '${{ inputs.dry_run }}'}
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          REQUESTED_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
-          current="$(sed -n 's/^mod_version=//p' gradle.properties)"; test -n "$current"
-          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then echo 'should_publish=true' >> "$GITHUB_OUTPUT"; echo "dry_run=${REQUESTED_DRY_RUN}" >> "$GITHUB_OUTPUT"; exit 0; fi
+          current="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          test -n "$current"
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            echo 'should_publish=true' >> "$GITHUB_OUTPUT"
+            echo "dry_run=${REQUESTED_DRY_RUN}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           changed="$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" 2>/dev/null || true)"
           previous="$(git show "${BEFORE_SHA}:gradle.properties" 2>/dev/null | sed -n 's/^mod_version=//p' || true)"
-          if grep -Fxq '.github/workflows/publish-modrinth.yml' <<<"$changed" || [[ -z "$previous" || "$previous" != "$current" ]]; then echo 'should_publish=true' >> "$GITHUB_OUTPUT"; echo 'dry_run=false' >> "$GITHUB_OUTPUT"; else echo 'should_publish=false' >> "$GITHUB_OUTPUT"; echo 'dry_run=false' >> "$GITHUB_OUTPUT"; fi
-      - if: steps.release.outputs.should_publish == 'true'
+          if grep -Fxq '.github/workflows/publish-modrinth.yml' <<<"$changed" || [[ -z "$previous" || "$previous" != "$current" ]]; then
+            echo 'should_publish=true' >> "$GITHUB_OUTPUT"
+            echo 'dry_run=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'should_publish=false' >> "$GITHUB_OUTPUT"
+            echo 'dry_run=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Java 25
+        if: steps.release.outputs.should_publish == 'true'
         uses: actions/setup-java@v5
-        with: {distribution: temurin, java-version: '25'}
-      - if: steps.release.outputs.should_publish == 'true'
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        if: steps.release.outputs.should_publish == 'true'
         uses: gradle/actions/setup-gradle@v4
-      - if: steps.release.outputs.should_publish == 'true'
+
+      - name: Check out pinned TotemCore
+        if: steps.release.outputs.should_publish == 'true'
         uses: actions/checkout@v4
-        with: {repository: Yunitrish006006/TotemCore, ref: '${{ env.CORE_REF }}', path: .lockstep/TotemCore, persist-credentials: false}
+        with:
+          repository: Yunitrish006006/TotemCore
+          ref: ${{ env.CORE_REF }}
+          path: .lockstep/TotemCore
+          persist-credentials: false
+
       - name: Build release JAR
         if: steps.release.outputs.should_publish == 'true'
         shell: bash
@@ -46,563 +88,114 @@ jobs:
           set -euo pipefail
           chmod +x gradlew .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
-          core="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"; test "$core" = 0.7.0
-          core_jar="$GITHUB_WORKSPACE/.lockstep/TotemCore/build/libs/totem-core-${core}.jar"; test -f "$core_jar"
+          core="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          test "$core" = '0.7.4'
+          core_jar="$GITHUB_WORKSPACE/.lockstep/TotemCore/build/libs/totem-core-${core}.jar"
+          test -f "$core_jar"
           ./gradlew -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
-          v="$(sed -n 's/^mod_version=//p' gradle.properties)"; a="$(sed -n 's/^archives_base_name=//p' gradle.properties)"; artifact="build/libs/${a}-${v}.jar"
-          [[ -f "$artifact" ]] || ./gradlew -PtotemCoreJar="$core_jar" remapJar --no-daemon --stacktrace
+          version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          archive="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
+          artifact="build/libs/${archive}-${version}.jar"
+          if [[ ! -f "$artifact" ]]; then
+            ./gradlew -PtotemCoreJar="$core_jar" remapJar --no-daemon --stacktrace
+          fi
           test -f "$artifact"
-      - name: Resolve Modrinth project
-        id: project
-        if: steps.release.outputs.should_publish == 'true'
-        shell: bash
-        env:
-          CONFIGURED_PROJECT_ID: '${{ vars.MODRINTH_PROJECT_ID || secrets.MODRINTH_PROJECT_ID }}'
-          DRY_RUN: '${{ steps.release.outputs.dry_run }}'
-          MODRINTH_TOKEN: '${{ secrets.MODRINTH_TOKEN }}'
-        run: |
-          set -euo pipefail
-          test -n "${MODRINTH_TOKEN}" || {
-            echo 'Repository secret MODRINTH_TOKEN is not configured.' >&2
-            exit 1
-          }
 
-          project_response="$(mktemp)"
-          user_response="$(mktemp)"
-          projects_response="$(mktemp)"
-          create_data="$(mktemp)"
-          create_response="$(mktemp)"
-          cleanup() {
-            rm -f "${project_response}" "${user_response}" "${projects_response}" \
-              "${create_data}" "${create_response}"
-          }
-          trap cleanup EXIT
-
-          show_response() {
-            local file="$1"
-            if [[ ! -s "${file}" ]]; then
-              printf '<empty response>\n' >&2
-            elif ! jq . "${file}" >&2 2>/dev/null; then
-              sed -n '1,120p' "${file}" >&2
-            fi
-          }
-
-          api='https://api.modrinth.com/v2'
-          user_agent="${GITHUB_REPOSITORY}-GitHubActions/${GITHUB_RUN_ID}"
-          user_status="$(curl --silent --show-error --retry 3 \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --output "${user_response}" \
-            --write-out '%{http_code}' \
-            "${api}/user")"
-          if [[ "${user_status}" != '200' ]]; then
-            printf 'Modrinth token authentication failed (HTTP %s). Response:\n' \
-              "${user_status}" >&2
-            show_response "${user_response}"
-            exit 1
-          fi
-
-          user_id="$(jq -er '.id' "${user_response}")"
-          username="$(jq -er '.username' "${user_response}")"
-          projects_status="$(curl --silent --show-error --retry 3 \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --output "${projects_response}" \
-            --write-out '%{http_code}' \
-            "${api}/user/${user_id}/projects")"
-          if [[ "${projects_status}" != '200' ]]; then
-            printf 'Could not list projects for Modrinth user %s (HTTP %s). Response:\n' \
-              "${username}" "${projects_status}" >&2
-            show_response "${projects_response}"
-            exit 1
-          fi
-
-          resolved_id=''
-          if [[ -n "${CONFIGURED_PROJECT_ID}" ]]; then
-            project_status="$(curl --silent --show-error --retry 3 \
-              --header "Authorization: ${MODRINTH_TOKEN}" \
-              --header "User-Agent: ${user_agent}" \
-              --output "${project_response}" \
-              --write-out '%{http_code}' \
-              "${api}/project/${CONFIGURED_PROJECT_ID}")"
-            if [[ "${project_status}" == '200' ]] && jq -e '
-              def normalized: ascii_downcase | gsub("[^a-z0-9]"; "");
-              ((.title // "") | normalized) == "totemalchemy"
-                or ((.slug // "") | normalized) == "totemalchemy"
-            ' "${project_response}" >/dev/null \
-                && jq -e --arg id "$(jq -er '.id' "${project_response}")" \
-                  'any(.[]; .id == $id)' "${projects_response}" >/dev/null; then
-              resolved_id="$(jq -er '.id' "${project_response}")"
-              printf 'Using configured Modrinth project %s (%s).\n' \
-                "$(jq -r '.title' "${project_response}")" "${resolved_id}"
-            else
-              printf 'Configured Modrinth project %s was not a valid TotemAlchemy match (HTTP %s). Response:\n' \
-                "${CONFIGURED_PROJECT_ID}" "${project_status}" >&2
-              show_response "${project_response}"
-            fi
-          else
-            printf 'No configured Modrinth project ID; resolving by the authenticated project list.\n'
-          fi
-
-          if [[ -n "${resolved_id}" ]]; then
-            printf 'project_id=%s\n' "${resolved_id}" >> "${GITHUB_OUTPUT}"
-            printf 'created=false\nwould_create=false\n' >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          match_filter='def normalized: ascii_downcase | gsub("[^a-z0-9]"; "");
-            select(((.title // "") | normalized) == "totemalchemy"
-              or ((.slug // "") | normalized) == "totemalchemy")'
-          match_count="$(jq --argjson unused null \
-            "[.[] | ${match_filter}] | length" "${projects_response}")"
-          if [[ "${match_count}" == '1' ]]; then
-            resolved_id="$(jq -er "[.[] | ${match_filter}][0].id" "${projects_response}")"
-            printf 'Resolved TotemAlchemy to project %s for Modrinth user %s.\n' \
-              "${resolved_id}" "${username}"
-            printf 'project_id=%s\n' "${resolved_id}" >> "${GITHUB_OUTPUT}"
-            printf 'created=false\nwould_create=false\n' >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          printf 'Accessible projects for Modrinth user %s:\n' "${username}" >&2
-          jq -r '.[] | [.title, .slug, .id, .status] | @tsv' "${projects_response}" >&2
-          if [[ "${match_count}" != '0' ]]; then
-            printf 'Expected no more than one normalized TotemAlchemy title/slug match; found %s.\n' \
-              "${match_count}" >&2
-            exit 1
-          fi
-
-          if [[ "${DRY_RUN}" == 'true' ]]; then
-            printf 'Dry run: no TotemAlchemy project exists; a real release would create a draft project.\n'
-            printf 'project_id=\ncreated=false\nwould_create=true\n' >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          jq -n \
-            --rawfile body .github/staging/modrinth-project-body.md \
-            '{
-              slug: "totem-alchemy",
-              title: "TotemAlchemy",
-              description: "Survival alchemy with multi-effect brewing, persistent research, and heat-controlled potion mixtures for Minecraft 26.2 Fabric.",
-              categories: ["magic", "adventure", "utility"],
-              additional_categories: ["game-mechanics", "technology"],
-              client_side: "required",
-              server_side: "required",
-              body: $body,
-              issues_url: "https://github.com/Yunitrish006006/TotemAlchemy/issues",
-              source_url: "https://github.com/Yunitrish006006/TotemAlchemy",
-              wiki_url: "https://github.com/Yunitrish006006/TotemAlchemy/blob/main/README.md",
-              license_id: "Apache-2.0",
-              license_url: "https://github.com/Yunitrish006006/TotemAlchemy/blob/main/LICENSE.txt",
-              project_type: "mod",
-              initial_versions: [],
-              is_draft: true,
-              gallery_items: []
-            }' > "${create_data}"
-          create_status="$(curl --silent --show-error --retry 3 \
-            --request POST \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --form "data=@${create_data};type=application/json" \
-            --form 'icon=@src/main/resources/assets/totem-alchemy/icon.png;type=image/png' \
-            --output "${create_response}" \
-            --write-out '%{http_code}' \
-            "${api}/project")"
-          if [[ "${create_status}" != '200' && "${create_status}" != '201' ]]; then
-            printf 'Could not create the TotemAlchemy Modrinth project (HTTP %s). Response:\n' \
-              "${create_status}" >&2
-            show_response "${create_response}"
-            exit 1
-          fi
-
-          resolved_id="$(jq -er '.id' "${create_response}")"
-          printf 'Created draft TotemAlchemy project %s for Modrinth user %s.\n' \
-            "${resolved_id}" "${username}"
-          printf 'project_id=%s\n' "${resolved_id}" >> "${GITHUB_OUTPUT}"
-          printf 'created=true\nwould_create=false\n' >> "${GITHUB_OUTPUT}"
-      - name: Synchronize project metadata
-        if: steps.release.outputs.should_publish == 'true'
-        shell: bash
-        env:
-          DRY_RUN: '${{ steps.release.outputs.dry_run }}'
-          MODRINTH_PROJECT_ID: '${{ steps.project.outputs.project_id }}'
-          MODRINTH_TOKEN: '${{ secrets.MODRINTH_TOKEN }}'
-        run: |
-          set -euo pipefail
-          awk '
-            /^#{1,6} / {
-              title = $0
-              sub(/^#{1,6} /, "", title)
-              if (length(title) > 24) {
-                printf "Header exceeds 24 characters: %s\n", title > "/dev/stderr"
-                failed = 1
-              }
-            }
-            END { exit failed }
-          ' .github/staging/modrinth-project-body.md
-          if [[ "${DRY_RUN}" == 'true' ]]; then
-            printf 'Dry run: project body and concise headers are valid; metadata was not changed.\n'
-            exit 0
-          fi
-          test -n "${MODRINTH_PROJECT_ID}"
-
-          metadata_file="$(mktemp)"
-          response_file="$(mktemp)"
-          cleanup() {
-            rm -f "${metadata_file}" "${response_file}"
-          }
-          trap cleanup EXIT
-          show_response() {
-            if [[ ! -s "$1" ]]; then
-              printf '<empty response>\n' >&2
-            elif ! jq . "$1" >&2 2>/dev/null; then
-              sed -n '1,120p' "$1" >&2
-            fi
-          }
-
-          jq -n \
-            --rawfile body .github/staging/modrinth-project-body.md \
-            '{
-              title: "TotemAlchemy",
-              description: "Survival alchemy with multi-effect brewing, persistent research, and heat-controlled potion mixtures for Minecraft 26.2 Fabric.",
-              categories: ["magic", "adventure", "utility"],
-              additional_categories: ["game-mechanics", "technology"],
-              client_side: "required",
-              server_side: "required",
-              body: $body,
-              issues_url: "https://github.com/Yunitrish006006/TotemAlchemy/issues",
-              source_url: "https://github.com/Yunitrish006006/TotemAlchemy",
-              wiki_url: "https://github.com/Yunitrish006006/TotemAlchemy/blob/main/README.md",
-              license_id: "Apache-2.0",
-              license_url: "https://github.com/Yunitrish006006/TotemAlchemy/blob/main/LICENSE.txt"
-            }' > "${metadata_file}"
-          api='https://api.modrinth.com/v2'
-          user_agent="${GITHUB_REPOSITORY}-GitHubActions/${GITHUB_RUN_ID}"
-          metadata_status="$(curl --silent --show-error --retry 3 \
-            --request PATCH \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --header 'Content-Type: application/json' \
-            --data-binary "@${metadata_file}" \
-            --output "${response_file}" \
-            --write-out '%{http_code}' \
-            "${api}/project/${MODRINTH_PROJECT_ID}")"
-          if [[ "${metadata_status}" != '200' && "${metadata_status}" != '204' ]]; then
-            printf 'Could not update TotemAlchemy project metadata (HTTP %s). Response:\n' \
-              "${metadata_status}" >&2
-            show_response "${response_file}"
-            exit 1
-          fi
-
-          icon_status="$(curl --silent --show-error --retry 3 \
-            --request PATCH \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --header 'Content-Type: image/png' \
-            --data-binary '@src/main/resources/assets/totem-alchemy/icon.png' \
-            --output "${response_file}" \
-            --write-out '%{http_code}' \
-            "${api}/project/${MODRINTH_PROJECT_ID}/icon?ext=png")"
-          if [[ "${icon_status}" != '200' && "${icon_status}" != '204' ]]; then
-            printf 'Could not update the TotemAlchemy project icon (HTTP %s). Response:\n' \
-              "${icon_status}" >&2
-            show_response "${response_file}"
-            exit 1
-          fi
-          printf 'Synchronized TotemAlchemy project metadata, body, and icon.\n'
-      - name: Publish and verify
+      - name: Validate or publish to Modrinth
         id: modrinth
         if: steps.release.outputs.should_publish == 'true'
         shell: bash
         env:
-          DRY_RUN: '${{ steps.release.outputs.dry_run }}'
-          MODRINTH_PROJECT_ID: '${{ steps.project.outputs.project_id }}'
-          MODRINTH_TOKEN: '${{ secrets.MODRINTH_TOKEN }}'
+          DRY_RUN: ${{ steps.release.outputs.dry_run }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
           set -euo pipefail
-          v="$(sed -n 's/^mod_version=//p' gradle.properties)"
-          a="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
-          mc="$(sed -n 's/^minecraft_version=//p' gradle.properties)"
-          artifact="build/libs/${a}-${v}.jar"
-          test -n "${MODRINTH_TOKEN}"
-          test -f "${artifact}"
+          test -n "$MODRINTH_TOKEN" || { echo 'MODRINTH_TOKEN is missing or empty.' >&2; exit 1; }
+          version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          archive="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
+          minecraft="$(sed -n 's/^minecraft_version=//p' gradle.properties)"
+          artifact="build/libs/${archive}-${version}.jar"
+          test -f "$artifact"
 
-          fabric_json="$(mktemp)"
-          project_response="$(mktemp)"
-          versions_response="$(mktemp)"
-          create_response="$(mktemp)"
-          remote_response="$(mktemp)"
-          cleanup() {
-            rm -f "${fabric_json}" "${project_response}" "${versions_response}" \
-              "${create_response}" "${remote_response}"
-          }
-          trap cleanup EXIT
-          show_response() {
-            if [[ ! -s "$1" ]]; then
-              printf '<empty response>\n' >&2
-            elif ! jq . "$1" >&2 2>/dev/null; then
-              sed -n '1,120p' "$1" >&2
-            fi
-          }
-
-          unzip -p "${artifact}" fabric.mod.json > "${fabric_json}"
-          jq -e \
-            --arg id "${MODULE_ID}" \
-            --arg v "${v}" \
-            --arg mc "~${mc}" \
-            --arg core '>=0.7.0 <0.8.0' \
-            '.id == $id and .version == $v and .depends.minecraft == $mc
-              and .depends["totem-core"] == $core' \
-            "${fabric_json}" >/dev/null
-          sha="$(sha512sum "${artifact}" | awk '{print $1}')"
-          printf 'version=%s\nsha512=%s\n' "${v}" "${sha}" >> "${GITHUB_OUTPUT}"
-
-          if [[ "${DRY_RUN}" == 'true' && -z "${MODRINTH_PROJECT_ID}" ]]; then
-            printf 'Dry run verified %s (%s); no project exists, so no remote version was queried.\n' \
-              "${artifact}" "${sha}"
-            printf 'version_id=\n' >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-          test -n "${MODRINTH_PROJECT_ID}"
+          unzip -p "$artifact" fabric.mod.json >/tmp/fabric.mod.json
+          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.0 <0.8.0' \
+            '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' \
+            /tmp/fabric.mod.json >/dev/null
 
           api='https://api.modrinth.com/v2'
-          user_agent="${GITHUB_REPOSITORY}-GitHubActions/${GITHUB_RUN_ID}"
-          project_status="$(curl --silent --show-error --retry 3 \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --output "${project_response}" \
-            --write-out '%{http_code}' \
-            "${api}/project/${MODRINTH_PROJECT_ID}")"
-          if [[ "${project_status}" != '200' ]]; then
-            printf 'Resolved project %s could not be fetched (HTTP %s). Response:\n' \
-              "${MODRINTH_PROJECT_ID}" "${project_status}" >&2
-            show_response "${project_response}"
-            exit 1
-          fi
-          p="$(jq -er '.id' "${project_response}")"
+          ua="Yunitrish006006/${MODULE_ID}-publisher/3.0"
+          args=(--fail --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H "User-Agent: ${ua}")
 
-          versions_status="$(curl --silent --show-error --retry 3 \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --output "${versions_response}" \
-            --write-out '%{http_code}' \
-            "${api}/project/${p}/version?include_changelog=false")"
-          if [[ "${versions_status}" != '200' ]]; then
-            printf 'Could not list versions for project %s (HTTP %s). Response:\n' \
-              "${p}" "${versions_status}" >&2
-            show_response "${versions_response}"
-            exit 1
-          fi
-          count="$(jq --arg v "${v}" '[.[] | select(.version_number == $v)] | length' \
-            "${versions_response}")"
-          if [[ "${count}" != '0' && "${count}" != '1' ]]; then
-            printf 'Expected no more than one Modrinth version %s; found %s.\n' \
-              "${v}" "${count}" >&2
-            exit 1
-          fi
-          id=''
-          if [[ "${count}" == '1' ]]; then
-            id="$(jq -er --arg v "${v}" '.[] | select(.version_number == $v) | .id' \
-              "${versions_response}")"
-            remote_sha="$(jq -er --arg v "${v}" \
-              '.[] | select(.version_number == $v)
-                | (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512)' \
-              "${versions_response}")"
-            if [[ "${remote_sha}" != "${sha}" ]]; then
-              printf 'Existing Modrinth version %s has SHA-512 %s, expected %s.\n' \
-                "${v}" "${remote_sha}" "${sha}" >&2
-              exit 1
-            fi
-            printf 'Existing Modrinth version %s already has the exact release artifact.\n' "${v}"
-          elif [[ "${DRY_RUN}" == 'true' ]]; then
-            printf 'Dry run verified project access and release artifact; version %s was not uploaded.\n' "${v}"
-            printf 'version_id=\n' >> "${GITHUB_OUTPUT}"
+          curl "${args[@]}" "$api/user" >/tmp/user.json
+          user_id="$(jq -er '.id' /tmp/user.json)"
+          curl "${args[@]}" "$api/user/${user_id}/projects" >/tmp/projects.json
+          project_count="$(jq '[.[] | select((((.title // "") | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy") or (((.slug // "") | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy"))] | length' /tmp/projects.json)"
+          test "$project_count" = '1' || { echo "Expected exactly one TotemAlchemy Modrinth project; found ${project_count}." >&2; exit 1; }
+          project="$(jq -er '.[] | select((((.title // "") | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy") or (((.slug // "") | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy")) | .id' /tmp/projects.json)"
+
+          sha="$(sha512sum "$artifact" | awk '{print $1}')"
+          if [[ "$DRY_RUN" == true ]]; then
+            echo "Dry run passed for ${MODULE_ID} ${version}."
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "sha512=$sha" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          curl "${args[@]}" "$api/project/${project}/version?include_changelog=false" >/tmp/versions.json
+          count="$(jq --arg v "$version" '[.[] | select(.version_number == $v)] | length' /tmp/versions.json)"
+          if [[ "$count" != 0 ]]; then
+            test "$count" = '1'
+            version_id="$(jq -er --arg v "$version" '.[] | select(.version_number == $v) | .id' /tmp/versions.json)"
+            remote_sha="$(jq -er --arg v "$version" '.[] | select(.version_number == $v) | (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512)' /tmp/versions.json)"
+            test "$remote_sha" = "$sha" || { echo "Version ${version} exists with a different SHA-512." >&2; exit 1; }
+            echo "Modrinth already has byte-identical ${MODULE_ID} ${version}; verifying it."
           else
             changelog="$(git log -1 --format=%B)"
             data="$(jq -nc \
-              --arg n "TotemAlchemy ${v}" \
-              --arg v "${v}" \
-              --arg c "${changelog}" \
-              --arg p "${p}" \
-              --arg mc "${mc}" \
-              '{
-                name: $n,
-                version_number: $v,
-                changelog: $c,
-                dependencies: [],
-                game_versions: [$mc],
-                version_type: "release",
-                loaders: ["fabric"],
-                featured: false,
-                status: "listed",
-                project_id: $p,
-                file_parts: ["primary"],
-                primary_file: "primary",
-                environment: "client_and_server"
-              }')"
-            create_status="$(curl --silent --show-error --retry 3 \
-              --request POST \
-              --header "Authorization: ${MODRINTH_TOKEN}" \
-              --header "User-Agent: ${user_agent}" \
-              --form "data=${data};type=application/json" \
-              --form "primary=@${artifact};filename=$(basename "${artifact}");type=application/java-archive" \
-              --output "${create_response}" \
-              --write-out '%{http_code}' \
-              "${api}/version")"
-            if [[ "${create_status}" != '200' && "${create_status}" != '201' ]]; then
-              printf 'Could not create Modrinth version %s (HTTP %s). Response:\n' \
-                "${v}" "${create_status}" >&2
-              show_response "${create_response}"
-              exit 1
-            fi
-            id="$(jq -er '.id' "${create_response}")"
+              --arg name "TotemAlchemy ${version}" \
+              --arg version "$version" \
+              --arg changelog "$changelog" \
+              --arg project "$project" \
+              --arg minecraft "$minecraft" \
+              '{name:$name,version_number:$version,changelog:$changelog,dependencies:[],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
+            curl "${args[@]}" -X POST "$api/version" \
+              -F "data=${data};type=application/json" \
+              -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" \
+              >/tmp/version.json
+            version_id="$(jq -er '.id' /tmp/version.json)"
           fi
 
-          remote_status="$(curl --silent --show-error --retry 3 \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --output "${remote_response}" \
-            --write-out '%{http_code}' \
-            "${api}/version/${id}")"
-          if [[ "${remote_status}" != '200' ]]; then
-            printf 'Could not fetch Modrinth version %s (HTTP %s). Response:\n' \
-              "${id}" "${remote_status}" >&2
-            show_response "${remote_response}"
-            exit 1
-          fi
+          curl "${args[@]}" "$api/version/${version_id}" >/tmp/remote.json
           jq -e \
-            --arg p "${p}" \
-            --arg v "${v}" \
-            --arg mc "${mc}" \
-            --arg f "$(basename "${artifact}")" \
-            --arg sha "${sha}" '
-              .project_id == $p
-              and .version_number == $v
-              and .version_type == "release"
-              and .status == "listed"
-              and .environment == "client_and_server"
-              and .game_versions == [$mc]
-              and .loaders == ["fabric"]
-              and (([.files[] | select(.primary == true)][0] // .files[0]).filename == $f)
-              and (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512 == $sha)
-            ' "${remote_response}" >/dev/null
-          printf 'version_id=%s\n' "${id}" >> "${GITHUB_OUTPUT}"
-          printf 'Verified Modrinth version %s and remote JAR SHA-512 %s.\n' "${id}" "${sha}"
-      - name: Submit project for review
-        if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
-        shell: bash
-        env:
-          MODRINTH_PROJECT_ID: '${{ steps.project.outputs.project_id }}'
-          MODRINTH_TOKEN: '${{ secrets.MODRINTH_TOKEN }}'
-        run: |
-          set -euo pipefail
-          project_response="$(mktemp)"
-          review_response="$(mktemp)"
-          cleanup() {
-            rm -f "${project_response}" "${review_response}"
-          }
-          trap cleanup EXIT
-          show_response() {
-            if [[ ! -s "$1" ]]; then
-              printf '<empty response>\n' >&2
-            elif ! jq . "$1" >&2 2>/dev/null; then
-              sed -n '1,120p' "$1" >&2
-            fi
-          }
+            --arg project "$project" \
+            --arg version "$version" \
+            --arg minecraft "$minecraft" \
+            --arg filename "$(basename "$artifact")" \
+            --arg sha "$sha" \
+            '.project_id == $project and .version_number == $version and .game_versions == [$minecraft] and .loaders == ["fabric"] and (([.files[] | select(.primary == true)][0] // .files[0]).filename == $filename) and (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512 == $sha)' \
+            /tmp/remote.json >/dev/null
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
+          echo "sha512=$sha" >> "$GITHUB_OUTPUT"
 
-          api='https://api.modrinth.com/v2'
-          user_agent="${GITHUB_REPOSITORY}-GitHubActions/${GITHUB_RUN_ID}"
-          project_status="$(curl --silent --show-error --retry 3 \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --output "${project_response}" \
-            --write-out '%{http_code}' \
-            "${api}/project/${MODRINTH_PROJECT_ID}")"
-          if [[ "${project_status}" != '200' ]]; then
-            printf 'Could not inspect project review state (HTTP %s). Response:\n' \
-              "${project_status}" >&2
-            show_response "${project_response}"
-            exit 1
-          fi
-
-          status="$(jq -er '.status' "${project_response}")"
-          requested="$(jq -r '.requested_status // ""' "${project_response}")"
-          if [[ "${status}" == 'approved' || "${status}" == 'processing' || "${requested}" == 'approved' ]]; then
-            printf 'Project review state already active: status=%s requested_status=%s.\n' \
-              "${status}" "${requested:-none}"
-            exit 0
-          fi
-          if [[ "${status}" != 'draft' && "${status}" != 'rejected' ]]; then
-            printf 'Project status %s is not safe for automatic review resubmission; refusing to overwrite it.\n' \
-              "${status}" >&2
-            exit 1
-          fi
-
-          review_status="$(curl --silent --show-error --retry 3 \
-            --request PATCH \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${user_agent}" \
-            --header 'Content-Type: application/json' \
-            --data '{"requested_status":"approved"}' \
-            --output "${review_response}" \
-            --write-out '%{http_code}' \
-            "${api}/project/${MODRINTH_PROJECT_ID}")"
-          if [[ "${review_status}" != '200' && "${review_status}" != '204' ]]; then
-            printf 'Could not submit TotemAlchemy for Modrinth review (HTTP %s). Response:\n' \
-              "${review_status}" >&2
-            show_response "${review_response}"
-            exit 1
-          fi
-          printf 'Submitted TotemAlchemy project %s for Modrinth review.\n' \
-            "${MODRINTH_PROJECT_ID}"
-      - name: Verify project metadata
-        if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
-        shell: bash
-        env:
-          MODRINTH_PROJECT_ID: '${{ steps.project.outputs.project_id }}'
-          MODRINTH_TOKEN: '${{ secrets.MODRINTH_TOKEN }}'
-        run: |
-          set -euo pipefail
-          project_response="$(mktemp)"
-          trap 'rm -f "${project_response}"' EXIT
-          status="$(curl --silent --show-error --retry 3 \
-            --header "Authorization: ${MODRINTH_TOKEN}" \
-            --header "User-Agent: ${GITHUB_REPOSITORY}-GitHubActions/${GITHUB_RUN_ID}" \
-            --output "${project_response}" \
-            --write-out '%{http_code}' \
-            "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}")"
-          if [[ "${status}" != '200' ]]; then
-            printf 'Could not verify TotemAlchemy project metadata (HTTP %s). Response:\n' \
-              "${status}" >&2
-            jq . "${project_response}" >&2 2>/dev/null || sed -n '1,120p' "${project_response}" >&2
-            exit 1
-          fi
-          jq -e \
-            --arg project_id "${MODRINTH_PROJECT_ID}" \
-            --rawfile body .github/staging/modrinth-project-body.md '
-              .id == $project_id
-              and .title == "TotemAlchemy"
-              and ((.slug | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy")
-              and .description == "Survival alchemy with multi-effect brewing, persistent research, and heat-controlled potion mixtures for Minecraft 26.2 Fabric."
-              and .license.id == "Apache-2.0"
-              and .client_side == "required"
-              and .server_side == "required"
-              and ((.body | rtrimstr("\n")) == ($body | rtrimstr("\n")))
-              and all(.body | split("\n")[] | select(test("^#{1,6} "));
-                (sub("^#{1,6} +"; "") | length) <= 24)
-              and (.status == "approved" or .status == "processing"
-                or .requested_status == "approved")
-            ' "${project_response}" >/dev/null
-          printf 'Verified TotemAlchemy project body, concise headers, and review state.\n'
       - name: Record verified publication
         if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
         shell: bash
-        env: {GH_TOKEN: '${{ github.token }}', MOD_VERSION: '${{ steps.modrinth.outputs.version }}', VERSION_ID: '${{ steps.modrinth.outputs.version_id }}', SHA512: '${{ steps.modrinth.outputs.sha512 }}'}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MOD_VERSION: ${{ steps.modrinth.outputs.version }}
+          VERSION_ID: ${{ steps.modrinth.outputs.version_id }}
+          SHA512: ${{ steps.modrinth.outputs.sha512 }}
         run: |
           set -euo pipefail
-          marker=".github/staging/modrinth-published-${MOD_VERSION}.json"; api="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/${marker}"
-          body="$(jq -n --arg v "$MOD_VERSION" --arg id "$VERSION_ID" --arg sha "$SHA512" --arg run "$GITHUB_RUN_ID" '{version:$v,modrinth_version_id:$id,sha512:$sha,verified_by_run:$run}')"; enc="$(printf '%s\n' "$body"|base64 -w0)"
-          old="$(curl -sS -H "Authorization: Bearer ${GH_TOKEN}" -H 'X-GitHub-Api-Version: 2022-11-28' "$api"|jq -r '.sha//empty')"
-          payload="$(jq -n --arg m "release: record Modrinth ${MOD_VERSION}" --arg c "$enc" --arg b "$GITHUB_REF_NAME" --arg s "$old" 'if $s=="" then {message:$m,content:$c,branch:$b} else {message:$m,content:$c,branch:$b,sha:$s} end')"
-          curl --fail -sS -X PUT -H "Authorization: Bearer ${GH_TOKEN}" -H 'X-GitHub-Api-Version: 2022-11-28' "$api" -d "$payload" >/dev/null
+          marker=".github/staging/modrinth-published-${MOD_VERSION}.json"
+          content="$(jq -n --arg version "$MOD_VERSION" --arg id "$VERSION_ID" --arg sha "$SHA512" --arg run "$GITHUB_RUN_ID" '{version:$version,modrinth_version_id:$id,sha512:$sha,verified_by_run:$run}')"
+          encoded="$(printf '%s\n' "$content" | base64 -w0)"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/${marker}"
+          existing="$(curl --silent --show-error -H "Authorization: Bearer ${GH_TOKEN}" -H 'X-GitHub-Api-Version: 2022-11-28' "$api" | jq -r '.sha // empty')"
+          payload="$(jq -n --arg message "release: record Modrinth ${MOD_VERSION}" --arg content "$encoded" --arg branch "$GITHUB_REF_NAME" --arg sha "$existing" 'if $sha == "" then {message:$message,content:$content,branch:$branch} else {message:$message,content:$content,branch:$branch,sha:$sha} end')"
+          curl --fail --silent --show-error -X PUT \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$api" -d "$payload" >/dev/null

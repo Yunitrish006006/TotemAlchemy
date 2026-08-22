@@ -54,9 +54,19 @@ public final class AlchemyManualGameTest {
                     .filter(section -> section.id().toString().equals("totem:alchemy/manual"))
                     .findFirst()
                     .orElseThrow();
+            List<String> recordedSectionIds = TotemManualAssembler.sections(manual).stream()
+                    .map(section -> section.id().toString())
+                    .toList();
+            List<String> expectedSectionIds = List.of(
+                    TotemManualOnboarding.SECTION_ID.toString(),
+                    "totem:alchemy/manual"
+            );
             if (alchemySection.order() != AlchemyManual.SECTION_ORDER
-                    || content.pages().size() != TotemManualAssembler.validatePageLimit(java.util.List.of(alchemySection))) {
-                helper.fail("Alchemy guide did not contain exactly its ordered module section");
+                    || !recordedSectionIds.equals(expectedSectionIds)
+                    || content.pages().size() != 2
+                    || TotemManualAssembler.virtualPages(TotemManualAssembler.sections(manual)).size()
+                    <= AlchemyManual.pageKeys().size()) {
+                helper.fail("Alchemy guide did not seed the shared Core + Alchemy virtual manual: " + recordedSectionIds);
                 return;
             }
             var advancement = player.level().getServer().getAdvancements().get(
