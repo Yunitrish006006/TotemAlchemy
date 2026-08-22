@@ -31,49 +31,40 @@ jobs:
               "import dev.totem.alchemy.manual.AlchemyManual;\nimport dev.totem.alchemy.manual.AlchemyMaterialCatalog;\n",
               1,
           )
-          old = '''            if (AlchemyManual.pageKeys().size() != 34) {
-                          helper.fail("Alchemy manual did not register two overview pages, thirty-one material pages, and the cauldron page");
-                          return;
-                      }
-          '''
-          new = '''            int expectedPageCount = AlchemyMaterialCatalog.entries().size() + 3;
+          start_marker = "            if (AlchemyManual.pageKeys().size() != 34) {"
+          end_marker = "                return;\n            }"
+          start = text.index(start_marker)
+          end = text.index(end_marker, start) + len(end_marker)
+          replacement = '''            int expectedPageCount = AlchemyMaterialCatalog.entries().size() + 3;
                       if (AlchemyManual.pageKeys().size() != expectedPageCount) {
                           helper.fail("Alchemy manual page count did not follow the material catalog: expected "
                                   + expectedPageCount + ", got " + AlchemyManual.pageKeys().size());
                           return;
-                      }
-          '''
-          if old not in text:
-              raise SystemExit("manual fixed-page assertion not found")
-          manual.write_text(text.replace(old, new, 1))
+                      }'''
+          manual.write_text(text[:start] + replacement + text[end:])
 
           persistence = Path("src/gametest/java/dev/totem/alchemy/gametest/AlchemyCauldronPersistenceGameTest.java")
           text = persistence.read_text()
-          old = '''        require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                              "minecraft:sugar", "minecraft:swiftness") - 0.64D) < 0.000_001D,
-                      "Research truth omitted the all-miss fallback contribution for swiftness");
-                  require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                              "minecraft:sugar", "minecraft:slowness") - 0.384D) < 0.000_001D,
-                      "Research truth omitted the all-miss fallback contribution for slowness");
-          '''
-          new = '''        double fallbackSwiftnessTruth = MultiOutcomeBrewing.outcomeProbability(
+          fallback_anchor = text.index("List<MultiOutcomeBrewing.Outcome> fallback")
+          start_marker = "        require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability("
+          start = text.index(start_marker, fallback_anchor)
+          end_marker = '            "Research truth omitted the all-miss fallback contribution for slowness");'
+          end = text.index(end_marker, start) + len(end_marker)
+          replacement = '''        double fallbackSwiftnessTruth = MultiOutcomeBrewing.outcomeProbability(
                           "minecraft:sugar", "minecraft:swiftness");
                   double fallbackSlownessTruth = MultiOutcomeBrewing.outcomeProbability(
                           "minecraft:sugar", "minecraft:slowness");
                   require(helper, fallbackSwiftnessTruth > 0.94D && fallbackSwiftnessTruth <= 1.0D,
-                      "Research truth omitted the all-miss fallback contribution for swiftness");
+                          "Research truth omitted the all-miss fallback contribution for swiftness");
                   require(helper, fallbackSlownessTruth > 0.03D && fallbackSlownessTruth < 0.05D,
-                      "Research truth omitted the all-miss fallback contribution for rare slowness");
-          '''
-          if old not in text:
-              raise SystemExit("legacy fallback assertions not found")
-          text = text.replace(old, new, 1)
-          text = text.replace(
-              "public void coreBrewingIngredientsOfferTwoEqualOutcomeBranches(GameTestHelper helper)",
-              "public void coreBrewingIngredientsKeepVanillaPrimaryAndReachableSecondaryBranches(GameTestHelper helper)",
-              1,
-          )
-          marker = text.index("public void coreBrewingIngredientsKeepVanillaPrimaryAndReachableSecondaryBranches")
+                          "Research truth omitted the all-miss fallback contribution for rare slowness");'''
+          text = text[:start] + replacement + text[end:]
+          old_name = "public void coreBrewingIngredientsOfferTwoEqualOutcomeBranches(GameTestHelper helper)"
+          new_name = "public void coreBrewingIngredientsKeepVanillaPrimaryAndReachableSecondaryBranches(GameTestHelper helper)"
+          if old_name not in text:
+              raise SystemExit("legacy equal-branch test name not found")
+          text = text.replace(old_name, new_name, 1)
+          marker = text.index(new_name)
           end = text.index("ItemStack saturation =", marker)
           block = text[marker:end].replace("0.9F", "0.99F")
           text = text[:marker] + block + text[end:]
