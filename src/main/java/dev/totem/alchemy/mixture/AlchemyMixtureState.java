@@ -163,17 +163,9 @@ public final class AlchemyMixtureState {
         neutralizeOpposites();
     }
 
-    /** Adds one independently rolled outcome set without collapsing intentionally coexisting opposites. */
+    /** Adds one independently rolled outcome set, then resolves chemically opposing effects. */
     public void addIndependentOutcomeEffects(Map<String, EffectDose> additions) {
-        if (additions == null) {
-            return;
-        }
-        additions.forEach((id, dose) -> {
-            if (id != null && !id.isBlank() && dose != null && dose.potencyTicks() > 0.0001D) {
-                effects.merge(id, dose, EffectDose::merge);
-            }
-        });
-        provenance.add(PRESERVE_INDEPENDENT_OUTCOMES);
+        addEffects(additions);
     }
 
     public void replaceEffects(Map<String, EffectDose> replacement) {
@@ -536,6 +528,7 @@ public final class AlchemyMixtureState {
     private void neutralizeOpposites() {
         neutralizePair("minecraft:speed", "minecraft:slowness");
         neutralizePair("minecraft:instant_health", "minecraft:instant_damage");
+        neutralizePair("minecraft:regeneration", "minecraft:poison");
         neutralizePowerFamily();
         effects.entrySet().removeIf(entry -> entry.getValue().potencyTicks() <= 0.0001D);
     }
@@ -655,9 +648,9 @@ public final class AlchemyMixtureState {
         if (!sawBaseMarker) {
             state.baseActivated = inferLegacyBase(state);
         }
-        if (!state.provenance.contains(PRESERVE_INDEPENDENT_OUTCOMES)) {
-            state.neutralizeOpposites();
-        }
+        // Migrate mixtures created by builds that intentionally preserved opposing rolled outcomes.
+    state.provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
+    state.neutralizeOpposites();
         return state;
     }
 

@@ -64,7 +64,7 @@ public final class AlchemyCauldronPersistenceGameTest {
     }
 
     @GameTest(maxTicks = 40)
-    public void brewingBatchSharesExactOpposingEffectSetAcrossAllBottles(GameTestHelper helper) {
+    public void brewingBatchNeutralizesOpposingEffectsAcrossAllBottles(GameTestHelper helper) {
         ItemStack sugar = new ItemStack(Items.SUGAR);
         List<ItemStack> inputs = List.of(
                 PotionContents.createItemStack(Items.POTION, Potions.AWKWARD),
@@ -83,11 +83,11 @@ public final class AlchemyCauldronPersistenceGameTest {
                 require(helper, output.is(Items.POTION),
                         "Independent outcome set changed the bottle container type");
                 AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(output);
-                require(helper, state.effects().containsKey("minecraft:speed")
-                                && state.effects().containsKey("minecraft:slowness"),
-                        "Produced bottle collapsed an independently selected opposing-effect pair");
-                require(helper, state.preservesIndependentOutcomes(),
-                        "Produced bottle did not persist its independent outcome-set marker");
+                require(helper, !(state.effects().containsKey("minecraft:speed")
+      && state.effects().containsKey("minecraft:slowness")),
+                "Produced bottle retained mutually opposing speed and slowness effects");
+        require(helper, !state.preservesIndependentOutcomes(),
+                "Produced bottle retained the obsolete independent-outcome marker");
                 if (expectedState == null) {
                     expectedState = state.encode();
                 } else {
@@ -101,9 +101,9 @@ public final class AlchemyCauldronPersistenceGameTest {
             modified.applyGlowstoneModifier();
             ItemStack roundTrip = AlchemyMixtureBottle.toPotion(modified);
             AlchemyMixtureState restored = AlchemyMixtureBottle.fromPotion(roundTrip);
-            require(helper, restored.effects().containsKey("minecraft:speed")
-                            && restored.effects().containsKey("minecraft:slowness"),
-                    "Potion round-trip or duration/potency modifiers collapsed selected opposing effects");
+            require(helper, !(restored.effects().containsKey("minecraft:speed")
+      && restored.effects().containsKey("minecraft:slowness")),
+                "Potion round-trip or duration/potency modifiers restored opposing effects");
             helper.succeed();
         } finally {
             MultiOutcomeBrewing.clearBatch();
@@ -111,7 +111,7 @@ public final class AlchemyCauldronPersistenceGameTest {
     }
 
     @GameTest(maxTicks = 40)
-    public void cauldronCanScheduleSeveralIndependentEffectsInOneReaction(GameTestHelper helper) {
+    public void cauldronNeutralizesOpposingSelectedEffectsInOneReaction(GameTestHelper helper) {
         ItemStack sugar = new ItemStack(Items.SUGAR);
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
         List<MultiOutcomeBrewing.Outcome> selected = MultiOutcomeBrewing.chooseOutcomes(
@@ -121,29 +121,29 @@ public final class AlchemyCauldronPersistenceGameTest {
                         helper.getLevel(), state, sugar, selected),
                 "Cauldron refused a selected independent outcome set");
         state.tickReactions(Integer.MAX_VALUE);
-        require(helper, state.effects().containsKey("minecraft:speed")
-                        && state.effects().containsKey("minecraft:slowness")
-                        && state.preservesIndependentOutcomes(),
-                "Cauldron reaction did not retain a simultaneous swiftness/slowness outcome set");
+        require(helper, !(state.effects().containsKey("minecraft:speed")
+                && state.effects().containsKey("minecraft:slowness"))
+                && !state.preservesIndependentOutcomes(),
+                "Cauldron reaction retained simultaneous swiftness/slowness effects");
 
         require(helper, AlchemyMixtureBrewing.schedule(
                         helper.getLevel(), state, new ItemStack(Items.REDSTONE)),
                 "Cauldron refused redstone for an independent outcome set");
         state.tickReactions(Integer.MAX_VALUE);
-        require(helper, state.effects().containsKey("minecraft:speed")
-                        && state.effects().containsKey("minecraft:slowness")
-                        && state.preservesIndependentOutcomes(),
-                "Delayed cauldron redstone reaction collapsed selected opposing effects");
+        require(helper, !(state.effects().containsKey("minecraft:speed")
+                && state.effects().containsKey("minecraft:slowness"))
+                && !state.preservesIndependentOutcomes(),
+                "Delayed cauldron redstone reaction restored opposing effects");
 
         require(helper, AlchemyMixtureBrewing.schedule(
                         helper.getLevel(), state, new ItemStack(Items.GUNPOWDER)),
                 "Cauldron refused gunpowder for an independent outcome set");
         state.tickReactions(Integer.MAX_VALUE);
         require(helper, state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH
-                        && state.effects().containsKey("minecraft:speed")
-                        && state.effects().containsKey("minecraft:slowness")
-                        && state.preservesIndependentOutcomes(),
-                "Delayed delivery-form reaction collapsed selected opposing effects");
+                        && !(state.effects().containsKey("minecraft:speed")
+                && state.effects().containsKey("minecraft:slowness"))
+                && !state.preservesIndependentOutcomes(),
+                "Delayed delivery-form reaction restored opposing effects");
         helper.succeed();
     }
 
