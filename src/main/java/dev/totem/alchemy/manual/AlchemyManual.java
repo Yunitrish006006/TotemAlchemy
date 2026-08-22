@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -23,47 +24,21 @@ public final class AlchemyManual {
     public static final int SECTION_ORDER = 0;
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
     private static final Identifier MANUAL_ADVANCEMENT = Identifier.fromNamespaceAndPath("deadrecall", "alchemy_manual");
-    private static final List<String> PAGE_KEYS = List.of(
-            "book.totem_alchemy.guide.principles",
-            "book.totem_alchemy.guide.stations",
-            "book.totem_alchemy.material_slot.nether_wart",
-            "book.totem_alchemy.material_slot.red_mushroom",
-            "book.totem_alchemy.material_slot.spider_eye",
-            "book.totem_alchemy.material_slot.fermented_spider_eye",
-            "book.totem_alchemy.material_slot.sugar",
-            "book.totem_alchemy.material_slot.rabbit_foot",
-            "book.totem_alchemy.material_slot.magma_cream",
-            "book.totem_alchemy.material_slot.glistering_melon_slice",
-            "book.totem_alchemy.material_slot.golden_carrot",
-            "book.totem_alchemy.material_slot.blaze_powder",
-            "book.totem_alchemy.material_slot.ghast_tear",
-            "book.totem_alchemy.material_slot.pufferfish",
-            "book.totem_alchemy.material_slot.turtle_helmet",
-            "book.totem_alchemy.material_slot.phantom_membrane",
-            "book.totem_alchemy.material_slot.breeze_rod",
-            "book.totem_alchemy.material_slot.slime_block",
-            "book.totem_alchemy.material_slot.stone",
-            "book.totem_alchemy.material_slot.cobweb",
-            "book.totem_alchemy.material_slot.melon_slice",
-            "book.totem_alchemy.material_slot.apple",
-            "book.totem_alchemy.material_slot.sweet_berries",
-            "book.totem_alchemy.material_slot.glow_berries",
-            "book.totem_alchemy.material_slot.honey_bottle",
-            "book.totem_alchemy.material_slot.golden_apple",
-            "book.totem_alchemy.material_slot.enchanted_golden_apple",
-            "book.totem_alchemy.material_slot.cherry_leaves",
-            "book.totem_alchemy.material_slot.firefly_bush",
-            "book.totem_alchemy.material_slot.redstone",
-            "book.totem_alchemy.material_slot.glowstone_dust",
-            "book.totem_alchemy.material_slot.gunpowder",
-            "book.totem_alchemy.material_slot.dragon_breath",
-            "book.deadrecall.alchemy_manual.page.8"
-    );
+    private static final List<String> PAGE_KEYS = buildPageKeys();
     private static final TotemManualSection SECTION = new TotemManualSection(
             Identifier.fromNamespaceAndPath("totem", "alchemy/manual"), SECTION_ORDER,
             "book.deadrecall.alchemy_manual.title", PAGE_KEYS);
 
     private AlchemyManual() {}
+
+    private static List<String> buildPageKeys() {
+        List<String> pages = new ArrayList<>(AlchemyMaterialCatalog.entries().size() + 3);
+        pages.add("book.totem_alchemy.guide.principles");
+        pages.add("book.totem_alchemy.guide.stations");
+        pages.addAll(AlchemyMaterialCatalog.pageKeys());
+        pages.add("book.deadrecall.alchemy_manual.page.8");
+        return List.copyOf(pages);
+    }
 
     public static void register() {
         if (!REGISTERED.compareAndSet(false, true)) return;
