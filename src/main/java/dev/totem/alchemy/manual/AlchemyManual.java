@@ -24,8 +24,8 @@ public final class AlchemyManual {
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
     private static final Identifier MANUAL_ADVANCEMENT = Identifier.fromNamespaceAndPath("deadrecall", "alchemy_manual");
     private static final List<String> PAGE_KEYS = List.of(
-            "book.deadrecall.alchemy_manual.page.1",
-            "book.deadrecall.alchemy_manual.page.2",
+            "book.totem_alchemy.guide.principles",
+            "book.totem_alchemy.guide.stations",
             "book.totem_alchemy.material_slot.nether_wart",
             "book.totem_alchemy.material_slot.red_mushroom",
             "book.totem_alchemy.material_slot.spider_eye",
