@@ -32,28 +32,44 @@ public final class AlchemyMixtureBrewing {
     }
 
     public static boolean schedule(Level level, AlchemyMixtureState state, ItemStack ingredient) {
-        return scheduleInternal(level, state, ingredient, level == null ? null : level.getRandom(), null);
+        return scheduleDetailed(level, state, ingredient).scheduled();
     }
 
     public static boolean schedule(Level level, AlchemyMixtureState state, ItemStack ingredient, RandomSource random) {
-        return scheduleInternal(level, state, ingredient, random, null);
+        return scheduleInternal(level, state, ingredient, random, null).scheduled();
     }
 
     public static boolean scheduleOutcomeSet(Level level, AlchemyMixtureState state, ItemStack ingredient,
                                              List<MultiOutcomeBrewing.Outcome> selectedOutcomes) {
+        return scheduleOutcomeSetDetailed(level, state, ingredient, selectedOutcomes).scheduled();
+    }
+
+    /**
+     * Server-facing schedule result used by the Alchemy Cauldron to defer discovery until the reaction actually
+     * finishes. The selected result ids are captured at schedule time because layered mixtures frequently have no
+     * canonical PotionContents holder after the reaction has been applied.
+     */
+    public static ScheduleResult scheduleDetailed(Level level, AlchemyMixtureState state, ItemStack ingredient) {
+        return scheduleInternal(level, state, ingredient, level == null ? null : level.getRandom(), null);
+    }
+
+    public static ScheduleResult scheduleOutcomeSetDetailed(Level level, AlchemyMixtureState state, ItemStack ingredient,
+                                                             List<MultiOutcomeBrewing.Outcome> selectedOutcomes) {
         return scheduleInternal(level, state, ingredient, null,
                 selectedOutcomes == null ? List.of() : List.copyOf(selectedOutcomes));
     }
 
-    private static boolean scheduleInternal(Level level, AlchemyMixtureState state, ItemStack ingredient,
-                                            RandomSource random, List<MultiOutcomeBrewing.Outcome> selectedOutcomes) {
-        if (!canReact(level, state, ingredient)) return false;
+    private static ScheduleResult scheduleInternal(Level level, AlchemyMixtureState state, ItemStack ingredient,
+                                                    RandomSource random, List<MultiOutcomeBrewing.Outcome> selectedOutcomes) {
+        if (!canReact(level, state, ingredient)) return ScheduleResult.NOT_SCHEDULED;
 
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
         String sourcePotion = state.canonicalPotionId();
         String targetPotion = null;
         Map<String, AlchemyMixtureState.EffectDose> source = Map.of();
         Map<String, AlchemyMixtureState.EffectDose> target = Map.of();
+        boolean outcomeIngredient = MultiOutcomeBrewing.isOutcomeIngredient(ingredient);
+        List<MultiOutcomeBrewing.Outcome> chosenOutcomes = List.of();
 
         boolean startingBase = BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated();
         if (startingBase) {
@@ -70,35 +86,55 @@ public final class AlchemyMixtureBrewing {
             target = targetState.effects();
         } else if (ingredient.is(Items.GUNPOWDER) || ingredient.is(Items.DRAGON_BREATH)) {
             targetPotion = sourcePotion;
-        } else if (MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) {
+        } else if (outcomeIngredient) {
             if (!state.baseActivated()) {
                 state.setStability(0);
                 state.addProvenance("unstable:no_starter");
             }
-            List<MultiOutcomeBrewing.Outcome> chosen = selectedOutcomes == null
+            chosenOutcomes = selectedOutcomes == null
                     ? MultiOutcomeBrewing.chooseOutcomes(ingredient, random == null ? level.getRandom() : random)
                     : selectedOutcomes;
             // An empty independent roll is a valid no-effect reaction: consume/process the material but add nothing.
-            target = chosen.isEmpty() ? Map.of() : scaleEffects(effectsForOutcomes(chosen), state.volumeUnits());
+            target = chosenOutcomes.isEmpty()
+                    ? Map.of()
+                    : scaleEffects(effectsForOutcomes(chosenOutcomes), state.volumeUnits());
         } else {
             ItemStack input = canonicalInput(state);
-            if (input.isEmpty()) return false;
+            if (input.isEmpty()) return ScheduleResult.NOT_SCHEDULED;
             ItemStack output = level.potionBrewing().mix(ingredient, input);
             AlchemyMixtureState targetState = AlchemyMixtureBottle.fromPotion(output);
-            if (targetState.isEmpty()) return false;
+            if (targetState.isEmpty()) return ScheduleResult.NOT_SCHEDULED;
             source = state.effects();
             target = scaleEffects(targetState.effects(), state.volumeUnits());
             targetPotion = targetState.canonicalPotionId();
         }
 
-        String reactionPrefix = MultiOutcomeBrewing.isOutcomeIngredient(ingredient)
-                || state.preservesIndependentOutcomes() ? "brewset:" : "brew:";
+        String reactionPrefix = outcomeIngredient || state.preservesIndependentOutcomes() ? "brewset:" : "brew:";
         String id = reactionPrefix + (sourcePotion == null ? "mixed" : sourcePotion)
                 + ">" + ingredientId + ">" + (targetPotion == null ? "mixed" : targetPotion);
+        int processingTicks = BrewingMaterialSettings.processingTicks(ingredient.getItem());
         state.addReaction(new AlchemyMixtureState.Reaction(
-                id, ingredientId, 0, BrewingMaterialSettings.processingTicks(ingredient.getItem()),
+                id, ingredientId, 0, processingTicks,
                 state.volumeUnits(), sourcePotion, targetPotion, source, target));
-        return true;
+
+        List<String> resultPotionIds;
+        boolean researchable;
+        if (outcomeIngredient) {
+            resultPotionIds = chosenOutcomes.stream()
+                    .map(MultiOutcomeBrewing.Outcome::potion)
+                    .map(holder -> BuiltInRegistries.POTION.getKey(holder.value()).toString())
+                    .distinct()
+                    .toList();
+            // Empty is still researchable: it represents the legitimate no-effect outcome.
+            researchable = true;
+        } else if (targetPotion != null) {
+            resultPotionIds = List.of(targetPotion);
+            researchable = true;
+        } else {
+            resultPotionIds = List.of();
+            researchable = false;
+        }
+        return new ScheduleResult(true, id, ingredientId, processingTicks, researchable, resultPotionIds);
     }
 
     public static boolean canApplyBrewingStandIngredient(ItemStack input, ItemStack ingredient) {
@@ -205,5 +241,24 @@ public final class AlchemyMixtureBrewing {
         Map<String, AlchemyMixtureState.EffectDose> result = new LinkedHashMap<>();
         effects.forEach((id, dose) -> result.put(id, dose.scale(Math.max(1, factor))));
         return result;
+    }
+
+    public record ScheduleResult(
+            boolean scheduled,
+            String reactionId,
+            String ingredientId,
+            int processingTicks,
+            boolean researchable,
+            List<String> resultPotionIds
+    ) {
+        private static final ScheduleResult NOT_SCHEDULED =
+                new ScheduleResult(false, "", "", 0, false, List.of());
+
+        public ScheduleResult {
+            reactionId = reactionId == null ? "" : reactionId;
+            ingredientId = ingredientId == null ? "" : ingredientId;
+            processingTicks = Math.max(0, processingTicks);
+            resultPotionIds = List.copyOf(resultPotionIds == null ? List.of() : resultPotionIds);
+        }
     }
 }
