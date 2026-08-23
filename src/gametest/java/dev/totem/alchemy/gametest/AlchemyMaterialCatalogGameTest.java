@@ -14,37 +14,29 @@ import java.util.HashSet;
 
 public final class AlchemyMaterialCatalogGameTest {
     @GameTest(maxTicks = 20)
-    public void manualPageCountTracksCompactMaterialCatalog(GameTestHelper helper) {
-        int expectedMaterialPages = (AlchemyMaterialCatalog.entries().size()
-                + AlchemyMaterialCatalog.MATERIALS_PER_PAGE - 1)
-                / AlchemyMaterialCatalog.MATERIALS_PER_PAGE;
+    public void manualPageCountTracksOneMaterialPerPageCatalog(GameTestHelper helper) {
+        int expectedMaterialPages = AlchemyMaterialCatalog.entries().size();
         int expectedManualPages = expectedMaterialPages + 4;
-        if (AlchemyMaterialCatalog.pageCount() != expectedMaterialPages
+        if (AlchemyMaterialCatalog.MATERIALS_PER_PAGE != 1
+                || AlchemyMaterialCatalog.pageCount() != expectedMaterialPages
                 || AlchemyManual.pageKeys().size() != expectedManualPages) {
-            helper.fail("Alchemy manual did not compact its material catalog: expected "
+            helper.fail("Alchemy manual did not preserve one material per page: expected "
                     + expectedMaterialPages + " material pages / " + expectedManualPages
                     + " chapter pages, got " + AlchemyMaterialCatalog.pageCount()
                     + " / " + AlchemyManual.pageKeys().size());
             return;
         }
         if (new HashSet<>(AlchemyMaterialCatalog.pageKeys()).size() != AlchemyMaterialCatalog.pageCount()) {
-            helper.fail("Alchemy compact material pages contain duplicate page keys");
+            helper.fail("Alchemy material pages contain duplicate page keys");
             return;
         }
 
-        int represented = 0;
         for (String pageKey : AlchemyMaterialCatalog.pageKeys()) {
-            int rows = AlchemyMaterialCatalog.entriesForPage(pageKey).size();
-            if (rows <= 0 || rows > AlchemyMaterialCatalog.MATERIALS_PER_PAGE) {
-                helper.fail("Alchemy compact material page has invalid row count " + rows + ": " + pageKey);
+            var represented = AlchemyMaterialCatalog.entriesForPage(pageKey);
+            if (represented.size() != 1 || !represented.getFirst().pageKey().equals(pageKey)) {
+                helper.fail("Alchemy material page must represent exactly its own material: " + pageKey);
                 return;
             }
-            represented += rows;
-        }
-        if (represented != AlchemyMaterialCatalog.entries().size()) {
-            helper.fail("Compact material pages lost or duplicated catalog entries: represented "
-                    + represented + " of " + AlchemyMaterialCatalog.entries().size());
-            return;
         }
         if (AlchemyMaterialCatalog.entries().size() < 50) {
             helper.fail("Expanded Alchemy material catalog unexpectedly shrank below the broad organic/crafting set");
