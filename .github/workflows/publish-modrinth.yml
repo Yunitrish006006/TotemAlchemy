@@ -23,7 +23,7 @@ concurrency:
 
 env:
   MODULE_ID: totem-alchemy
-  CORE_REF: d6570474056a6dc8eff9f94527e633c9c7cc4d91
+  CORE_REF: 25bd1503577909c2b1ca4b71532d08e7bd1669f9
 
 jobs:
   publish:
@@ -89,7 +89,7 @@ jobs:
           chmod +x gradlew .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
           core="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core" = '0.7.4'
+          test "$core" = '0.7.5'
           core_jar="$GITHUB_WORKSPACE/.lockstep/TotemCore/build/libs/totem-core-${core}.jar"
           test -f "$core_jar"
           ./gradlew -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
@@ -118,7 +118,7 @@ jobs:
           test -f "$artifact"
 
           unzip -p "$artifact" fabric.mod.json >/tmp/fabric.mod.json
-          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.0 <0.8.0' \
+          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.5 <0.8.0' \
             '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' \
             /tmp/fabric.mod.json >/dev/null
 
