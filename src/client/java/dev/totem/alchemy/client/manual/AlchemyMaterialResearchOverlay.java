@@ -46,15 +46,32 @@ public final class AlchemyMaterialResearchOverlay {
         if (materials.isEmpty()) return;
 
         int left = context.pageLeft() + 18;
-        int y = context.pageTop() + 18;
+        int y = context.pageTop() + 14;
         context.graphics().text(context.font(), Component.translatable("book.totem_alchemy.research.compact_title"),
                 left, y, INK, false);
-        y += 16;
+
+        int totalMaterials = AlchemyMaterialCatalog.entries().size();
+        int remainingMaterials = remainingMaterialCount();
+        Component remaining = Component.translatable("book.totem_alchemy.research.compact_unknown")
+                .append(Component.literal(": " + remainingMaterials + " / " + totalMaterials));
+        context.graphics().text(context.font(), remaining, left, y + 11,
+                remainingMaterials == 0 ? INK : MUTED, false);
+        y += 28;
 
         for (AlchemyMaterialCatalog.Entry entry : materials) {
             renderMaterialRow(context, entry, y);
             y += ROW_HEIGHT;
         }
+    }
+
+    private static int remainingMaterialCount() {
+        int known = 0;
+        for (AlchemyMaterialCatalog.Entry entry : AlchemyMaterialCatalog.entries()) {
+            if (AlchemyResearchClientCache.isMaterialKnown(entry.item())) {
+                known++;
+            }
+        }
+        return Math.max(0, AlchemyMaterialCatalog.entries().size() - known);
     }
 
     private static void renderMaterialRow(
