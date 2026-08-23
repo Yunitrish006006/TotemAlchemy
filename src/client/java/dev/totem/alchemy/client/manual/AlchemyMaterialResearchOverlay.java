@@ -4,6 +4,7 @@ import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.manual.AlchemyMaterialCatalog;
 import dev.totem.core.api.v1.client.manual.TotemManualPageOverlayRegistry;
 import dev.totem.core.api.v1.client.manual.TotemManualPageRenderContext;
+import dev.totem.core.api.v1.manual.TotemManualPageFilterRegistry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
@@ -17,12 +18,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Compact discovery journal: several materials share each manual page. */
+/** Compact discovery journal whose visible pages grow only as materials are researched. */
 public final class AlchemyMaterialResearchOverlay {
     private static final int INK = 0xFF4B3826;
     private static final int MUTED = 0xFF765B3D;
-    private static final int WARN = 0xFFA33A2B;
     private static final int ROW_HEIGHT = 22;
+    private static final Identifier PAGE_FILTER_ID =
+            Identifier.fromNamespaceAndPath("totem-alchemy", "researched_material_pages");
     private static final Map<Item, String> MATERIAL_NOTES = Map.ofEntries(
             Map.entry(Items.NETHER_WART, "book.totem_alchemy.research.note.base"),
             Map.entry(Items.REDSTONE, "book.totem_alchemy.research.note.extend"),
@@ -36,14 +38,32 @@ public final class AlchemyMaterialResearchOverlay {
     private AlchemyMaterialResearchOverlay() {}
 
     public static void register() {
+        TotemManualPageFilterRegistry.register(PAGE_FILTER_ID, AlchemyMaterialResearchOverlay::isPageVisible);
         TotemManualPageOverlayRegistry.register(
                 Identifier.fromNamespaceAndPath("totem-alchemy", "material_research_pages"),
                 AlchemyMaterialResearchOverlay::render);
     }
 
+    private static boolean isPageVisible(String pageKey) {
+        int pageIndex = materialPageIndex(pageKey);
+        if (pageIndex < 0) return true;
+        int known = knownMaterials().size();
+        int visiblePages = (known + AlchemyMaterialCatalog.MATERIALS_PER_PAGE - 1)
+                / AlchemyMaterialCatalog.MATERIALS_PER_PAGE;
+        return pageIndex < visiblePages;
+    }
+
     private static void render(TotemManualPageRenderContext context) {
-        List<AlchemyMaterialCatalog.Entry> materials = AlchemyMaterialCatalog.entriesForPage(context.pageKey());
-        if (materials.isEmpty()) return;
+        int pageIndex = materialPageIndex(context.pageKey());
+        if (pageIndex < 0) return;
+
+        List<AlchemyMaterialCatalog.Entry> known = knownMaterials();
+        int start = pageIndex * AlchemyMaterialCatalog.MATERIALS_PER_PAGE;
+        if (start >= known.size()) return;
+        List<AlchemyMaterialCatalog.Entry> materials = known.subList(
+                start,
+                Math.min(start + AlchemyMaterialCatalog.MATERIALS_PER_PAGE, known.size())
+        );
 
         int left = context.pageLeft() + 18;
         int y = context.pageTop() + 14;
@@ -51,7 +71,7 @@ public final class AlchemyMaterialResearchOverlay {
                 left, y, INK, false);
 
         int totalMaterials = AlchemyMaterialCatalog.entries().size();
-        int remainingMaterials = remainingMaterialCount();
+        int remainingMaterials = Math.max(0, totalMaterials - known.size());
         Component remaining = Component.translatable("book.totem_alchemy.research.compact_unknown")
                 .append(Component.literal(": " + remainingMaterials + " / " + totalMaterials));
         context.graphics().text(context.font(), remaining, left, y + 11,
@@ -64,14 +84,15 @@ public final class AlchemyMaterialResearchOverlay {
         }
     }
 
-    private static int remainingMaterialCount() {
-        int known = 0;
-        for (AlchemyMaterialCatalog.Entry entry : AlchemyMaterialCatalog.entries()) {
-            if (AlchemyResearchClientCache.isMaterialKnown(entry.item())) {
-                known++;
-            }
-        }
-        return Math.max(0, AlchemyMaterialCatalog.entries().size() - known);
+    private static List<AlchemyMaterialCatalog.Entry> knownMaterials() {
+        return AlchemyMaterialCatalog.entries().stream()
+                .filter(entry -> AlchemyResearchClientCache.isMaterialKnown(entry.item()))
+                .toList();
+    }
+
+    private static int materialPageIndex(String pageKey) {
+        if (pageKey == null) return -1;
+        return AlchemyMaterialCatalog.pageKeys().indexOf(pageKey);
     }
 
     private static void renderMaterialRow(
@@ -82,13 +103,6 @@ public final class AlchemyMaterialResearchOverlay {
         Item ingredient = entry.item();
         int localIconX = 18;
         int textX = context.pageLeft() + 40;
-
-        if (!AlchemyResearchClientCache.isMaterialKnown(ingredient)) {
-            context.graphics().text(context.font(), "?", context.pageLeft() + localIconX + 5, y + 4, WARN, false);
-            context.graphics().text(context.font(), Component.translatable("book.totem_alchemy.research.compact_unknown"),
-                    textX, y + 4, WARN, false);
-            return;
-        }
 
         ItemStack ingredientStack = new ItemStack(ingredient);
         stack(context, ingredientStack, localIconX, y);
