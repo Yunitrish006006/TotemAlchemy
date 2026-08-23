@@ -13,16 +13,15 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Compact discovery journal whose visible pages grow only as materials are researched. */
+/** One researched brewing material per visible manual page. Hidden probabilities are never rendered. */
 public final class AlchemyMaterialResearchOverlay {
     private static final int INK = 0xFF4B3826;
     private static final int MUTED = 0xFF765B3D;
-    private static final int ROW_HEIGHT = 22;
+    private static final int WARN = 0xFFA33A2B;
     private static final Identifier PAGE_FILTER_ID =
             Identifier.fromNamespaceAndPath("totem-alchemy", "researched_material_pages");
     private static final Map<Item, String> MATERIAL_NOTES = Map.ofEntries(
@@ -45,127 +44,99 @@ public final class AlchemyMaterialResearchOverlay {
     }
 
     private static boolean isPageVisible(String pageKey) {
-        int pageIndex = materialPageIndex(pageKey);
-        if (pageIndex < 0) return true;
-        int known = knownMaterials().size();
-        int visiblePages = (known + AlchemyMaterialCatalog.MATERIALS_PER_PAGE - 1)
-                / AlchemyMaterialCatalog.MATERIALS_PER_PAGE;
-        return pageIndex < visiblePages;
+        AlchemyMaterialCatalog.Entry entry = AlchemyMaterialCatalog.byPageKey(pageKey);
+        return entry == null || AlchemyResearchClientCache.isMaterialKnown(entry.item());
     }
 
     private static void render(TotemManualPageRenderContext context) {
-        int pageIndex = materialPageIndex(context.pageKey());
-        if (pageIndex < 0) return;
+        AlchemyMaterialCatalog.Entry materialPage = AlchemyMaterialCatalog.byPageKey(context.pageKey());
+        if (materialPage == null) return;
 
-        List<AlchemyMaterialCatalog.Entry> known = knownMaterials();
-        int start = pageIndex * AlchemyMaterialCatalog.MATERIALS_PER_PAGE;
-        if (start >= known.size()) return;
-        List<AlchemyMaterialCatalog.Entry> materials = known.subList(
-                start,
-                Math.min(start + AlchemyMaterialCatalog.MATERIALS_PER_PAGE, known.size())
-        );
-
-        int left = context.pageLeft() + 18;
-        int y = context.pageTop() + 14;
-        context.graphics().text(context.font(), Component.translatable("book.totem_alchemy.research.compact_title"),
-                left, y, INK, false);
+        Item ingredient = materialPage.item();
+        if (!AlchemyResearchClientCache.isMaterialKnown(ingredient)) return;
 
         int totalMaterials = AlchemyMaterialCatalog.entries().size();
-        int remainingMaterials = Math.max(0, totalMaterials - known.size());
+        int knownMaterials = (int) AlchemyMaterialCatalog.entries().stream()
+                .filter(entry -> AlchemyResearchClientCache.isMaterialKnown(entry.item()))
+                .count();
+        int remainingMaterials = Math.max(0, totalMaterials - knownMaterials);
         Component remaining = Component.translatable("book.totem_alchemy.research.compact_unknown")
                 .append(Component.literal(": " + remainingMaterials + " / " + totalMaterials));
-        context.graphics().text(context.font(), remaining, left, y + 11,
-                remainingMaterials == 0 ? INK : MUTED, false);
-        y += 28;
+        context.graphics().text(context.font(), remaining,
+                context.pageLeft() + 18, context.pageTop() + 12, MUTED, false);
 
-        for (AlchemyMaterialCatalog.Entry entry : materials) {
-            renderMaterialRow(context, entry, y);
-            y += ROW_HEIGHT;
-        }
-    }
-
-    private static List<AlchemyMaterialCatalog.Entry> knownMaterials() {
-        return AlchemyMaterialCatalog.entries().stream()
-                .filter(entry -> AlchemyResearchClientCache.isMaterialKnown(entry.item()))
-                .toList();
-    }
-
-    private static int materialPageIndex(String pageKey) {
-        if (pageKey == null) return -1;
-        return AlchemyMaterialCatalog.pageKeys().indexOf(pageKey);
-    }
-
-    private static void renderMaterialRow(
-            TotemManualPageRenderContext context,
-            AlchemyMaterialCatalog.Entry entry,
-            int y
-    ) {
-        Item ingredient = entry.item();
-        int localIconX = 18;
-        int textX = context.pageLeft() + 40;
-
+        int top = context.pageTop() + 30;
         ItemStack ingredientStack = new ItemStack(ingredient);
-        stack(context, ingredientStack, localIconX, y);
+        stack(context, ingredientStack, 18, top);
+        context.graphics().text(context.font(), ingredientStack.getHoverName(),
+                context.pageLeft() + 43, top + 4, INK, false);
 
-        String samples = "×" + AlchemyResearchClientCache.samples(ingredient);
-        int samplesX = context.pageLeft() + 169 - context.font().width(samples);
-        int nameWidth = Math.max(30, samplesX - textX - 4);
-        context.graphics().text(context.font(), clipped(context, ingredientStack.getHoverName(), nameWidth),
-                textX, y, INK, false);
-        context.graphics().text(context.font(), samples, samplesX, y, MUTED, false);
+        int samples = AlchemyResearchClientCache.samples(ingredient);
+        context.graphics().text(context.font(), Component.translatable(
+                        "book.totem_alchemy.research.samples", samples),
+                context.pageLeft() + 18, top + 24, MUTED, false);
 
-        Component detail = compactDetail(ingredient);
-        context.graphics().text(context.font(), clipped(context, detail, 129),
-                textX, y + 10, MUTED, false);
-    }
+        var timeEstimate = AlchemyResearchClientCache.timeEstimate(ingredient);
+        if (timeEstimate.isPresent()) {
+            var estimate = timeEstimate.orElseThrow();
+            Component processingTime = estimate.exact()
+                    ? Component.translatable("book.totem_alchemy.research.processing_time_exact",
+                            formatTenths(estimate.lowerTenths()))
+                    : Component.translatable("book.totem_alchemy.research.processing_time_range",
+                            formatTenths(estimate.lowerTenths()), formatTenths(estimate.upperTenths()));
+            context.graphics().text(context.font(), processingTime,
+                    context.pageLeft() + 18, top + 36, MUTED, false);
+            context.graphics().text(context.font(), Component.translatable(
+                            "book.totem_alchemy.research.processing_time_accuracy", estimate.accuracyPercent()),
+                    context.pageLeft() + 18, top + 48, MUTED, false);
+        } else {
+            context.graphics().text(context.font(), Component.translatable(
+                            "book.totem_alchemy.research.processing_time_unknown"),
+                    context.pageLeft() + 18, top + 36, MUTED, false);
+        }
 
-    private static Component compactDetail(Item ingredient) {
-        String noteKey = MATERIAL_NOTES.get(ingredient);
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
         List<MultiOutcomeBrewing.Outcome> outcomes = MultiOutcomeBrewing.outcomesFor(new ItemStack(ingredient), awkward);
-
-        Component time = compactTime(ingredient);
+        int y = top + 62;
         if (outcomes.isEmpty()) {
-            if (noteKey == null) return time;
-            return Component.empty().append(time)
-                    .append(Component.literal(" · "))
-                    .append(Component.translatable(noteKey));
+            String noteKey = MATERIAL_NOTES.get(ingredient);
+            if (noteKey != null) {
+                context.graphics().text(context.font(), Component.translatable(noteKey),
+                        context.pageLeft() + 18, y + 4, INK, false);
+            }
+            return;
         }
 
-        List<String> effects = new ArrayList<>(outcomes.size() + 1);
         for (MultiOutcomeBrewing.Outcome outcome : outcomes) {
-            effects.add(AlchemyDiscoveryClientCache.has(ingredient, outcome.potion())
-                    ? Component.translatable(outcome.messageKey()).getString()
-                    : "?");
+            boolean discovered = AlchemyDiscoveryClientCache.has(ingredient, outcome.potion());
+            if (discovered) {
+                stack(context, PotionContents.createItemStack(Items.POTION, outcome.potion()), 20, y);
+                context.graphics().text(context.font(), Component.translatable(outcome.messageKey()),
+                        context.pageLeft() + 43, y, INK, false);
+                Component detail = Component.translatable(AlchemyResearchClientCache.frequencyKey(ingredient, outcome.potion()))
+                        .append(Component.literal(" · "))
+                        .append(Component.translatable(AlchemyResearchClientCache.tierKey(ingredient, outcome.potion())));
+                context.graphics().text(context.font(), detail,
+                        context.pageLeft() + 43, y + 11, MUTED, false);
+            } else {
+                stack(context, new ItemStack(Items.GLASS_BOTTLE), 20, y);
+                context.graphics().text(context.font(), "?", context.pageLeft() + 26, y + 4, WARN, false);
+                context.graphics().text(context.font(), Component.translatable("book.totem_alchemy.research.unknown_effect"),
+                        context.pageLeft() + 43, y + 5, WARN, false);
+            }
+            y += 25;
         }
+
         if (AlchemyResearchClientCache.hasNoEffectObservation(ingredient)) {
-            effects.add(Component.translatable("book.totem_alchemy.research.no_effect").getString());
+            stack(context, new ItemStack(Items.GLASS_BOTTLE), 20, y);
+            context.graphics().text(context.font(), Component.translatable("book.totem_alchemy.research.no_effect"),
+                    context.pageLeft() + 43, y, INK, false);
+            Component detail = Component.translatable(AlchemyResearchClientCache.noEffectFrequencyKey(ingredient))
+                    .append(Component.literal(" · "))
+                    .append(Component.translatable(AlchemyResearchClientCache.noEffectTierKey(ingredient)));
+            context.graphics().text(context.font(), detail,
+                    context.pageLeft() + 43, y + 11, MUTED, false);
         }
-
-        return Component.empty().append(time)
-                .append(Component.literal(" · "))
-                .append(Component.literal(String.join(" / ", effects)));
-    }
-
-    private static Component compactTime(Item ingredient) {
-        var estimate = AlchemyResearchClientCache.timeEstimate(ingredient);
-        if (estimate.isEmpty()) {
-            return Component.translatable("book.totem_alchemy.research.compact_time_unknown");
-        }
-        var value = estimate.orElseThrow();
-        if (value.exact()) {
-            return Component.translatable("book.totem_alchemy.research.compact_time_exact",
-                    formatTenths(value.lowerTenths()));
-        }
-        return Component.translatable("book.totem_alchemy.research.compact_time_range",
-                formatTenths(value.lowerTenths()), formatTenths(value.upperTenths()));
-    }
-
-    private static String clipped(TotemManualPageRenderContext context, Component component, int maxWidth) {
-        String text = component.getString();
-        if (context.font().width(text) <= maxWidth) return text;
-        int ellipsis = context.font().width("…");
-        return context.font().plainSubstrByWidth(text, Math.max(1, maxWidth - ellipsis)) + "…";
     }
 
     private static void stack(TotemManualPageRenderContext context, ItemStack stack, int localX, int y) {
