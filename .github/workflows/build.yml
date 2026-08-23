@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Yunitrish006006/TotemCore
-          ref: b01331f7a9c48f6ad46fb495c448681b3ebaf90e
+          ref: 25bd1503577909c2b1ca4b71532d08e7bd1669f9
           path: .lockstep/TotemCore
           persist-credentials: false
 
@@ -41,7 +41,7 @@ jobs:
           chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core_version" = '0.7.4'
+          test "$core_version" = '0.7.5'
           test -f ".lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
 
       - name: Build TotemAlchemy
