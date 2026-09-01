@@ -1,0 +1,20 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_materials": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": "totem:alchemy/stone_bowl" },
+          { "items": "minecraft:cocoa_beans" }
+        ]
+      }
+    },
+    "has_the_recipe": {
+      "trigger": "minecraft:recipe_unlocked",
+      "conditions": { "recipe": "deadrecall:cocoa_powder" }
+    }
+  },
+  "requirements": [["has_materials", "has_the_recipe"]],
+  "rewards": { "recipes": ["deadrecall:cocoa_powder"] }
+}

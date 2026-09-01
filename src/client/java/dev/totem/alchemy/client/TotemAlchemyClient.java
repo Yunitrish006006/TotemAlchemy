@@ -14,6 +14,7 @@ import net.fabricmc.api.ClientModInitializer;
 public final class TotemAlchemyClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        AlchemyMaterialDiscoveryClient.register();
         AlchemyDiscoveryClientCache.register();
         AlchemyResearchClientCache.register();
         AlchemyManualPageOverlay.register();

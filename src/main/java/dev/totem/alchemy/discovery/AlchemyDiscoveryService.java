@@ -255,6 +255,8 @@ public final class AlchemyDiscoveryService {
         List<String> snapshot = new ArrayList<>();
         Map<String, Integer> research = data.research(player.getUUID());
         Map<String, Integer> samplesByIngredient = data.materialSamples(player.getUUID());
+        data.knownMaterials(player.getUUID()).forEach(ingredientId ->
+                snapshot.add("K|" + ingredientId));
         samplesByIngredient.forEach((ingredientId, samples) -> {
             if (samples > 0) snapshot.add("S|" + ingredientId + "|" + samples);
         });

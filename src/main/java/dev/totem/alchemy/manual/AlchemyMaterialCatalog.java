@@ -80,6 +80,7 @@ public final class AlchemyMaterialCatalog {
             entry("dragon_breath", Items.DRAGON_BREATH)
     );
     private static final Map<String, Entry> BY_PAGE_KEY = buildByPageKey();
+    private static final Map<Item, Entry> BY_ITEM = buildByItem();
     private static final List<String> PAGE_KEYS = ENTRIES.stream().map(Entry::pageKey).toList();
 
     private AlchemyMaterialCatalog() {}
@@ -108,7 +109,7 @@ public final class AlchemyMaterialCatalog {
     }
 
     public static boolean contains(Item item) {
-        return ENTRIES.stream().anyMatch(entry -> entry.item() == item);
+        return BY_ITEM.containsKey(item);
     }
 
     private static Entry entry(String id, Item item) {
@@ -121,6 +122,17 @@ public final class AlchemyMaterialCatalog {
             Entry previous = result.put(entry.pageKey(), entry);
             if (previous != null) {
                 throw new IllegalStateException("Duplicate Alchemy material page key: " + entry.pageKey());
+            }
+        }
+        return Map.copyOf(result);
+    }
+
+    private static Map<Item, Entry> buildByItem() {
+        Map<Item, Entry> result = new LinkedHashMap<>();
+        for (Entry entry : ENTRIES) {
+            Entry previous = result.put(entry.item(), entry);
+            if (previous != null) {
+                throw new IllegalStateException("Duplicate Alchemy material item: " + entry.item());
             }
         }
         return Map.copyOf(result);

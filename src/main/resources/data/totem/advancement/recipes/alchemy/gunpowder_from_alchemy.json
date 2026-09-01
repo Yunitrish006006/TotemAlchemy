@@ -1,0 +1,20 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_alchemy_materials": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": "#totem:alchemy/sulfur_bowls" },
+          { "items": "#totem:alchemy/saltpeters" }
+        ]
+      }
+    },
+    "has_the_recipe": {
+      "trigger": "minecraft:recipe_unlocked",
+      "conditions": { "recipe": "deadrecall:gunpowder_from_alchemy" }
+    }
+  },
+  "requirements": [["has_alchemy_materials", "has_the_recipe"]],
+  "rewards": { "recipes": ["deadrecall:gunpowder_from_alchemy"] }
+}

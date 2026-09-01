@@ -1,0 +1,20 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_materials": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": "minecraft:copper_ingot" },
+          { "items": "minecraft:glass_bottle" }
+        ]
+      }
+    },
+    "has_the_recipe": {
+      "trigger": "minecraft:recipe_unlocked",
+      "conditions": { "recipe": "totem:alchemy/large_potion_flask" }
+    }
+  },
+  "requirements": [["has_materials", "has_the_recipe"]],
+  "rewards": { "recipes": ["totem:alchemy/large_potion_flask"] }
+}

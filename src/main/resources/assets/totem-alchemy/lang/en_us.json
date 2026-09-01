@@ -1,5 +1,5 @@
 {
-  "book.totem_alchemy.guide.principles": "Alchemy Principles\n\nAlchemy does not reveal material answers in advance. The manual begins recording a material only after its reaction completes.\n\nOne material may produce several effects. Each effect is rolled independently, while every bottle in the same brewing batch shares the same result set.\n\nRepeated experiments add samples, making processing-time and observed-frequency estimates progressively more reliable.",
+  "book.totem_alchemy.guide.principles": "Alchemy Principles\n\nWhen automatic material recording is enabled, acquiring a brewable material adds its identity to the manual once without counting a research sample. Its effects remain unknown until tested.\n\nOne material may produce several effects. Each effect is rolled independently, while every bottle in the same brewing batch shares the same result set.\n\nCompleted experiments add samples, making processing-time and observed-frequency estimates progressively more reliable.",
   "book.totem_alchemy.guide.stations": "Alchemy Equipment\n\nBrewing Stand\nUse potion bottles, Blaze Powder, and the material you want to study as usual. A completed batch records one sample, its processing time, and the effects actually observed; all three potion slots share the same result set.\n\nAlchemy Cauldron\nFor heated recipes, put a vanilla Cauldron directly above a lit Campfire with no block between them; add water first when required. A Water Cauldron can also begin mixing, or receive a poured potion. Add materials by right-clicking or dropping them in as the recipe allows, bottle liquid mixtures with a Glass Bottle, and look at the Cauldron to see reaction stage and volume.",
   "book.totem_alchemy.research.samples": "Research samples: %s",
   "book.totem_alchemy.research.processing_time_range": "Time estimate: %s–%s s",
@@ -31,6 +31,7 @@
   "book.totem_alchemy.research.note.lingering": "Converts to lingering form",
   "book.totem_alchemy.research.note.cherry_variant": "Mutates Swiftness into Cherry Swiftness",
   "book.totem_alchemy.research.note.firefly_variant": "Mutates Strength into Firefly Strength",
+  "message.deadrecall.alchemy.material_recorded": "New brewing material: %s. Added to the Alchemy Handbook",
   "book.totem_alchemy.material_slot.nether_wart": "",
   "book.totem_alchemy.material_slot.red_mushroom": "",
   "book.totem_alchemy.material_slot.brown_mushroom": "",

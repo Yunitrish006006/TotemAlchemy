@@ -1,4 +1,6 @@
 {
+  "gamerule.totem.alchemy_auto_record_brewing_materials": "Automatically record brewing materials",
+  "gamerule.totem.alchemy_auto_record_brewing_materials.description": "Record each brewable material in a player's Alchemy Handbook the first time it enters their inventory.",
   "block.totem.alchemy_cauldron": "Alchemy Cauldron",
   "item.totem.alchemy.large_potion_flask": "Large Potion Flask",
   "item.totem.alchemy.mixture": "Alchemy Mixture",

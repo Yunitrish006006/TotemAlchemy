@@ -13,9 +13,11 @@ import dev.totem.alchemy.block.entity.AlchemyBlockEntities;
 import dev.totem.alchemy.effect.AlchemyMobEffects;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryConnectionSync;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
+import dev.totem.alchemy.discovery.AlchemyMaterialAcquisitionDiscovery;
 import dev.totem.alchemy.manual.AlchemyManual;
 import dev.totem.alchemy.recipe.AlchemyRecipes;
 import dev.totem.alchemy.registry.AlchemyCriteria;
+import dev.totem.alchemy.registry.AlchemyGameRules;
 import dev.totem.alchemy.registry.AlchemyItemGroups;
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.fabricmc.api.ModInitializer;
@@ -33,6 +35,7 @@ public final class TotemAlchemy implements ModInitializer {
         AlchemyMobEffects.register();
         AlchemyPotions.register();
         AlchemyCriteria.register();
+        AlchemyGameRules.register();
         AlchemyItems.register();
         AlchemyRecipes.register();
         AlchemyItemGroups.register();
@@ -41,6 +44,7 @@ public final class TotemAlchemy implements ModInitializer {
         AlchemyHandler.register();
         AlchemyPortableContainerInteractions.register();
         AlchemyDiscoveryService.register();
+        AlchemyMaterialAcquisitionDiscovery.register();
         AlchemyDiscoveryConnectionSync.register();
         AlchemyManual.register();
         CherryBrewInteractions.register();

@@ -1,5 +1,5 @@
 {
-  "book.totem_alchemy.guide.principles": "煉金原理\n\nAlchemy 不會預先告訴你材料的答案。材料完成反應後，手冊才會開始記錄。\n\n同一種材料可能產生多種效果；每種效果獨立判定，而同一批釀造共用同一組結果。\n\n重複實驗會累積樣本，讓處理時間與效果出現頻率的判斷逐漸更可靠。",
+  "book.totem_alchemy.guide.principles": "煉金原理\n\n開啟自動材料登錄時，取得可釀造材料會將材料名稱登錄至手冊一次，但不計入研究樣本；實際效果仍要試釀後才會揭露。\n\n同一種材料可能產生多種效果；每種效果獨立判定，而同一批釀造共用同一組結果。\n\n完成實驗才會累積樣本，讓處理時間與效果出現頻率的判斷逐漸更可靠。",
   "book.totem_alchemy.guide.stations": "煉金設備\n\n釀造台\n照原版方式放入藥水瓶、烈焰粉與研究材料。完成一批後記錄一次樣本、時間與實際效果；三個藥水槽共用同一組結果。\n\n煉藥鍋\n加熱配方：把原版鍋直接放在點燃的營火正上方，中間不可隔方塊；需要水時先裝水。\n水鍋也能開始混合，或直接倒入藥水。材料依配方右鍵／丟入，液體用玻璃瓶取出。準星對準鍋可看反應階段與容量。",
   "book.totem_alchemy.research.samples": "研究樣本：%s",
   "book.totem_alchemy.research.processing_time_range": "預估時間：%s–%s 秒",
@@ -31,6 +31,7 @@
   "book.totem_alchemy.research.note.lingering": "轉換為滯留型",
   "book.totem_alchemy.research.note.cherry_variant": "將迅捷變異為櫻花迅捷",
   "book.totem_alchemy.research.note.firefly_variant": "將力量變異為螢草之力",
+  "message.deadrecall.alchemy.material_recorded": "新釀造材料：%s，已登錄至 Alchemy 煉金手冊",
   "book.totem_alchemy.material_slot.nether_wart": "",
   "book.totem_alchemy.material_slot.red_mushroom": "",
   "book.totem_alchemy.material_slot.brown_mushroom": "",

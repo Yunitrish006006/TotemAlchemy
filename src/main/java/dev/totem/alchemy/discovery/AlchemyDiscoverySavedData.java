@@ -21,6 +21,7 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     private static final Codec<PlayerDiscoveries> PLAYER_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             UUIDUtil.CODEC.fieldOf("player").forGetter(PlayerDiscoveries::player),
             Codec.STRING.listOf().optionalFieldOf("discoveries", List.of()).forGetter(PlayerDiscoveries::discoveries),
+            Codec.STRING.listOf().optionalFieldOf("known_materials", List.of()).forGetter(PlayerDiscoveries::knownMaterials),
             Codec.STRING.listOf().optionalFieldOf("research", List.of()).forGetter(PlayerDiscoveries::research),
             Codec.STRING.listOf().optionalFieldOf("material_samples", List.of()).forGetter(PlayerDiscoveries::materialSamples),
             Codec.STRING.listOf().optionalFieldOf("processing_times", List.of()).forGetter(PlayerDiscoveries::processingTimes)
@@ -38,6 +39,7 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     );
 
     private final Map<UUID, Set<String>> discoveriesByPlayer = new HashMap<>();
+    private final Map<UUID, Set<String>> knownMaterialsByPlayer = new HashMap<>();
     private final Map<UUID, Map<String, Integer>> researchByPlayer = new HashMap<>();
     private final Map<UUID, Map<String, Integer>> materialSamplesByPlayer = new HashMap<>();
     private final Map<UUID, Map<String, ProcessingTimeStats>> processingTimesByPlayer = new HashMap<>();
@@ -50,6 +52,12 @@ public final class AlchemyDiscoverySavedData extends SavedData {
         for (PlayerDiscoveries player : players) {
             Set<String> discoveries = new HashSet<>(player.discoveries());
             discoveriesByPlayer.put(player.player(), discoveries);
+
+            Set<String> knownMaterials = new HashSet<>(player.knownMaterials());
+            knownMaterials.removeIf(material -> material == null || material.isBlank());
+            if (!knownMaterials.isEmpty()) {
+                knownMaterialsByPlayer.put(player.player(), knownMaterials);
+            }
 
             Map<String, Integer> counts = new HashMap<>();
             for (String encoded : player.research()) {
@@ -132,6 +140,20 @@ public final class AlchemyDiscoverySavedData extends SavedData {
         return changed;
     }
 
+    /** Records that the player has encountered a brewable material without adding a research sample. */
+    public boolean recordKnownMaterial(UUID playerId, String ingredientId) {
+        if (ingredientId == null || ingredientId.isBlank()) {
+            return false;
+        }
+        boolean changed = knownMaterialsByPlayer
+                .computeIfAbsent(playerId, ignored -> new HashSet<>())
+                .add(ingredientId);
+        if (changed) {
+            setDirty();
+        }
+        return changed;
+    }
+
     public void recordResearch(UUID playerId, String outcomeKey) {
         researchByPlayer.computeIfAbsent(playerId, ignored -> new HashMap<>()).merge(outcomeKey, 1, Integer::sum);
         setDirty();
@@ -190,6 +212,14 @@ public final class AlchemyDiscoverySavedData extends SavedData {
         return Set.copyOf(discoveriesByPlayer.getOrDefault(playerId, Set.of()));
     }
 
+    public boolean hasKnownMaterial(UUID playerId, String ingredientId) {
+        return knownMaterialsByPlayer.getOrDefault(playerId, Set.of()).contains(ingredientId);
+    }
+
+    public Set<String> knownMaterials(UUID playerId) {
+        return Set.copyOf(knownMaterialsByPlayer.getOrDefault(playerId, Set.of()));
+    }
+
     public Map<String, Integer> research(UUID playerId) {
         return Map.copyOf(researchByPlayer.getOrDefault(playerId, Map.of()));
     }
@@ -217,11 +247,14 @@ public final class AlchemyDiscoverySavedData extends SavedData {
 
     private List<PlayerDiscoveries> playerList() {
         Set<UUID> players = new HashSet<>(discoveriesByPlayer.keySet());
+        players.addAll(knownMaterialsByPlayer.keySet());
         players.addAll(researchByPlayer.keySet());
         players.addAll(materialSamplesByPlayer.keySet());
         players.addAll(processingTimesByPlayer.keySet());
         return players.stream().sorted().map(playerId -> {
             List<String> discoveries = discoveriesByPlayer.getOrDefault(playerId, Set.of()).stream().sorted().toList();
+            List<String> knownMaterials = knownMaterialsByPlayer.getOrDefault(playerId, Set.of())
+                    .stream().sorted().toList();
             List<String> research = researchByPlayer.getOrDefault(playerId, Map.of()).entrySet().stream()
                     .sorted(Map.Entry.comparingByKey())
                     .map(entry -> entry.getKey() + "=" + entry.getValue())
@@ -234,7 +267,8 @@ public final class AlchemyDiscoverySavedData extends SavedData {
                     .sorted(Map.Entry.comparingByKey())
                     .map(entry -> entry.getKey() + "=" + entry.getValue().totalTicks() + "," + entry.getValue().samples())
                     .toList();
-            return new PlayerDiscoveries(playerId, discoveries, research, materialSamples, processingTimes);
+            return new PlayerDiscoveries(
+                    playerId, discoveries, knownMaterials, research, materialSamples, processingTimes);
         }).toList();
     }
 
@@ -271,12 +305,14 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     private record PlayerDiscoveries(
             UUID player,
             List<String> discoveries,
+            List<String> knownMaterials,
             List<String> research,
             List<String> materialSamples,
             List<String> processingTimes
     ) {
         private PlayerDiscoveries {
             discoveries = List.copyOf(discoveries == null ? List.of() : discoveries);
+            knownMaterials = List.copyOf(knownMaterials == null ? List.of() : knownMaterials);
             research = List.copyOf(research == null ? List.of() : research);
             materialSamples = List.copyOf(materialSamples == null ? List.of() : materialSamples);
             processingTimes = List.copyOf(processingTimes == null ? List.of() : processingTimes);

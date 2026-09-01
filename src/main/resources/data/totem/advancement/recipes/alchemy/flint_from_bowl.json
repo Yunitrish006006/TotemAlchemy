@@ -1,0 +1,20 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_materials": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": "totem:alchemy/stone_bowl" },
+          { "items": "minecraft:gravel" }
+        ]
+      }
+    },
+    "has_the_recipe": {
+      "trigger": "minecraft:recipe_unlocked",
+      "conditions": { "recipe": "deadrecall:flint_from_bowl" }
+    }
+  },
+  "requirements": [["has_materials", "has_the_recipe"]],
+  "rewards": { "recipes": ["deadrecall:flint_from_bowl"] }
+}

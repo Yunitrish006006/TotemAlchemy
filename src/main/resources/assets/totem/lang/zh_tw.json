@@ -1,4 +1,6 @@
 {
+  "gamerule.totem.alchemy_auto_record_brewing_materials": "自動登錄釀造材料",
+  "gamerule.totem.alchemy_auto_record_brewing_materials.description": "可釀造材料首次進入玩家物品欄時，將其登錄至 Alchemy 煉金手冊。",
   "block.totem.alchemy_cauldron": "煉藥鍋",
   "item.totem.alchemy.large_potion_flask": "大型藥水壺",
   "item.totem.alchemy.mixture": "煉金混合藥水",

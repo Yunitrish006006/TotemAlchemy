@@ -11,14 +11,17 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.alchemy.Potion;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** Client snapshot containing only sample counts, derived labels, and server-approved processing-time estimates. */
 public final class AlchemyResearchClientCache {
     private static volatile Map<String, ResearchEntry> entries = Map.of();
     private static volatile Map<String, ResearchEntry> noEffectEntries = Map.of();
+    private static volatile Set<String> knownMaterials = Set.of();
     private static volatile Map<String, Integer> samplesByIngredient = Map.of();
     private static volatile Map<String, AlchemyProcessingTimeEstimate> timings = Map.of();
 
@@ -32,14 +35,16 @@ public final class AlchemyResearchClientCache {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             entries = Map.of();
             noEffectEntries = Map.of();
+            knownMaterials = Set.of();
             samplesByIngredient = Map.of();
             timings = Map.of();
         });
     }
 
-    /** A material stays anonymous until the server has recorded at least one observation for it. */
+    /** A material becomes visible after acquisition or after the server records a brewing observation. */
     public static boolean isMaterialKnown(Item ingredient) {
-        return samples(ingredient) > 0;
+        String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient).toString();
+        return knownMaterials.contains(ingredientId) || samples(ingredient) > 0;
     }
 
     public static int samples(Item ingredient) {
@@ -98,9 +103,15 @@ public final class AlchemyResearchClientCache {
     private static void replace(Iterable<String> encodedEntries) {
         Map<String, ResearchEntry> researchCopy = new HashMap<>();
         Map<String, ResearchEntry> noEffectCopy = new HashMap<>();
+        Set<String> knownMaterialCopy = new HashSet<>();
         Map<String, Integer> sampleCopy = new HashMap<>();
         Map<String, AlchemyProcessingTimeEstimate> timingCopy = new HashMap<>();
         for (String encoded : encodedEntries) {
+            if (encoded.startsWith("K|")) {
+                String ingredientId = encoded.substring(2);
+                if (!ingredientId.isBlank()) knownMaterialCopy.add(ingredientId);
+                continue;
+            }
             if (encoded.startsWith("O|") || encoded.startsWith("N|")) {
                 String[] parts = encoded.split("\\|", 5);
                 if (parts.length != 5) continue;
@@ -135,6 +146,7 @@ public final class AlchemyResearchClientCache {
         }
         entries = Map.copyOf(researchCopy);
         noEffectEntries = Map.copyOf(noEffectCopy);
+        knownMaterials = Set.copyOf(knownMaterialCopy);
         samplesByIngredient = Map.copyOf(sampleCopy);
         timings = Map.copyOf(timingCopy);
     }
