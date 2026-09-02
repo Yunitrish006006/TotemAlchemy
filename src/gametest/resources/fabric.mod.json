@@ -14,6 +14,7 @@
     ],
     "fabric-client-gametest": [
       "dev.totem.alchemy.client.AlchemyCreativeTabVisualGameTest",
+      "dev.totem.alchemy.client.AlchemyLargeFlaskVisualGameTest",
       "dev.totem.alchemy.client.AlchemyMaterialDiscoveryVisualGameTest",
       "dev.totem.alchemy.client.AlchemyManualVisualGameTest"
     ]

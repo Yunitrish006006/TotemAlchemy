@@ -1,21 +1,30 @@
 package dev.totem.alchemy.item;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.mixture.AlchemyMixtureColor;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.AlchemyMixtureTooltipLines;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
+
+import java.util.function.Consumer;
 
 /** Three-dose portable Alchemy mixture container. */
 public final class LargePotionFlaskItem extends Item {
@@ -30,6 +39,8 @@ public final class LargePotionFlaskItem extends Item {
         if (state.isEmpty()) {
             return InteractionResult.PASS;
         }
+        // Repair old stacks before ItemStack captures its pre-use component snapshot.
+        AlchemyMixtureBottle.refreshPortablePresentation(stack);
         return ItemUtils.startUsingInstantly(level, player, hand);
     }
 
@@ -41,6 +52,40 @@ public final class LargePotionFlaskItem extends Item {
     @Override
     public int getUseDuration(ItemStack stack, LivingEntity user) {
         return 32;
+    }
+
+    @Override
+    public void appendHoverText(
+            ItemStack stack,
+            TooltipContext context,
+            TooltipDisplay display,
+            Consumer<Component> lines,
+            TooltipFlag flag
+    ) {
+        // Client-side same-frame migration lets old filled flasks show effects on their first hover.
+        AlchemyMixtureBottle.refreshPortablePresentation(stack);
+        AlchemyMixtureTooltipLines.append(stack, lines);
+    }
+
+    @Override
+    public void inventoryTick(ItemStack stack, ServerLevel level, Entity entity, EquipmentSlot slot) {
+        AlchemyMixtureBottle.refreshPortablePresentation(stack);
+    }
+
+    @Override
+    public boolean isBarVisible(ItemStack stack) {
+        return !AlchemyMixtureBottle.storedMixture(stack).isEmpty();
+    }
+
+    @Override
+    public int getBarWidth(ItemStack stack) {
+        int units = AlchemyMixtureBottle.storedMixture(stack).volumeUnits();
+        return Math.round(13.0F * units / AlchemyMixtureState.MAX_VOLUME_UNITS);
+    }
+
+    @Override
+    public int getBarColor(ItemStack stack) {
+        return AlchemyMixtureColor.rgb(AlchemyMixtureBottle.storedMixture(stack));
     }
 
     @Override

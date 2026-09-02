@@ -37,6 +37,7 @@ public final class AlchemyMixtureState {
     private int overcookTicks;
     private int perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
     private boolean baseActivated;
+    private boolean heatLockedAfterBottling;
     private DeliveryForm deliveryForm = DeliveryForm.DRINKABLE;
     private String canonicalPotionId;
     private final Map<String, EffectDose> effects = new LinkedHashMap<>();
@@ -59,6 +60,7 @@ public final class AlchemyMixtureState {
         copy.overcookTicks = overcookTicks;
         copy.perfectWindowTicks = perfectWindowTicks;
         copy.baseActivated = baseActivated;
+        copy.heatLockedAfterBottling = heatLockedAfterBottling;
         copy.deliveryForm = deliveryForm;
         copy.canonicalPotionId = canonicalPotionId;
         copy.effects.putAll(effects);
@@ -103,6 +105,17 @@ public final class AlchemyMixtureState {
 
     public void setBaseActivated(boolean baseActivated) {
         this.baseActivated = baseActivated;
+    }
+
+    public boolean isHeatLockedAfterBottling() {
+        return heatLockedAfterBottling;
+    }
+
+    /** A finished portable potion is stable when returned to heat until another ingredient starts a reaction. */
+    public void lockHeatIfFinished() {
+        if (!isEmpty() && !hasPendingReactions()) {
+            heatLockedAfterBottling = true;
+        }
     }
 
     public DeliveryForm deliveryForm() {
@@ -164,7 +177,7 @@ public final class AlchemyMixtureState {
     }
 
     public boolean canOvercook() {
-        return !isEmpty() && !hasPendingReactions() && !hasCompletedStages()
+        return !heatLockedAfterBottling && !isEmpty() && !hasPendingReactions() && !hasCompletedStages()
                 && (baseActivated || !effects.isEmpty());
     }
 
@@ -230,6 +243,7 @@ public final class AlchemyMixtureState {
             provenance.add("concurrent:" + reaction.id());
         }
         reactions.merge(reaction.id(), reaction, Reaction::mergeSameReaction);
+        heatLockedAfterBottling = false;
         completedStages.remove(reaction.id());
         overcookTicks = 0;
         perfectWindowTicks = 0;
@@ -271,7 +285,7 @@ public final class AlchemyMixtureState {
 
     /** Advance every already-finished material stage independently while later materials continue reacting. */
     public boolean tickCompletedStages(RandomSource random, int ticks) {
-        if (ticks <= 0 || completedStages.isEmpty()) {
+        if (heatLockedAfterBottling || ticks <= 0 || completedStages.isEmpty()) {
             return false;
         }
 
@@ -499,6 +513,7 @@ public final class AlchemyMixtureState {
         if (other == null || other.isEmpty() || volumeUnits + other.volumeUnits > MAX_VOLUME_UNITS) {
             return false;
         }
+        boolean activeHeat = canAdvanceUnderHeat() || other.canAdvanceUnderHeat();
         int oldVolume = volumeUnits;
         int incomingVolume = other.volumeUnits;
         int mergedVolume = oldVolume + incomingVolume;
@@ -517,6 +532,8 @@ public final class AlchemyMixtureState {
             provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
         }
         baseActivated = baseActivated || other.baseActivated;
+        heatLockedAfterBottling = !activeHeat
+                && (heatLockedAfterBottling || other.heatLockedAfterBottling);
         deliveryForm = deliveryForm == other.deliveryForm ? deliveryForm : DeliveryForm.DRINKABLE;
         overcookTicks = 0;
         perfectWindowTicks = Math.max(perfectWindowTicks, other.perfectWindowTicks);
@@ -532,6 +549,11 @@ public final class AlchemyMixtureState {
             neutralizeOpposites();
         }
         return true;
+    }
+
+    private boolean canAdvanceUnderHeat() {
+        return !heatLockedAfterBottling
+                && (hasPendingReactions() || hasCompletedStages() || canOvercook());
     }
 
     private void mergeReactions(AlchemyMixtureState other, int oldVolume, int incomingVolume) {
@@ -581,6 +603,7 @@ public final class AlchemyMixtureState {
         overcookTicks = 0;
         perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
         baseActivated = false;
+        heatLockedAfterBottling = false;
         deliveryForm = DeliveryForm.DRINKABLE;
     }
 
@@ -590,6 +613,7 @@ public final class AlchemyMixtureState {
         result.overcookTicks = overcookTicks;
         result.perfectWindowTicks = perfectWindowTicks;
         result.baseActivated = baseActivated;
+        result.heatLockedAfterBottling = heatLockedAfterBottling;
         result.deliveryForm = deliveryForm;
         result.canonicalPotionId = canonicalPotionId;
         effects.forEach((id, dose) -> result.effects.put(id, dose.scale(factor)));
@@ -682,6 +706,7 @@ public final class AlchemyMixtureState {
         out.append("V|").append(volumeUnits).append('\n');
         out.append("S|").append(stability).append('\n');
         out.append("B|").append(baseActivated ? 1 : 0).append('\n');
+        out.append("H|").append(heatLockedAfterBottling ? 1 : 0).append('\n');
         out.append("F|").append(deliveryForm.name()).append('\n');
         out.append("O|").append(overcookTicks).append('\n');
         out.append("W|").append(perfectWindowTicks).append('\n');
@@ -729,6 +754,7 @@ public final class AlchemyMixtureState {
                         state.baseActivated = Integer.parseInt(part[1]) != 0;
                         sawBaseMarker = true;
                     }
+                    case "H" -> state.heatLockedAfterBottling = Integer.parseInt(part[1]) != 0;
                     case "F" -> state.deliveryForm = DeliveryForm.parse(part[1]);
                     case "O" -> state.overcookTicks = Math.max(0, Integer.parseInt(part[1]));
                     case "W" -> state.perfectWindowTicks = Math.max(0, Integer.parseInt(part[1]));

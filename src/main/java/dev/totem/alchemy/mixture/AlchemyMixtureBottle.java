@@ -1,5 +1,6 @@
 package dev.totem.alchemy.mixture;
 
+import dev.totem.alchemy.item.LargePotionFlaskItem;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -17,6 +18,7 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.component.CustomData;
 
 import java.util.Map;
+import java.util.Objects;
 
 /** Conversion between potion containers and persistent Alchemy mixture snapshots. */
 public final class AlchemyMixtureBottle {
@@ -41,7 +43,13 @@ public final class AlchemyMixtureBottle {
 
     public static AlchemyMixtureState storedMixture(ItemStack stack) {
         String encoded = storedStateString(stack);
-        return encoded.isBlank() ? AlchemyMixtureState.empty() : AlchemyMixtureState.decode(encoded);
+        if (encoded.isBlank()) {
+            return AlchemyMixtureState.empty();
+        }
+        AlchemyMixtureState state = AlchemyMixtureState.decode(encoded);
+        // Migrate finished portable mixtures made before the heat-lock marker existed.
+        state.lockHeatIfFinished();
+        return state;
     }
 
     public static AlchemyMixtureState fromPotion(ItemStack stack) {
@@ -70,6 +78,7 @@ public final class AlchemyMixtureBottle {
         }
         state.setBaseActivated(isActivatedPotion(state.canonicalPotionId(), state.effects().isEmpty()));
         state.addProvenance("potion:" + (state.canonicalPotionId() == null ? "custom" : state.canonicalPotionId()));
+        state.lockHeatIfFinished();
         return state;
     }
 
@@ -118,13 +127,23 @@ public final class AlchemyMixtureBottle {
         if (stack == null || stack.isEmpty() || state == null) {
             return;
         }
+        AlchemyMixtureState stored = state.copy();
+        stored.lockHeatIfFinished();
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        if (state.isEmpty()) {
+        if (stored.isEmpty()) {
             tag.remove(TAG_MIXTURE_STATE);
         } else {
-            tag.putString(TAG_MIXTURE_STATE, state.encode());
+            tag.putString(TAG_MIXTURE_STATE, stored.encode());
         }
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        if (stored.isEmpty()) {
+            stack.remove(DataComponents.POTION_CONTENTS);
+        } else {
+            stack.set(DataComponents.POTION_CONTENTS, potionContents(stored));
+        }
+        if (stack.getItem() instanceof LargePotionFlaskItem) {
+            stack.remove(DataComponents.USE_REMAINDER);
+        }
     }
 
     public static void clearState(ItemStack stack) {
@@ -134,6 +153,56 @@ public final class AlchemyMixtureBottle {
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         tag.remove(TAG_MIXTURE_STATE);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        stack.remove(DataComponents.POTION_CONTENTS);
+        if (stack.getItem() instanceof LargePotionFlaskItem) {
+            stack.remove(DataComponents.USE_REMAINDER);
+        }
+    }
+
+    /** Repairs presentation components on portable mixtures created by earlier module versions. */
+    public static boolean refreshPortablePresentation(ItemStack stack) {
+        if (!hasStoredMixture(stack)) {
+            return false;
+        }
+        AlchemyMixtureState stored = storedMixture(stack);
+        PotionContents expected = potionContents(stored);
+        boolean staleState = !stored.encode().equals(storedStateString(stack));
+        boolean staleEffects = !Objects.equals(stack.get(DataComponents.POTION_CONTENTS), expected);
+        boolean staleRemainder = stack.getItem() instanceof LargePotionFlaskItem
+                && stack.has(DataComponents.USE_REMAINDER);
+        if (!staleState && !staleEffects && !staleRemainder) {
+            return false;
+        }
+        writeState(stack, stored);
+        return true;
+    }
+
+    private static PotionContents potionContents(AlchemyMixtureState state) {
+        PotionContents contents = PotionContents.EMPTY;
+        Holder<Potion> canonical = state.hasPendingReactions() || state.canonicalPotionId() == null
+                ? null
+                : potionHolder(state.canonicalPotionId());
+        if (canonical != null) {
+            contents = new PotionContents(canonical);
+        } else {
+            for (Map.Entry<String, AlchemyMixtureState.EffectDose> entry : state.effects().entrySet()) {
+                Holder<MobEffect> effect = effectHolder(entry.getKey());
+                if (effect == null) {
+                    continue;
+                }
+                AlchemyMixtureState.EffectDose dose = entry.getValue();
+                contents = contents.withEffectAdded(new MobEffectInstance(
+                        effect,
+                        dose.durationForVolume(Math.max(1, state.volumeUnits())),
+                        dose.amplifierCap()
+                ));
+            }
+            if (state.stability() < 50 && state.stability() > 0) {
+                int nauseaTicks = 20 * Math.max(2, (50 - state.stability()) / 5);
+                contents = contents.withEffectAdded(new MobEffectInstance(MobEffects.NAUSEA, nauseaTicks, 0));
+            }
+        }
+        return contents;
     }
 
     private static ItemStack canonicalStack(AlchemyMixtureState state) {

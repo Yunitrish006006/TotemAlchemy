@@ -4,6 +4,7 @@ import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
+import dev.totem.alchemy.mixture.AlchemyMixtureTooltipLines;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.ChatFormatting;
@@ -84,7 +85,7 @@ public final class AlchemyCauldronHud {
         if (all.isEmpty()) {
             AlchemyMixtureTiming.State timing = AlchemyMixtureTiming.classify(mixture);
             Component timingText = Component.translatable(timing.translationKey())
-                    .withStyle(AlchemyMixtureTooltip.timingColor(timing));
+                    .withStyle(AlchemyMixtureTooltipLines.timingColor(timing));
             return List.of(Component.translatable("hud.deadrecall.alchemy.cauldron.timing", timingText));
         }
         if (all.size() <= MAX_VISIBLE_STAGES) {
@@ -101,10 +102,10 @@ public final class AlchemyCauldronHud {
 
     private static Component stageLine(String ingredientId, AlchemyMixtureTiming.State timing) {
         Component timingText = Component.translatable(timing.translationKey())
-                .withStyle(AlchemyMixtureTooltip.timingColor(timing));
+                .withStyle(AlchemyMixtureTooltipLines.timingColor(timing));
         return Component.translatable(
                 "hud.deadrecall.alchemy.cauldron.stage",
-                AlchemyMixtureTooltip.ingredientName(ingredientId),
+                AlchemyMixtureTooltipLines.ingredientName(ingredientId),
                 timingText
         );
     }

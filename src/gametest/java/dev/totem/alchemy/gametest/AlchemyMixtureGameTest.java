@@ -9,6 +9,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
+import net.minecraft.util.RandomSource;
+
+import java.util.Map;
 
 public final class AlchemyMixtureGameTest {
     private static final double EPSILON = 0.0001D;
@@ -89,6 +92,34 @@ public final class AlchemyMixtureGameTest {
                 "ItemStack round-trip reset reaction progress");
         require(helper, restoredReaction.remainingTicks() == before.remainingTicks(),
                 "ItemStack round-trip changed remaining reaction time");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void finishedBottleDoesNotResumeCookingWhenPouredBack(GameTestHelper helper) {
+        AlchemyMixtureState finished = new AlchemyMixtureState(1);
+        finished.setBaseActivated(true);
+        finished.addReaction(new AlchemyMixtureState.Reaction(
+                "test:finished", "minecraft:sugar", 0, 20, 1,
+                "minecraft:awkward", null, Map.of(), Map.of(
+                "minecraft:speed", new AlchemyMixtureState.EffectDose(3_600.0D, 0)
+        )));
+        finished.tickReactions(20);
+        require(helper, finished.hasCompletedStages(), "Fixture did not finish its reaction stage");
+
+        ItemStack bottle = AlchemyMixtureBottle.toPotion(finished);
+        AlchemyMixtureState pouredBack = AlchemyMixtureBottle.fromPotion(bottle);
+        require(helper, pouredBack.isHeatLockedAfterBottling(),
+                "Finished bottled potion did not retain its heat lock");
+        AlchemyMixtureState.CompletedStage before = pouredBack.completedStages().iterator().next();
+        require(helper, !pouredBack.tickCompletedStages(RandomSource.create(42L), 20 * 120),
+                "Finished bottled potion resumed completed-stage cooking after repour");
+        require(helper, !pouredBack.tickOvercook(RandomSource.create(43L), 20 * 120),
+                "Finished bottled potion resumed general overcooking after repour");
+        AlchemyMixtureState.CompletedStage after = pouredBack.completedStages().iterator().next();
+        require(helper, after.overcookTicks() == before.overcookTicks()
+                        && pouredBack.stability() == finished.stability(),
+                "Repoured finished potion changed while heated");
         helper.succeed();
     }
 
