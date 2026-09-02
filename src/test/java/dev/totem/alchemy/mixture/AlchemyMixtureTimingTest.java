@@ -114,6 +114,22 @@ class AlchemyMixtureTimingTest {
     }
 
     @Test
+    void bottlingFinishedPotionDiscardsCompletedIngredientHistoryOnly() {
+        AlchemyMixtureState state = activeMixture();
+        state.addReaction(reaction("finished-stage", 1_000, 1_000));
+        state.tickReactions(1);
+        state.putEffect("minecraft:speed", 20.0D * 180.0D, 0);
+        assertTrue(state.hasCompletedStages());
+
+        state.lockHeatIfFinished();
+
+        assertTrue(state.isHeatLockedAfterBottling());
+        assertTrue(state.completedStages().isEmpty());
+        assertTrue(state.provenance().stream().noneMatch(marker -> marker.contains("minecraft:nether_wart")));
+        assertTrue(state.effects().containsKey("minecraft:speed"));
+    }
+
+    @Test
     void overcookBoundariesDistinguishMildStrongAndBadlyOverdone() {
         assertEquals(AlchemyMixtureTiming.State.SLIGHTLY_OVERDONE,
                 AlchemyMixtureTiming.classify(decoded(1, 99)));

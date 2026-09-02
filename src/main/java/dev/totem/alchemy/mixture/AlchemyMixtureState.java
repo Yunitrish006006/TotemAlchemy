@@ -111,11 +111,26 @@ public final class AlchemyMixtureState {
         return heatLockedAfterBottling;
     }
 
-    /** A finished portable potion is stable when returned to heat until another ingredient starts a reaction. */
+    /**
+     * Seals a finished portable potion: retain its final chemistry, but discard completed ingredient and
+     * cooking history that can no longer affect it. A newly added ingredient unlocks heating again.
+     */
     public void lockHeatIfFinished() {
         if (!isEmpty() && !hasPendingReactions()) {
             heatLockedAfterBottling = true;
+            completedStages.clear();
+            overcookTicks = 0;
+            perfectWindowTicks = 0;
+            provenance.removeIf(AlchemyMixtureState::isFinishedCookingHistory);
         }
+    }
+
+    private static boolean isFinishedCookingHistory(String marker) {
+        return marker.startsWith("reaction:")
+                || marker.startsWith("concurrent:")
+                || marker.startsWith("modifier:")
+                || marker.startsWith("potion:")
+                || marker.startsWith("cauldron:");
     }
 
     public DeliveryForm deliveryForm() {

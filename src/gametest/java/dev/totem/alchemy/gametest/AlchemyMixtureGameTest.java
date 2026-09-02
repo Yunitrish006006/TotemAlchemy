@@ -111,14 +111,19 @@ public final class AlchemyMixtureGameTest {
         AlchemyMixtureState pouredBack = AlchemyMixtureBottle.fromPotion(bottle);
         require(helper, pouredBack.isHeatLockedAfterBottling(),
                 "Finished bottled potion did not retain its heat lock");
-        AlchemyMixtureState.CompletedStage before = pouredBack.completedStages().iterator().next();
+        require(helper, !pouredBack.hasCompletedStages(),
+                "Finished bottled potion retained completed ingredient stages");
+        require(helper, pouredBack.provenance().stream().noneMatch(marker ->
+                        marker.contains("minecraft:sugar") || marker.contains("test:finished")),
+                "Finished bottled potion retained its original ingredient history");
+        require(helper, pouredBack.effects().containsKey("minecraft:speed"),
+                "Discarding finished ingredient history also discarded the final potion effect");
+        int stability = pouredBack.stability();
         require(helper, !pouredBack.tickCompletedStages(RandomSource.create(42L), 20 * 120),
                 "Finished bottled potion resumed completed-stage cooking after repour");
         require(helper, !pouredBack.tickOvercook(RandomSource.create(43L), 20 * 120),
                 "Finished bottled potion resumed general overcooking after repour");
-        AlchemyMixtureState.CompletedStage after = pouredBack.completedStages().iterator().next();
-        require(helper, after.overcookTicks() == before.overcookTicks()
-                        && pouredBack.stability() == finished.stability(),
+        require(helper, pouredBack.stability() == stability,
                 "Repoured finished potion changed while heated");
         helper.succeed();
     }
