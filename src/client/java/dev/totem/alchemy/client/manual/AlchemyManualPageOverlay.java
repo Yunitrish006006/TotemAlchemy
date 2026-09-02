@@ -50,7 +50,7 @@ public final class AlchemyManualPageOverlay {
 
         y += 40;
         recipe(context,
-                List.of(new ItemStack(Items.SUGAR), new ItemStack(Items.CHERRY_LEAVES),
+                List.of(new ItemStack(Items.CHERRY_LEAVES), new ItemStack(Items.SUGAR),
                         new ItemStack(Items.GLOW_BERRIES), new ItemStack(Items.SWEET_BERRIES)),
                 new ItemStack(AlchemyItems.CHERRY_BREW), y);
         centeredClipped(context, Component.translatable(

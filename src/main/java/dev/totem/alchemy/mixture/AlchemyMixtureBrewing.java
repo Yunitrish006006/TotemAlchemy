@@ -21,6 +21,7 @@ public final class AlchemyMixtureBrewing {
 
     public static boolean canReact(Level level, AlchemyMixtureState state, ItemStack ingredient) {
         if (level == null || state == null || state.isEmpty() || ingredient == null || ingredient.isEmpty()) return false;
+        if (AlchemyCompoundBrewing.hasActiveRecipe(state)) return false;
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
         if (state.hasPendingReactionForIngredient(ingredientId)) return false;
         boolean pendingStarter = hasPendingStarter(state);
@@ -151,6 +152,7 @@ public final class AlchemyMixtureBrewing {
         if (!AlchemyMixtureBottle.isPotionContainer(input) || ingredient == null || ingredient.isEmpty()) return false;
         AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(input);
         if (state.isEmpty()) return false;
+        if (AlchemyCompoundBrewing.hasActiveRecipe(state)) return false;
         if (ingredient.is(Items.REDSTONE) || ingredient.is(Items.GLOWSTONE_DUST)) return !state.effects().isEmpty();
         if (ingredient.is(Items.GUNPOWDER)) return state.deliveryForm() == AlchemyMixtureState.DeliveryForm.DRINKABLE;
         if (ingredient.is(Items.DRAGON_BREATH)) return state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH;
@@ -171,6 +173,7 @@ public final class AlchemyMixtureBrewing {
         if (!AlchemyMixtureBottle.isPotionContainer(input) || ingredient == null || ingredient.isEmpty()) return vanillaOutput;
         AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(input);
         if (state.isEmpty()) return vanillaOutput;
+        if (AlchemyCompoundBrewing.hasActiveRecipe(state)) return vanillaOutput;
 
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
         boolean startingBase = BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated();

@@ -14,6 +14,7 @@ import java.util.List;
 
 public record AlchemyCauldronRecipe(
         Identifier id,
+        boolean usesMixtureSystem,
         StartState startState,
         int initialLevel,
         boolean requiresLitCampfire,
@@ -127,6 +128,7 @@ public record AlchemyCauldronRecipe(
             Item item,
             int count,
             Item containerItem,
+            Identifier potionId,
             String messageKey,
             Identifier sound
     ) {

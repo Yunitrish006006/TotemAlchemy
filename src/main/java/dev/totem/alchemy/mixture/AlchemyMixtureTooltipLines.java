@@ -27,6 +27,13 @@ public final class AlchemyMixtureTooltipLines {
                         ? "tooltip.deadrecall.alchemy.mixture.incomplete"
                         : "tooltip.deadrecall.alchemy.mixture.complete"
         ).withStyle(state.hasPendingReactions() ? ChatFormatting.GOLD : ChatFormatting.GRAY));
+        Item resultItem = AlchemyCompoundBrewing.resultItem(state);
+        if (resultItem != null) {
+            lines.accept(Component.translatable(
+                    "tooltip.deadrecall.alchemy.mixture.product",
+                    new ItemStack(resultItem).getHoverName()
+            ).withStyle(ChatFormatting.GRAY));
+        }
         lines.accept(Component.translatable(
                 "tooltip.deadrecall.alchemy.mixture.volume",
                 state.volumeUnits(),

@@ -130,7 +130,9 @@ public final class AlchemyMixtureState {
                 || marker.startsWith("concurrent:")
                 || marker.startsWith("modifier:")
                 || marker.startsWith("potion:")
-                || marker.startsWith("cauldron:");
+                || marker.startsWith("cauldron:")
+                || marker.startsWith("compound:input:")
+                || marker.startsWith("compound:base:");
     }
 
     public DeliveryForm deliveryForm() {

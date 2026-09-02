@@ -1,4 +1,5 @@
 {
+  "brewing_system": "mixture",
   "start": "empty_cauldron",
   "initial_level": 3,
   "requires_lit_campfire": true,
@@ -42,6 +43,7 @@
     "item": "totem:alchemy/hot_cocoa",
     "count": 1,
     "container_item": "minecraft:glass_bottle",
+    "potion": "totem:alchemy/saturation",
     "message": "message.deadrecall.alchemy.hot_cocoa_bottled",
     "sound": "minecraft:item.bottle.fill"
   }

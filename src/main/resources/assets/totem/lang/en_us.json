@@ -13,6 +13,7 @@
   "message.deadrecall.alchemy.mixture_bucket_poured": "Poured the preserved bucket mixture back into the alchemy cauldron.",
   "tooltip.deadrecall.alchemy.mixture.incomplete": "Incomplete alchemy mixture",
   "tooltip.deadrecall.alchemy.mixture.complete": "Mixed alchemy potion",
+  "tooltip.deadrecall.alchemy.mixture.product": "Product: %s",
   "tooltip.deadrecall.alchemy.mixture.volume": "Volume: %s / %s doses",
   "tooltip.deadrecall.alchemy.mixture.stability": "Stability: %s%%",
   "tooltip.deadrecall.alchemy.mixture.timing_state": "Timing: %s",

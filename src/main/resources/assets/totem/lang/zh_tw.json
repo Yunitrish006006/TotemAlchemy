@@ -13,6 +13,7 @@
   "message.deadrecall.alchemy.mixture_bucket_poured": "已將水桶保存的藥水倒回煉藥鍋。",
   "tooltip.deadrecall.alchemy.mixture.incomplete": "尚未完成反應的煉金混合液",
   "tooltip.deadrecall.alchemy.mixture.complete": "混合煉金藥水",
+  "tooltip.deadrecall.alchemy.mixture.product": "成品：%s",
   "tooltip.deadrecall.alchemy.mixture.volume": "容量：%s / %s 份",
   "tooltip.deadrecall.alchemy.mixture.stability": "穩定度：%s%%",
   "tooltip.deadrecall.alchemy.mixture.timing_state": "火候：%s",

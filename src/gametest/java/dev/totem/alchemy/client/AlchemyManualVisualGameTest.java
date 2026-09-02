@@ -126,13 +126,18 @@ public final class AlchemyManualVisualGameTest implements FabricClientGameTest {
             if (content == null) {
                 throw new AssertionError("Alchemy Totem manual had no pages");
             }
+            BookViewScreen.BookAccess bookAccess = context.computeOnClient(
+                    client -> BookViewScreen.BookAccess.fromItem(manual));
+            int virtualPageCount = TotemManualAssembler.virtualPages(
+                    TotemManualAssembler.sections(manual)).size();
             context.runOnClient(client -> client.setScreenAndShow(new BookViewScreen(
-                    BookViewScreen.BookAccess.fromItem(manual)
+                    bookAccess
             )));
             context.waitForScreen(BookViewScreen.class);
+            context.getInput().setCursorPos(10, 10);
             context.waitTicks(10);
 
-            for (int page = 0; page < content.pages().size(); page += 2) {
+            for (int page = 0; page < virtualPageCount; page += 2) {
                 int capturedPage = page;
                 context.runOnClient(client -> {
                     BookViewScreen screen = (BookViewScreen) client.gui.screen();
@@ -143,7 +148,7 @@ public final class AlchemyManualVisualGameTest implements FabricClientGameTest {
                 });
                 context.waitTicks(2);
                 context.takeScreenshot("alchemy-manual-spread-%02d-%02d".formatted(
-                        page + 1, Math.min(page + 2, content.pages().size())));
+                        page + 1, Math.min(page + 2, virtualPageCount)));
             }
             context.runOnClient(client -> client.setScreenAndShow(null));
             context.waitFor(client -> {

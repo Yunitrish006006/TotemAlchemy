@@ -4,6 +4,7 @@ import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import dev.totem.alchemy.mixture.AlchemyCompoundBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -62,6 +63,7 @@ public final class AlchemyPortableContainerInteractions {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             return blockEntity instanceof AlchemyCauldronBlockEntity cauldronEntity
                     && cauldronEntity.hasMixture()
+                    && !AlchemyCompoundBrewing.isSolidProcess(cauldronEntity.mixtureSnapshot())
                     && cauldronEntity.mixtureSnapshot().volumeUnits() == AlchemyMixtureState.MAX_VOLUME_UNITS;
         }
         return stack.is(Items.WATER_BUCKET) && AlchemyMixtureBottle.hasStoredMixture(stack);
@@ -106,6 +108,7 @@ public final class AlchemyPortableContainerInteractions {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (!(blockEntity instanceof AlchemyCauldronBlockEntity cauldron)
                     || !cauldron.hasMixture()
+                    || AlchemyCompoundBrewing.isSolidProcess(cauldron.mixtureSnapshot())
                     || cauldron.mixtureSnapshot().volumeUnits() != AlchemyMixtureState.MAX_VOLUME_UNITS) {
                 return false;
             }
@@ -152,6 +155,9 @@ public final class AlchemyPortableContainerInteractions {
         }
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (!(blockEntity instanceof AlchemyCauldronBlockEntity cauldron) || !cauldron.hasMixture()) {
+            return AlchemyMixtureState.empty();
+        }
+        if (AlchemyCompoundBrewing.isSolidProcess(cauldron.mixtureSnapshot())) {
             return AlchemyMixtureState.empty();
         }
         AlchemyMixtureState extracted = cauldron.extractMixtureUnits(AlchemyMixtureState.MAX_VOLUME_UNITS);

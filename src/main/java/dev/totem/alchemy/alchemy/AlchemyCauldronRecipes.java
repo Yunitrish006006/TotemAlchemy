@@ -98,6 +98,7 @@ public final class AlchemyCauldronRecipes {
             throw new JsonParseException("recipe json is empty");
         }
 
+        boolean usesMixtureSystem = "mixture".equals(getString(json, "brewing_system", "legacy"));
         AlchemyCauldronRecipe.StartState startState = parseStartState(getString(json, "start"));
         int initialLevel = getInt(json, "initial_level", 3);
         boolean requiresLitCampfire = getBoolean(json, "requires_lit_campfire", true);
@@ -140,6 +141,7 @@ public final class AlchemyCauldronRecipes {
         AlchemyCauldronRecipe.Result result = parseResult(getObject(json, "result"));
         return new AlchemyCauldronRecipe(
                 id,
+                usesMixtureSystem,
                 startState,
                 initialLevel,
                 requiresLitCampfire,
@@ -210,6 +212,7 @@ public final class AlchemyCauldronRecipes {
         Item item = getOptionalItem(json, "item");
         int count = getInt(json, "count", 1);
         Item containerItem = getOptionalItem(json, "container_item");
+        Identifier potionId = getOptionalIdentifier(json, "potion");
         String messageKey = getString(json, "message", null);
         Identifier sound = getOptionalIdentifier(json, "sound");
 
@@ -225,7 +228,7 @@ public final class AlchemyCauldronRecipes {
             }
         }
 
-        return new AlchemyCauldronRecipe.Result(type, item, count, containerItem, messageKey, sound);
+        return new AlchemyCauldronRecipe.Result(type, item, count, containerItem, potionId, messageKey, sound);
     }
 
     private static AlchemyCauldronRecipe.StartState parseStartState(String value) {

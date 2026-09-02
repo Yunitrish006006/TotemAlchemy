@@ -7,6 +7,7 @@ import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureColor;
+import dev.totem.alchemy.mixture.AlchemyCompoundBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
 import net.minecraft.core.BlockPos;
@@ -98,6 +99,9 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
             setChanged();
             return true;
         }
+        if (!AlchemyCompoundBrewing.canMerge(mixture, incoming)) {
+            return false;
+        }
         boolean merged = mixture.mergeFrom(incoming);
         if (merged) {
             setChanged();
@@ -119,6 +123,19 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
                     scheduled.reactionId(),
                     new PendingDiscovery(nearestResearcherId(level, worldPosition), scheduled.resultPotionIds())
             );
+        }
+        setChanged();
+        return true;
+    }
+
+    public boolean scheduleCompoundReaction(
+            AlchemyCauldronRecipe recipe,
+            AlchemyCauldronRecipe.IngredientStep ingredient,
+            ItemStack actualIngredient
+    ) {
+        if (!hasMixture() || recipeId != null || readyForExtraction
+                || !AlchemyCompoundBrewing.schedule(mixture, recipe, ingredient, actualIngredient)) {
+            return false;
         }
         setChanged();
         return true;
@@ -183,6 +200,13 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, AlchemyCauldronBlockEntity cauldron) {
+        if (!cauldron.hasMixture() && cauldron.recipeId != null) {
+            AlchemyCauldronRecipe legacyRecipe = AlchemyCauldronRecipes.get(cauldron.recipeId);
+            if (legacyRecipe != null && legacyRecipe.usesMixtureSystem()) {
+                cauldron.migrateLegacyRecipeState(legacyRecipe);
+            }
+        }
+
         if (cauldron.hasMixture()) {
             if (AlchemyHandler.hasLitCampfireBelow(level, pos)) {
                 boolean changed = false;
@@ -200,6 +224,17 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
                     changed = cauldron.mixture.tickOvercook(level.getRandom(), 1);
                 }
                 if (changed) {
+                    cauldron.setChanged();
+                }
+                AlchemyCauldronRecipe completedRecipe = AlchemyCompoundBrewing.completeIfReady(cauldron.mixture);
+                if (completedRecipe != null) {
+                    playSound(level, pos, completedRecipe.completeSound(), 1.0F, 1.0F);
+                    notifyNearbyPlayers(level, pos, completedRecipe.successMessageKey());
+                    if (completedRecipe.result().type() == AlchemyCauldronRecipe.ResultType.DROP_ITEM) {
+                        cauldron.spawnRecipeResult(level, pos, completedRecipe);
+                        level.setBlock(pos, Blocks.CAULDRON.defaultBlockState(), 3);
+                        return;
+                    }
                     cauldron.setChanged();
                 }
             }
@@ -367,6 +402,11 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
             return;
         }
 
+        spawnRecipeResult(level, pos, recipe);
+        level.setBlock(pos, Blocks.CAULDRON.defaultBlockState(), 3);
+    }
+
+    private void spawnRecipeResult(Level level, BlockPos pos, AlchemyCauldronRecipe recipe) {
         ItemStack resultStack = recipe.createResultStack();
         if (!resultStack.isEmpty()) {
             ItemEntity result = new ItemEntity(level, pos.getX() + 0.5D, pos.getY() + 1.05D, pos.getZ() + 0.5D,
@@ -374,7 +414,57 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
             result.setDeltaMovement(0.0D, 0.05D, 0.0D);
             level.addFreshEntity(result);
         }
-        level.setBlock(pos, Blocks.CAULDRON.defaultBlockState(), 3);
+    }
+
+    /** Converts the former parallel recipe fields into resumable mixture reactions on the first server tick. */
+    private void migrateLegacyRecipeState(AlchemyCauldronRecipe recipe) {
+        AlchemyMixtureState migrated = AlchemyCompoundBrewing.initialState(recipe);
+        BlockState currentState = getBlockState();
+        if (currentState.hasProperty(LayeredCauldronBlock.LEVEL)) {
+            int currentVolume = currentState.getValue(LayeredCauldronBlock.LEVEL);
+            if (currentVolume < migrated.volumeUnits()) {
+                migrated.extractUnits(migrated.volumeUnits() - currentVolume);
+            }
+        }
+        if (readyForExtraction) {
+            for (AlchemyCauldronRecipe.IngredientStep ingredient : recipe.ingredients()) {
+                AlchemyCompoundBrewing.restoreCompletedInput(migrated, recipe, ingredient);
+            }
+            AlchemyCompoundBrewing.completeIfReady(migrated);
+            migrated.lockHeatIfFinished();
+        } else {
+            String activeLegacyIngredient = recipe.cookMode() == AlchemyCauldronRecipe.CookMode.PER_INGREDIENT
+                    ? nextCookableIngredient(recipe)
+                    : null;
+            boolean sharedCooking = recipe.cookMode() == AlchemyCauldronRecipe.CookMode.AFTER_ALL_INPUTS
+                    && hasAllInputs(recipe);
+            for (AlchemyCauldronRecipe.IngredientStep ingredient : recipe.ingredients()) {
+                if (cookedIngredients.contains(ingredient.id())) {
+                    AlchemyCompoundBrewing.restoreCompletedInput(migrated, recipe, ingredient);
+                    continue;
+                }
+                if (!addedIngredients.contains(ingredient.id()) || ingredient.items().isEmpty()) {
+                    continue;
+                }
+                ItemStack ingredientStack = new ItemStack(ingredient.items().getFirst());
+                int processingTicks = dev.totem.alchemy.alchemy.BrewingMaterialSettings.processingTicks(
+                        ingredientStack.getItem());
+                int elapsed = sharedCooking || ingredient.id().equals(activeLegacyIngredient)
+                        ? (int) Math.round(processingTicks * Math.min(1.0D,
+                        cookTime / (double) Math.max(1, recipe.cookTicks())))
+                        : 0;
+                AlchemyCompoundBrewing.schedule(migrated, recipe, ingredient, ingredientStack, elapsed);
+            }
+        }
+
+        mixture = migrated;
+        recipeId = null;
+        addedIngredients.clear();
+        cookedIngredients.clear();
+        readyForExtraction = false;
+        cookTime = 0;
+        pendingDiscoveries.clear();
+        setChanged();
     }
 
     private static void notifyNearbyPlayers(Level level, BlockPos pos, String messageKey) {

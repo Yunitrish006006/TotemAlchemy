@@ -1,6 +1,7 @@
 package dev.totem.alchemy.mixture;
 
 import dev.totem.alchemy.item.LargePotionFlaskItem;
+import dev.totem.alchemy.registry.AlchemyItems;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -30,11 +31,15 @@ public final class AlchemyMixtureBottle {
     public static boolean isPotionContainer(ItemStack stack) {
         return stack != null && (stack.is(Items.POTION)
                 || stack.is(Items.SPLASH_POTION)
-                || stack.is(Items.LINGERING_POTION));
+                || stack.is(Items.LINGERING_POTION)
+                || stack.is(AlchemyItems.HOT_COCOA)
+                || stack.is(AlchemyItems.CHERRY_BREW));
     }
 
     public static boolean isDrinkablePotion(ItemStack stack) {
-        return stack != null && stack.is(Items.POTION);
+        return stack != null && (stack.is(Items.POTION)
+                || stack.is(AlchemyItems.HOT_COCOA)
+                || stack.is(AlchemyItems.CHERRY_BREW));
     }
 
     public static boolean hasStoredMixture(ItemStack stack) {
@@ -58,6 +63,11 @@ public final class AlchemyMixtureBottle {
         }
         if (!isPotionContainer(stack)) {
             return AlchemyMixtureState.empty();
+        }
+
+        AlchemyMixtureState legacyDrink = AlchemyCompoundBrewing.legacyDrinkState(stack);
+        if (!legacyDrink.isEmpty()) {
+            return legacyDrink;
         }
 
         PotionContents contents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
@@ -94,6 +104,10 @@ public final class AlchemyMixtureBottle {
     public static ItemStack toPotion(AlchemyMixtureState state) {
         if (state == null || state.isEmpty()) {
             return ItemStack.EMPTY;
+        }
+        ItemStack compoundResult = AlchemyCompoundBrewing.bottledResult(state);
+        if (!compoundResult.isEmpty()) {
+            return compoundResult;
         }
         ItemStack stack = canonicalStack(state);
         if (stack.isEmpty()) {

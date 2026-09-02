@@ -6,6 +6,7 @@
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
+      "dev.totem.alchemy.gametest.AlchemyCompoundBrewingGameTest",
       "dev.totem.alchemy.gametest.AlchemyCauldronPersistenceGameTest",
       "dev.totem.alchemy.gametest.AlchemyMaterialAcquisitionGameTest",
       "dev.totem.alchemy.gametest.AlchemyManualGameTest",
