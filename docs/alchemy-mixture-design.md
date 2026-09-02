@@ -96,6 +96,10 @@ Proposed rule for discussion:
 - unresolved ingredient reactions retain their own progress records
 - newly introduced interactions may create new reaction tasks with their own required processing time
 - heat only advances reactions that are eligible under the current temperature / catalyst conditions
+- each completed material stage starts a perfect extraction window equal to one quarter of that stage's
+  processing time, clamped to 5–15 seconds; overcook decay begins only after that window expires
+- compatible materials may react concurrently, but every material retains its own insertion-relative progress,
+  perfect window, and overcook clock; completing early does not wait for the other active reactions
 
 This allows a half-brewed bottle to be poured back without losing its previous progress while still permitting new reactions caused by mixing.
 

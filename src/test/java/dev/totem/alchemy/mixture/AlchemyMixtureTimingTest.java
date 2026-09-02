@@ -1,10 +1,12 @@
 package dev.totem.alchemy.mixture;
 
+import net.minecraft.util.RandomSource;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AlchemyMixtureTimingTest {
     @Test
@@ -52,6 +54,54 @@ class AlchemyMixtureTimingTest {
     }
 
     @Test
+    void everyCompletedStageReceivesAScaledPerfectWindow() {
+        assertEquals(100, AlchemyMixtureState.perfectWindowTicksForProcessing(20));
+        assertEquals(100, AlchemyMixtureState.perfectWindowTicksForProcessing(400));
+        assertEquals(200, AlchemyMixtureState.perfectWindowTicksForProcessing(800));
+        assertEquals(300, AlchemyMixtureState.perfectWindowTicksForProcessing(2_000));
+
+        AlchemyMixtureState state = activeMixture();
+        state.addReaction(reaction("long-stage", 799, 800));
+        assertTrue(state.tickReactions(1));
+        assertEquals(200, state.perfectWindowTicks());
+        assertEquals(AlchemyMixtureTiming.State.PERFECT, AlchemyMixtureTiming.classify(state));
+
+        RandomSource random = RandomSource.create(1234L);
+        assertTrue(state.tickCompletedStages(random, 200));
+        assertEquals(100, state.stability());
+        assertEquals(AlchemyMixtureTiming.State.PERFECT, AlchemyMixtureTiming.classify(state));
+
+        assertTrue(state.tickCompletedStages(random, 1));
+        assertEquals(100, state.stability());
+        assertEquals(AlchemyMixtureTiming.State.SLIGHTLY_OVERDONE, AlchemyMixtureTiming.classify(state));
+        assertTrue(state.tickCompletedStages(random, 19));
+        assertEquals(99, state.stability());
+    }
+
+    @Test
+    void legacyFinishedMixturesGainTheDefaultPerfectWindow() {
+        AlchemyMixtureState legacy = AlchemyMixtureState.decode("V|1\nS|100\nB|1\nO|1\n");
+
+        assertEquals(100, legacy.perfectWindowTicks());
+        assertEquals(AlchemyMixtureTiming.State.PERFECT, AlchemyMixtureTiming.classify(legacy));
+    }
+
+    @Test
+    void completedStageTimersSurviveTheMixtureCodec() {
+        AlchemyMixtureState state = activeMixture();
+        state.addReaction(reaction("saved-stage", 399, 400));
+        state.tickReactions(1);
+        state.tickCompletedStages(RandomSource.create(9L), 42);
+
+        AlchemyMixtureState restored = AlchemyMixtureState.decode(state.encode());
+        AlchemyMixtureState.CompletedStage stage = restored.completedStages().iterator().next();
+        assertEquals("saved-stage", stage.id());
+        assertEquals(42, stage.overcookTicks());
+        assertEquals(100, stage.perfectWindowTicks());
+        assertEquals(AlchemyMixtureTiming.State.PERFECT, AlchemyMixtureTiming.classify(stage));
+    }
+
+    @Test
     void overcookBoundariesDistinguishMildStrongAndBadlyOverdone() {
         assertEquals(AlchemyMixtureTiming.State.SLIGHTLY_OVERDONE,
                 AlchemyMixtureTiming.classify(decoded(1, 99)));
@@ -85,7 +135,10 @@ class AlchemyMixtureTimingTest {
                 "minecraft:water", "minecraft:awkward", Map.of(), Map.of());
     }
 
-    private static AlchemyMixtureState decoded(int overcookTicks, int stability) {
-        return AlchemyMixtureState.decode("V|1\nS|" + stability + "\nB|1\nO|" + overcookTicks + "\n");
+    private static AlchemyMixtureState decoded(int damagingTicks, int stability) {
+        int perfectWindowTicks = AlchemyMixtureState.perfectWindowTicksForProcessing(
+                AlchemyMixtureState.DEFAULT_REACTION_TICKS);
+        return AlchemyMixtureState.decode("V|1\nS|" + stability + "\nB|1\nO|"
+                + (perfectWindowTicks + damagingTicks) + "\nW|" + perfectWindowTicks + "\n");
     }
 }

@@ -24,6 +24,8 @@ import java.util.Set;
 public final class AlchemyMixtureState {
     public static final int MAX_VOLUME_UNITS = 3;
     public static final int DEFAULT_REACTION_TICKS = 20 * 20;
+    public static final int MIN_PERFECT_WINDOW_TICKS = 20 * 5;
+    public static final int MAX_PERFECT_WINDOW_TICKS = 20 * 15;
     public static final int STABILITY_MAX = 100;
     private static final String PRESERVE_INDEPENDENT_OUTCOMES = "state:independent_outcome_set";
 
@@ -33,11 +35,13 @@ public final class AlchemyMixtureState {
     private int volumeUnits;
     private int stability;
     private int overcookTicks;
+    private int perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
     private boolean baseActivated;
     private DeliveryForm deliveryForm = DeliveryForm.DRINKABLE;
     private String canonicalPotionId;
     private final Map<String, EffectDose> effects = new LinkedHashMap<>();
     private final Map<String, Reaction> reactions = new LinkedHashMap<>();
+    private final Map<String, CompletedStage> completedStages = new LinkedHashMap<>();
     private final Set<String> provenance = new LinkedHashSet<>();
 
     public AlchemyMixtureState(int volumeUnits) {
@@ -53,11 +57,13 @@ public final class AlchemyMixtureState {
         AlchemyMixtureState copy = new AlchemyMixtureState(volumeUnits);
         copy.stability = stability;
         copy.overcookTicks = overcookTicks;
+        copy.perfectWindowTicks = perfectWindowTicks;
         copy.baseActivated = baseActivated;
         copy.deliveryForm = deliveryForm;
         copy.canonicalPotionId = canonicalPotionId;
         copy.effects.putAll(effects);
         copy.reactions.putAll(reactions);
+        copy.completedStages.putAll(completedStages);
         copy.provenance.addAll(provenance);
         return copy;
     }
@@ -76,6 +82,19 @@ public final class AlchemyMixtureState {
 
     public int overcookTicks() {
         return overcookTicks;
+    }
+
+    public int perfectWindowTicks() {
+        return perfectWindowTicks;
+    }
+
+    /**
+     * Gives every completed reaction a practical extraction window. Faster stages always receive at least five
+     * seconds, while very long data-pack stages are capped at fifteen seconds so timing still matters.
+     */
+    public static int perfectWindowTicksForProcessing(int processingTicks) {
+        int proportionalWindow = Math.max(1, processingTicks) / 4;
+        return Math.max(MIN_PERFECT_WINDOW_TICKS, Math.min(MAX_PERFECT_WINDOW_TICKS, proportionalWindow));
     }
 
     public boolean baseActivated() {
@@ -111,6 +130,10 @@ public final class AlchemyMixtureState {
         return List.copyOf(reactions.values());
     }
 
+    public Collection<CompletedStage> completedStages() {
+        return List.copyOf(completedStages.values());
+    }
+
     public Set<String> provenance() {
         return Set.copyOf(provenance);
     }
@@ -131,8 +154,18 @@ public final class AlchemyMixtureState {
         return !reactions.isEmpty();
     }
 
+    public boolean hasCompletedStages() {
+        return !completedStages.isEmpty();
+    }
+
+    public boolean hasPendingReactionForIngredient(String ingredientId) {
+        return ingredientId != null && reactions.values().stream()
+                .anyMatch(reaction -> ingredientId.equals(reaction.ingredientId()));
+    }
+
     public boolean canOvercook() {
-        return !isEmpty() && !hasPendingReactions() && (baseActivated || !effects.isEmpty());
+        return !isEmpty() && !hasPendingReactions() && !hasCompletedStages()
+                && (baseActivated || !effects.isEmpty());
     }
 
     public void addProvenance(String value) {
@@ -190,9 +223,16 @@ public final class AlchemyMixtureState {
         if (reaction == null || reaction.id().isBlank()) {
             return;
         }
+        if (!reactions.isEmpty()) {
+            for (Reaction existing : reactions.values()) {
+                provenance.add("concurrent:" + existing.id());
+            }
+            provenance.add("concurrent:" + reaction.id());
+        }
         reactions.merge(reaction.id(), reaction, Reaction::mergeSameReaction);
-        canonicalPotionId = null;
+        completedStages.remove(reaction.id());
         overcookTicks = 0;
+        perfectWindowTicks = 0;
         if (stability > 0) {
             stability = Math.max(0, stability - 5);
         }
@@ -216,11 +256,42 @@ public final class AlchemyMixtureState {
         for (Reaction reaction : completed) {
             applyReaction(reaction);
             reactions.remove(reaction.id());
+            completedStages.put(reaction.id(), new CompletedStage(
+                    reaction.id(),
+                    reaction.ingredientId(),
+                    0,
+                    perfectWindowTicksForProcessing(reaction.requiredTicks())
+            ));
         }
         if (!completed.isEmpty() && stability > 0) {
             stability = Math.min(STABILITY_MAX, stability + completed.size() * 5);
         }
         return changed;
+    }
+
+    /** Advance every already-finished material stage independently while later materials continue reacting. */
+    public boolean tickCompletedStages(RandomSource random, int ticks) {
+        if (ticks <= 0 || completedStages.isEmpty()) {
+            return false;
+        }
+
+        boolean timingChanged = false;
+        int totalDecay = 0;
+        for (Map.Entry<String, CompletedStage> entry : new ArrayList<>(completedStages.entrySet())) {
+            CompletedStage stage = entry.getValue();
+            CompletedStage advanced = stage.advance(ticks);
+            completedStages.put(entry.getKey(), advanced);
+
+            int oldElapsedSecond = stage.overcookTicks() / 20;
+            int newElapsedSecond = advanced.overcookTicks() / 20;
+            boolean crossedPerfectWindow = stage.overcookTicks() <= stage.perfectWindowTicks()
+                    && advanced.overcookTicks() > advanced.perfectWindowTicks();
+            timingChanged |= newElapsedSecond > oldElapsedSecond || crossedPerfectWindow;
+            totalDecay += Math.max(0, advanced.damagingTicks() / 20 - stage.damagingTicks() / 20);
+        }
+
+        boolean stabilityChanged = damageStability(random, totalDecay);
+        return timingChanged || stabilityChanged;
     }
 
     private void applyReaction(Reaction reaction) {
@@ -241,12 +312,17 @@ public final class AlchemyMixtureState {
             deliveryForm = DeliveryForm.LINGERING;
         }
 
-        if (reactions.size() == 1 && reaction.targetPotionId() != null && volumeUnits == reaction.volumeUnits()) {
+        if (reactions.size() == 1
+                && !hasProvenance("concurrent:" + reaction.id())
+                && reaction.targetPotionId() != null
+                && volumeUnits == reaction.volumeUnits()) {
             canonicalPotionId = reaction.targetPotionId();
         } else {
             canonicalPotionId = null;
         }
         overcookTicks = 0;
+        perfectWindowTicks = Math.max(perfectWindowTicks,
+                perfectWindowTicksForProcessing(reaction.requiredTicks()));
         addProvenance("reaction:" + reaction.ingredientId());
     }
 
@@ -302,10 +378,21 @@ public final class AlchemyMixtureState {
             return false;
         }
 
-        int oldSecond = overcookTicks / 20;
+        int oldElapsedSecond = overcookTicks / 20;
+        int oldDamageTicks = Math.max(0, overcookTicks - perfectWindowTicks);
+        boolean wasInPerfectWindow = overcookTicks <= perfectWindowTicks;
         overcookTicks += ticks;
-        int newSecond = overcookTicks / 20;
-        int decay = Math.max(0, newSecond - oldSecond);
+        int newElapsedSecond = overcookTicks / 20;
+        int newDamageTicks = Math.max(0, overcookTicks - perfectWindowTicks);
+        int decay = Math.max(0, newDamageTicks / 20 - oldDamageTicks / 20);
+        boolean crossedPerfectWindow = wasInPerfectWindow && overcookTicks > perfectWindowTicks;
+        boolean elapsedSecondChanged = newElapsedSecond > oldElapsedSecond;
+
+        boolean stabilityChanged = damageStability(random, decay);
+        return elapsedSecondChanged || crossedPerfectWindow || stabilityChanged;
+    }
+
+    private boolean damageStability(RandomSource random, int decay) {
         if (decay <= 0) {
             return false;
         }
@@ -423,6 +510,8 @@ public final class AlchemyMixtureState {
             addEffects(other.effects);
         }
         mergeReactions(other, oldVolume, incomingVolume);
+        other.completedStages.forEach((id, stage) ->
+                completedStages.merge(id, stage, CompletedStage::mergeSameStage));
         provenance.addAll(other.provenance);
         if (!preserveOutcomeSet) {
             provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
@@ -430,6 +519,7 @@ public final class AlchemyMixtureState {
         baseActivated = baseActivated || other.baseActivated;
         deliveryForm = deliveryForm == other.deliveryForm ? deliveryForm : DeliveryForm.DRINKABLE;
         overcookTicks = 0;
+        perfectWindowTicks = Math.max(perfectWindowTicks, other.perfectWindowTicks);
         stability = mergedVolume == 0 ? STABILITY_MAX
                 : Math.max(0, Math.min(STABILITY_MAX,
                 (stability * oldVolume + other.stability * incomingVolume) / mergedVolume - 2));
@@ -484,10 +574,12 @@ public final class AlchemyMixtureState {
         volumeUnits = 0;
         effects.clear();
         reactions.clear();
+        completedStages.clear();
         provenance.clear();
         canonicalPotionId = null;
         stability = STABILITY_MAX;
         overcookTicks = 0;
+        perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
         baseActivated = false;
         deliveryForm = DeliveryForm.DRINKABLE;
     }
@@ -496,11 +588,13 @@ public final class AlchemyMixtureState {
         AlchemyMixtureState result = new AlchemyMixtureState(newVolume);
         result.stability = stability;
         result.overcookTicks = overcookTicks;
+        result.perfectWindowTicks = perfectWindowTicks;
         result.baseActivated = baseActivated;
         result.deliveryForm = deliveryForm;
         result.canonicalPotionId = canonicalPotionId;
         effects.forEach((id, dose) -> result.effects.put(id, dose.scale(factor)));
         reactions.forEach((id, reaction) -> result.reactions.put(id, reaction.scale(factor, newVolume)));
+        result.completedStages.putAll(completedStages);
         result.provenance.addAll(provenance);
         return result;
     }
@@ -590,6 +684,7 @@ public final class AlchemyMixtureState {
         out.append("B|").append(baseActivated ? 1 : 0).append('\n');
         out.append("F|").append(deliveryForm.name()).append('\n');
         out.append("O|").append(overcookTicks).append('\n');
+        out.append("W|").append(perfectWindowTicks).append('\n');
         if (canonicalPotionId != null) {
             out.append("C|").append(enc(canonicalPotionId)).append('\n');
         }
@@ -606,6 +701,11 @@ public final class AlchemyMixtureState {
                         .append(enc(nullToBlank(reaction.targetPotionId()))).append('|')
                         .append(enc(encodeEffects(reaction.sourceEffects()))).append('|')
                         .append(enc(encodeEffects(reaction.targetEffects()))).append('\n'));
+        completedStages.values().stream().sorted(Comparator.comparing(CompletedStage::id)).forEach(stage ->
+                out.append("T|").append(enc(stage.id())).append('|')
+                        .append(enc(stage.ingredientId())).append('|')
+                        .append(stage.overcookTicks()).append('|')
+                        .append(stage.perfectWindowTicks()).append('\n'));
         provenance.stream().sorted().forEach(value -> out.append("P|").append(enc(value)).append('\n'));
         return out.toString();
     }
@@ -631,6 +731,7 @@ public final class AlchemyMixtureState {
                     }
                     case "F" -> state.deliveryForm = DeliveryForm.parse(part[1]);
                     case "O" -> state.overcookTicks = Math.max(0, Integer.parseInt(part[1]));
+                    case "W" -> state.perfectWindowTicks = Math.max(0, Integer.parseInt(part[1]));
                     case "C" -> state.canonicalPotionId = blankToNull(dec(part[1]));
                     case "E" -> state.effects.put(dec(part[1]),
                             new EffectDose(Double.parseDouble(part[2]), Integer.parseInt(part[3])));
@@ -638,6 +739,8 @@ public final class AlchemyMixtureState {
                             dec(part[1]), dec(part[2]), Integer.parseInt(part[3]), Integer.parseInt(part[4]),
                             Integer.parseInt(part[5]), blankToNull(dec(part[6])), blankToNull(dec(part[7])),
                             decodeEffects(dec(part[8])), decodeEffects(dec(part[9]))));
+                    case "T" -> state.completedStages.put(dec(part[1]), new CompletedStage(
+                            dec(part[1]), dec(part[2]), Integer.parseInt(part[3]), Integer.parseInt(part[4])));
                     case "P" -> state.provenance.add(dec(part[1]));
                     default -> { }
                 }
@@ -755,6 +858,37 @@ public final class AlchemyMixtureState {
         public int durationForVolume(int volume) {
             int safeVolume = Math.max(1, volume);
             return Math.max(1, (int) Math.round(potencyTicks / safeVolume / (amplifierCap + 1.0D)));
+        }
+    }
+
+    public record CompletedStage(
+            String id,
+            String ingredientId,
+            int overcookTicks,
+            int perfectWindowTicks
+    ) {
+        public CompletedStage {
+            id = nullToBlank(id);
+            ingredientId = nullToBlank(ingredientId);
+            overcookTicks = Math.max(0, overcookTicks);
+            perfectWindowTicks = Math.max(0, perfectWindowTicks);
+        }
+
+        public int damagingTicks() {
+            return Math.max(0, overcookTicks - perfectWindowTicks);
+        }
+
+        public CompletedStage advance(int ticks) {
+            return new CompletedStage(id, ingredientId, overcookTicks + Math.max(0, ticks), perfectWindowTicks);
+        }
+
+        private static CompletedStage mergeSameStage(CompletedStage left, CompletedStage right) {
+            return new CompletedStage(
+                    left.id,
+                    left.ingredientId.isBlank() ? right.ingredientId : left.ingredientId,
+                    Math.max(left.overcookTicks, right.overcookTicks),
+                    Math.max(left.perfectWindowTicks, right.perfectWindowTicks)
+            );
         }
     }
 

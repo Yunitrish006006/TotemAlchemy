@@ -98,6 +98,9 @@ public final class AlchemyManualVisualGameTest implements FabricClientGameTest {
                 mixture.addReaction(new AlchemyMixtureState.Reaction(
                         "visual:nether_wart", "minecraft:nether_wart", 650, 1_000, 1,
                         "minecraft:water", "minecraft:awkward", Map.of(), Map.of()));
+                mixture.addReaction(new AlchemyMixtureState.Reaction(
+                        "visual:sugar", "minecraft:sugar", 900, 1_000, 1,
+                        "minecraft:water", null, Map.of(), Map.of()));
                 if (!cauldron.initializeMixture(mixture)) {
                     throw new AssertionError("Visual fixture could not initialize its mixture");
                 }

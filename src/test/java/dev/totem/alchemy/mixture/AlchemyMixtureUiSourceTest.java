@@ -22,6 +22,8 @@ class AlchemyMixtureUiSourceTest {
         assertFalse(tooltip.contains("remainingTicks"));
         assertFalse(tooltip.contains("requiredTicks"));
         assertTrue(hud.contains("AlchemyMixtureTiming.classify"));
+        assertTrue(hud.contains("for (AlchemyMixtureState.Reaction reaction : mixture.reactions())"));
+        assertTrue(hud.contains("for (AlchemyMixtureState.CompletedStage stage : mixture.completedStages())"));
         assertFalse(hud.contains("overcookTicks()"));
         assertFalse(hud.contains("stability()"));
         assertFalse(en.contains("%s%% reacted"));
@@ -40,7 +42,8 @@ class AlchemyMixtureUiSourceTest {
         assertTrue(hud.contains("client.level.getBlockEntity(hit.getBlockPos())"));
         assertTrue(client.contains("AlchemyCauldronHud.register()"));
         assertTrue(cauldron.contains("return saveCustomOnly(registries)"));
-        assertTrue(cauldron.contains("timingState != lastSyncedTimingState"));
+        assertTrue(cauldron.contains("timingSignature != lastSyncedTimingSignature"));
+        assertTrue(cauldron.contains("AlchemyMixtureTiming.visualSignature(mixture)"));
         assertTrue(cauldron.contains("volumeChanged || timingChanged ||"));
         assertFalse(lower.contains("jade"));
         assertFalse(lower.contains("wthit"));

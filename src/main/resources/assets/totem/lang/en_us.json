@@ -30,10 +30,12 @@
   "tooltip.deadrecall.alchemy.mixture.drink_warning": "Drinkable now: only already-formed effects apply.",
   "tooltip.deadrecall.alchemy.mixture.repour_hint": "Pour it back into a cauldron to resume from this progress.",
   "hud.deadrecall.alchemy.cauldron.timing": "Timing: %s",
+  "hud.deadrecall.alchemy.cauldron.stage": "%s: %s",
+  "hud.deadrecall.alchemy.cauldron.more_stages": "%s more materials…",
   "hud.deadrecall.alchemy.cauldron.details": "Volume %s/%s doses",
   "book.deadrecall.alchemy_manual.page.15": "Potion Mixing",
   "book.deadrecall.alchemy_manual.mixture.mix": "Pour different potions together; three bottles fill a cauldron.",
-  "book.deadrecall.alchemy_manual.mixture.bottle_early": "Bottle early to preserve unfinished ingredients and time.",
+  "book.deadrecall.alchemy_manual.mixture.bottle_early": "Each material keeps its own timer and perfect window.",
   "book.deadrecall.alchemy_manual.mixture.resume": "Pour an unfinished bottle back to resume its exact progress.",
   "book.deadrecall.alchemy_manual.mixture.counteract": "Opposing effects cancel before the remaining mixture is diluted."
 }

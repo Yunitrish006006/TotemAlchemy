@@ -56,7 +56,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     private AlchemyMixtureState mixture = AlchemyMixtureState.empty();
     private int lastSyncedColor = -1;
     private int lastSyncedVolume = -1;
-    private AlchemyMixtureTiming.State lastSyncedTimingState;
+    private int lastSyncedTimingSignature = Integer.MIN_VALUE;
     private long lastVisualSyncTick = Long.MIN_VALUE;
 
     public AlchemyCauldronBlockEntity(BlockPos pos, BlockState state) {
@@ -185,14 +185,18 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     public static void serverTick(Level level, BlockPos pos, BlockState state, AlchemyCauldronBlockEntity cauldron) {
         if (cauldron.hasMixture()) {
             if (AlchemyHandler.hasLitCampfireBelow(level, pos)) {
-                boolean changed;
+                boolean changed = false;
+                if (cauldron.mixture.hasCompletedStages()) {
+                    changed = cauldron.mixture.tickCompletedStages(level.getRandom(), 1);
+                }
                 if (cauldron.mixture.hasPendingReactions()) {
                     List<AlchemyMixtureState.Reaction> before = List.copyOf(cauldron.mixture.reactions());
-                    changed = cauldron.mixture.tickReactions(1);
-                    if (changed && level instanceof ServerLevel serverLevel) {
+                    boolean reactionsChanged = cauldron.mixture.tickReactions(1);
+                    changed |= reactionsChanged;
+                    if (reactionsChanged && level instanceof ServerLevel serverLevel) {
                         cauldron.recordCompletedMixtureReactions(serverLevel, pos, before);
                     }
-                } else {
+                } else if (!cauldron.mixture.hasCompletedStages()) {
                     changed = cauldron.mixture.tickOvercook(level.getRandom(), 1);
                 }
                 if (changed) {
@@ -439,18 +443,18 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         }
         int color = mixtureColorRgb();
         int volume = hasMixture() ? mixture.volumeUnits() : 0;
-        AlchemyMixtureTiming.State timingState = AlchemyMixtureTiming.classify(mixture);
+        int timingSignature = AlchemyMixtureTiming.visualSignature(mixture);
         long gameTime = level.getGameTime();
         boolean volumeChanged = volume != lastSyncedVolume;
         boolean colorChanged = color != lastSyncedColor;
-        boolean timingChanged = timingState != lastSyncedTimingState;
+        boolean timingChanged = timingSignature != lastSyncedTimingSignature;
         boolean intervalElapsed = lastVisualSyncTick == Long.MIN_VALUE || gameTime - lastVisualSyncTick >= 10L;
         if (volumeChanged || timingChanged || (colorChanged && intervalElapsed)) {
             BlockState state = getBlockState();
             level.sendBlockUpdated(worldPosition, state, state, Block.UPDATE_ALL);
             lastSyncedColor = color;
             lastSyncedVolume = volume;
-            lastSyncedTimingState = timingState;
+            lastSyncedTimingSignature = timingSignature;
             lastVisualSyncTick = gameTime;
         }
     }

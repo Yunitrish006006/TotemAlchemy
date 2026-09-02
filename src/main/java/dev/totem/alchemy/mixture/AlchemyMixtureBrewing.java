@@ -21,7 +21,10 @@ public final class AlchemyMixtureBrewing {
 
     public static boolean canReact(Level level, AlchemyMixtureState state, ItemStack ingredient) {
         if (level == null || state == null || state.isEmpty() || ingredient == null || ingredient.isEmpty()) return false;
-        if (state.hasPendingReactions()) return false;
+        String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
+        if (state.hasPendingReactionForIngredient(ingredientId)) return false;
+        boolean pendingStarter = hasPendingStarter(state);
+        if (!state.baseActivated() && pendingStarter && BrewingMaterialSettings.isStarter(ingredient.getItem())) return false;
         if (ingredient.is(Items.REDSTONE) || ingredient.is(Items.GLOWSTONE_DUST)) return !state.effects().isEmpty();
         if (ingredient.is(Items.GUNPOWDER)) return state.deliveryForm() == AlchemyMixtureState.DeliveryForm.DRINKABLE;
         if (ingredient.is(Items.DRAGON_BREATH)) return state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH;
@@ -71,7 +74,9 @@ public final class AlchemyMixtureBrewing {
         boolean outcomeIngredient = MultiOutcomeBrewing.isOutcomeIngredient(ingredient);
         List<MultiOutcomeBrewing.Outcome> chosenOutcomes = List.of();
 
-        boolean startingBase = BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated();
+        boolean pendingStarter = hasPendingStarter(state);
+        boolean startingBase = BrewingMaterialSettings.isStarter(ingredient.getItem())
+                && !state.baseActivated() && !pendingStarter;
         if (startingBase) {
             if (state.effects().isEmpty()) targetPotion = "minecraft:awkward";
         } else if (ingredient.is(Items.REDSTONE)) {
@@ -87,7 +92,7 @@ public final class AlchemyMixtureBrewing {
         } else if (ingredient.is(Items.GUNPOWDER) || ingredient.is(Items.DRAGON_BREATH)) {
             targetPotion = sourcePotion;
         } else if (outcomeIngredient) {
-            if (!state.baseActivated()) {
+            if (!state.baseActivated() && !pendingStarter) {
                 state.setStability(0);
                 state.addProvenance("unstable:no_starter");
             }
@@ -135,6 +140,11 @@ public final class AlchemyMixtureBrewing {
             researchable = false;
         }
         return new ScheduleResult(true, id, ingredientId, processingTicks, researchable, resultPotionIds);
+    }
+
+    private static boolean hasPendingStarter(AlchemyMixtureState state) {
+        return state.reactions().stream()
+                .anyMatch(reaction -> BrewingMaterialSettings.isStarter(reaction.ingredientId()));
     }
 
     public static boolean canApplyBrewingStandIngredient(ItemStack input, ItemStack ingredient) {

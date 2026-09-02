@@ -15,12 +15,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.BlockHitResult;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Always-on native crosshair tooltip for a synchronized Alchemy Cauldron mixture. */
 public final class AlchemyCauldronHud {
     private static final Identifier HUD_ID = Identifier.fromNamespaceAndPath("totem", "alchemy_cauldron_tooltip");
     private static final int PANEL_TOP = 12;
     private static final int PANEL_PADDING = 5;
-    private static final int PANEL_HEIGHT = 38;
+    private static final int LINE_HEIGHT = 11;
+    private static final int MAX_VISIBLE_STAGES = 5;
 
     private AlchemyCauldronHud() {
     }
@@ -41,27 +45,67 @@ public final class AlchemyCauldronHud {
         }
 
         AlchemyMixtureState mixture = cauldron.mixtureSnapshot();
-        AlchemyMixtureTiming.State timing = AlchemyMixtureTiming.classify(mixture);
         Component title = Component.translatable("block.totem.alchemy_cauldron")
                 .withStyle(ChatFormatting.BOLD);
-        Component timingText = Component.translatable(timing.translationKey())
-                .withStyle(AlchemyMixtureTooltip.timingColor(timing));
-        Component stateLine = Component.translatable(
-                "hud.deadrecall.alchemy.cauldron.timing", timingText);
+        List<Component> stageLines = stageLines(mixture);
         Component details = Component.translatable(
                 "hud.deadrecall.alchemy.cauldron.details",
                 mixture.volumeUnits(), AlchemyMixtureState.MAX_VOLUME_UNITS);
 
         Font font = client.font;
-        int contentWidth = Math.max(font.width(title), Math.max(font.width(stateLine), font.width(details)));
+        int contentWidth = Math.max(font.width(title), font.width(details));
+        for (Component stageLine : stageLines) {
+            contentWidth = Math.max(contentWidth, font.width(stageLine));
+        }
         int panelWidth = Math.min(graphics.guiWidth() - 8, contentWidth + PANEL_PADDING * 2);
+        int panelHeight = 27 + LINE_HEIGHT * stageLines.size();
         int panelLeft = (graphics.guiWidth() - panelWidth) / 2;
         int centerX = graphics.guiWidth() / 2;
 
-        graphics.fill(panelLeft, PANEL_TOP, panelLeft + panelWidth, PANEL_TOP + PANEL_HEIGHT, 0xC0101010);
-        graphics.outline(panelLeft, PANEL_TOP, panelWidth, PANEL_HEIGHT, 0xA0807060);
+        graphics.fill(panelLeft, PANEL_TOP, panelLeft + panelWidth, PANEL_TOP + panelHeight, 0xC0101010);
+        graphics.outline(panelLeft, PANEL_TOP, panelWidth, panelHeight, 0xA0807060);
         graphics.centeredText(font, title, centerX, PANEL_TOP + 4, 0xFFFFFFFF);
-        graphics.centeredText(font, stateLine, centerX, PANEL_TOP + 15, 0xFFE8E8E8);
-        graphics.centeredText(font, details, centerX, PANEL_TOP + 26, 0xFFB0B0B0);
+        int lineY = PANEL_TOP + 15;
+        for (Component stageLine : stageLines) {
+            graphics.centeredText(font, stageLine, centerX, lineY, 0xFFE8E8E8);
+            lineY += LINE_HEIGHT;
+        }
+        graphics.centeredText(font, details, centerX, lineY, 0xFFB0B0B0);
+    }
+
+    private static List<Component> stageLines(AlchemyMixtureState mixture) {
+        List<Component> all = new ArrayList<>();
+        for (AlchemyMixtureState.Reaction reaction : mixture.reactions()) {
+            all.add(stageLine(reaction.ingredientId(), AlchemyMixtureTiming.classify(reaction)));
+        }
+        for (AlchemyMixtureState.CompletedStage stage : mixture.completedStages()) {
+            all.add(stageLine(stage.ingredientId(), AlchemyMixtureTiming.classify(stage)));
+        }
+        if (all.isEmpty()) {
+            AlchemyMixtureTiming.State timing = AlchemyMixtureTiming.classify(mixture);
+            Component timingText = Component.translatable(timing.translationKey())
+                    .withStyle(AlchemyMixtureTooltip.timingColor(timing));
+            return List.of(Component.translatable("hud.deadrecall.alchemy.cauldron.timing", timingText));
+        }
+        if (all.size() <= MAX_VISIBLE_STAGES) {
+            return List.copyOf(all);
+        }
+
+        List<Component> visible = new ArrayList<>(all.subList(0, MAX_VISIBLE_STAGES));
+        visible.add(Component.translatable(
+                "hud.deadrecall.alchemy.cauldron.more_stages",
+                all.size() - MAX_VISIBLE_STAGES
+        ).withStyle(ChatFormatting.DARK_GRAY));
+        return List.copyOf(visible);
+    }
+
+    private static Component stageLine(String ingredientId, AlchemyMixtureTiming.State timing) {
+        Component timingText = Component.translatable(timing.translationKey())
+                .withStyle(AlchemyMixtureTooltip.timingColor(timing));
+        return Component.translatable(
+                "hud.deadrecall.alchemy.cauldron.stage",
+                AlchemyMixtureTooltip.ingredientName(ingredientId),
+                timingText
+        );
     }
 }

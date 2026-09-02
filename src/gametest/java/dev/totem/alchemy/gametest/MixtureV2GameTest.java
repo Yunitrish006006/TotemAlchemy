@@ -28,6 +28,53 @@ public final class MixtureV2GameTest {
     }
 
     @GameTest(maxTicks = 20)
+    public void concurrentMaterialsKeepIndependentProgressAndPerfectWindows(GameTestHelper helper) {
+        AlchemyMixtureState mixture = AlchemyMixtureBrewing.waterState(1);
+        require(helper, AlchemyMixtureBrewing.schedule(helper.getLevel(), mixture, new ItemStack(Items.NETHER_WART)),
+                "First material could not start its reaction");
+        mixture.tickReactions(60);
+        require(helper, AlchemyMixtureBrewing.schedule(helper.getLevel(), mixture, new ItemStack(Items.SUGAR)),
+                "Second material could not start while the first material was still reacting");
+
+        require(helper, mixture.reactions().size() == 2,
+                "Concurrent materials were collapsed into one shared reaction");
+        AlchemyMixtureState.Reaction wart = reactionFor(helper, mixture, "minecraft:nether_wart");
+        AlchemyMixtureState.Reaction sugar = reactionFor(helper, mixture, "minecraft:sugar");
+        require(helper, wart.elapsedTicks() == 60 && sugar.elapsedTicks() == 0,
+                "The later material inherited the earlier material's progress");
+
+        mixture.tickReactions(300);
+        require(helper, mixture.completedStages().size() == 1 && mixture.reactions().size() == 1,
+                "The shorter material did not finish independently");
+        require(helper, "minecraft:sugar".equals(mixture.completedStages().iterator().next().ingredientId()),
+                "The wrong concurrent material completed first");
+
+        RandomSource random = RandomSource.create(5678L);
+        require(helper, mixture.tickCompletedStages(random, 100),
+                "Completed material's perfect window did not advance beside a pending material");
+        mixture.tickReactions(100);
+        require(helper, !mixture.hasPendingReactions() && mixture.completedStages().size() == 2,
+                "Longer material did not complete on its own timer");
+        require(helper, mixture.canonicalPotionId() == null,
+                "Branched concurrent reactions incorrectly claimed one canonical potion identity");
+        require(helper, mixture.stability() == 100,
+                "A material lost stability while still inside its own perfect window");
+
+        mixture.tickCompletedStages(random, 1);
+        AlchemyMixtureState.CompletedStage sugarStage = mixture.completedStages().stream()
+                .filter(stage -> "minecraft:sugar".equals(stage.ingredientId()))
+                .findFirst()
+                .orElseThrow(() -> helper.assertionException("Sugar stage disappeared after completion"));
+        AlchemyMixtureState.CompletedStage wartStage = mixture.completedStages().stream()
+                .filter(stage -> "minecraft:nether_wart".equals(stage.ingredientId()))
+                .findFirst()
+                .orElseThrow(() -> helper.assertionException("Nether-wart stage disappeared after completion"));
+        require(helper, sugarStage.damagingTicks() == 1 && wartStage.damagingTicks() == 0,
+                "Completed materials shared one overcook timer instead of retaining independent windows");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
     public void effectMaterialWithoutStarterImmediatelyDestroysStability(GameTestHelper helper) {
         AlchemyMixtureState water = AlchemyMixtureBrewing.waterState(1);
         require(helper, AlchemyMixtureBrewing.schedule(helper.getLevel(), water, new ItemStack(Items.MAGMA_CREAM)),
@@ -91,6 +138,10 @@ public final class MixtureV2GameTest {
         mixture.setStability(36);
         RandomSource random = RandomSource.create(12345L);
 
+        require(helper, mixture.tickOvercook(random, mixture.perfectWindowTicks()),
+                "Perfect extraction window did not advance");
+        require(helper, mixture.stability() == 36,
+                "Perfect extraction window damaged stability before it expired");
         require(helper, mixture.tickOvercook(random, 20), "First overcook second did not update the mixture");
         require(helper, mixture.stability() == 35, "Overcook did not reduce stability by one point per second");
         require(helper, mixture.hasProvenance("mutation:35"), "35 stability mutation was not recorded");
@@ -106,5 +157,16 @@ public final class MixtureV2GameTest {
         if (!condition) {
             helper.fail(message);
         }
+    }
+
+    private static AlchemyMixtureState.Reaction reactionFor(
+            GameTestHelper helper,
+            AlchemyMixtureState mixture,
+            String ingredientId
+    ) {
+        return mixture.reactions().stream()
+                .filter(reaction -> ingredientId.equals(reaction.ingredientId()))
+                .findFirst()
+                .orElseThrow(() -> helper.assertionException("Missing reaction for " + ingredientId));
     }
 }

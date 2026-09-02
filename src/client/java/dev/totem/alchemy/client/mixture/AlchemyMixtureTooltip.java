@@ -61,7 +61,7 @@ public final class AlchemyMixtureTooltip {
         });
     }
 
-    private static Component ingredientName(String id) {
+    static Component ingredientName(String id) {
         Identifier identifier = Identifier.tryParse(id);
         if (identifier == null) {
             return Component.literal(id);
