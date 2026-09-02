@@ -1,7 +1,7 @@
 {
   "advancements.deadrecall.alchemy_manual.title": "記錄配方",
   "advancements.deadrecall.alchemy_manual.description": "拿手冊或書本對釀造台按右鍵，取得 Alchemy 方法手冊。",
-  "itemGroup.deadrecall.main": "DeadRecall",
+  "itemGroup.totem_alchemy.main": "圖靈騰煉金",
   "item.deadrecall.stone_bowl": "缽",
   "item.totem.alchemy.stone_bowl": "缽",
   "item.deadrecall.saltpeter": "硝石",

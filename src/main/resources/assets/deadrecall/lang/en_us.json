@@ -1,7 +1,7 @@
 {
   "advancements.deadrecall.alchemy_manual.title": "Record the Mixture",
   "advancements.deadrecall.alchemy_manual.description": "Use a guide or book on a Brewing Stand to obtain the Alchemy method guide.",
-  "itemGroup.deadrecall.main": "DeadRecall",
+  "itemGroup.totem_alchemy.main": "Totem Alchemy",
   "item.deadrecall.stone_bowl": "Stone Bowl",
   "item.totem.alchemy.stone_bowl": "Stone Bowl",
   "item.deadrecall.saltpeter": "Saltpeter",

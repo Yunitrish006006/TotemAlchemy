@@ -1,10 +1,18 @@
 package dev.totem.alchemy.client;
 
+import dev.totem.alchemy.registry.AlchemyItems;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
-/** Captures the standalone Alchemy Creative tab used by the Modrinth gallery. */
+import java.util.List;
+
+/** Captures and verifies Alchemy's module-owned Creative tab. */
 @SuppressWarnings("UnstableApiUsage")
 public final class AlchemyCreativeTabVisualGameTest implements FabricClientGameTest {
     private static Object creativeScreen;
@@ -46,16 +54,16 @@ public final class AlchemyCreativeTabVisualGameTest implements FabricClientGameT
             if (creativeScreen == null) {
                 throw new IllegalStateException("Creative inventory was not opened");
             }
-            Class<?> identifierClass = Class.forName("net.minecraft.resources.Identifier");
-            Object id = identifierClass.getMethod("fromNamespaceAndPath", String.class, String.class)
-                    .invoke(null, "deadrecall", "main");
-            Object registry = Class.forName("net.minecraft.core.registries.BuiltInRegistries")
-                    .getField("CREATIVE_MODE_TAB")
-                    .get(null);
-            Object result = registry.getClass().getMethod("get", identifierClass).invoke(registry, id);
-            Object tabHolder = ((java.util.Optional<?>) result)
-                    .orElseThrow(() -> new IllegalStateException("Missing standalone Alchemy Creative tab"));
-            Object tab = invoke(tabHolder, "value");
+            Identifier tabId = Identifier.fromNamespaceAndPath("totem-alchemy", "main");
+            CreativeModeTab tab = BuiltInRegistries.CREATIVE_MODE_TAB.getValue(tabId);
+            if (tab == null) {
+                throw new IllegalStateException("Missing module-owned Alchemy Creative tab");
+            }
+            assertTabContents(tab);
+            if (BuiltInRegistries.CREATIVE_MODE_TAB.containsKey(
+                    Identifier.fromNamespaceAndPath("deadrecall", "main"))) {
+                throw new IllegalStateException("Standalone Alchemy still registered the legacy DeadRecall tab");
+            }
             Class<?> tabClass = Class.forName("net.minecraft.world.item.CreativeModeTab");
             Class<?> screenExtension = Class.forName(
                     "net.fabricmc.fabric.api.client.creativetab.v1.FabricCreativeModeInventoryScreen");
@@ -67,6 +75,24 @@ public final class AlchemyCreativeTabVisualGameTest implements FabricClientGameT
             }
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Could not select the Alchemy Creative tab", exception);
+        }
+    }
+
+    private static void assertTabContents(CreativeModeTab tab) {
+        List<Item> expected = List.of(
+                AlchemyItems.SALTPETER,
+                AlchemyItems.PIG_MANURE,
+                AlchemyItems.WOOD_ASH,
+                AlchemyItems.COCOA_POWDER,
+                AlchemyItems.HOT_COCOA,
+                AlchemyItems.CHERRY_BREW,
+                AlchemyItems.STONE_BOWL,
+                AlchemyItems.SULFUR_BOWL,
+                AlchemyItems.LARGE_POTION_FLASK
+        );
+        List<Item> actual = tab.getDisplayItems().stream().map(ItemStack::getItem).toList();
+        if (!actual.equals(expected)) {
+            throw new IllegalStateException("Alchemy Creative tab contents differ: " + actual);
         }
     }
 
