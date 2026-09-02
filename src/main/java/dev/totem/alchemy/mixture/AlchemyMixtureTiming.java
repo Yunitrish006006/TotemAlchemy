@@ -124,7 +124,7 @@ public final class AlchemyMixtureTiming {
         if (mixture == null) {
             return 0;
         }
-        int signature = 1;
+        int signature = 31 + Boolean.hashCode(mixture.isHeatLockedAfterBottling());
         for (AlchemyMixtureState.Reaction reaction : mixture.reactions()) {
             signature = 31 * signature + reaction.id().hashCode();
             signature = 31 * signature + classify(reaction).ordinal();

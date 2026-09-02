@@ -177,7 +177,11 @@ public final class AlchemyMixtureBottle {
         return true;
     }
 
-    private static PotionContents potionContents(AlchemyMixtureState state) {
+    /** Builds the native per-dose potion view used by item tooltips and read-only cauldron UI. */
+    public static PotionContents potionContents(AlchemyMixtureState state) {
+        if (state == null || state.isEmpty()) {
+            return PotionContents.EMPTY;
+        }
         PotionContents contents = PotionContents.EMPTY;
         Holder<Potion> canonical = state.hasPendingReactions() || state.canonicalPotionId() == null
                 ? null

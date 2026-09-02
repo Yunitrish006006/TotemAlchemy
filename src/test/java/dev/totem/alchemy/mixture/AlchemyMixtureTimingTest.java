@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AlchemyMixtureTimingTest {
@@ -99,6 +100,17 @@ class AlchemyMixtureTimingTest {
         assertEquals(42, stage.overcookTicks());
         assertEquals(100, stage.perfectWindowTicks());
         assertEquals(AlchemyMixtureTiming.State.PERFECT, AlchemyMixtureTiming.classify(stage));
+    }
+
+    @Test
+    void bottlingLockChangesTheSynchronizedHudSignature() {
+        AlchemyMixtureState state = activeMixture();
+        state.putEffect("minecraft:speed", 20.0D * 180.0D, 0);
+        int before = AlchemyMixtureTiming.visualSignature(state);
+
+        state.lockHeatIfFinished();
+
+        assertNotEquals(before, AlchemyMixtureTiming.visualSignature(state));
     }
 
     @Test

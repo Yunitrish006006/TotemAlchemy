@@ -32,6 +32,7 @@
   "hud.deadrecall.alchemy.cauldron.timing": "Timing: %s",
   "hud.deadrecall.alchemy.cauldron.stage": "%s: %s",
   "hud.deadrecall.alchemy.cauldron.more_stages": "%s more materials…",
+  "hud.deadrecall.alchemy.cauldron.more_effects": "%s more effects…",
   "hud.deadrecall.alchemy.cauldron.details": "Volume %s/%s doses",
   "book.deadrecall.alchemy_manual.page.15": "Potion Mixing",
   "book.deadrecall.alchemy_manual.mixture.mix": "Pour different potions together; three bottles fill a cauldron.",

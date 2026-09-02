@@ -24,12 +24,18 @@ class AlchemyMixtureUiSourceTest {
         assertFalse(tooltipLines.contains("remainingTicks"));
         assertFalse(tooltipLines.contains("requiredTicks"));
         assertTrue(hud.contains("AlchemyMixtureTiming.classify"));
+        assertTrue(hud.contains("mixture.isHeatLockedAfterBottling()"));
+        assertTrue(hud.contains("AlchemyMixtureBottle.potionContents(mixture).getAllEffects()"));
+        assertTrue(hud.contains("PotionContents.getPotionDescription"));
+        assertTrue(hud.contains("MobEffectUtil.formatDuration"));
         assertTrue(hud.contains("for (AlchemyMixtureState.Reaction reaction : mixture.reactions())"));
         assertTrue(hud.contains("for (AlchemyMixtureState.CompletedStage stage : mixture.completedStages())"));
         assertFalse(hud.contains("overcookTicks()"));
         assertFalse(hud.contains("stability()"));
         assertFalse(en.contains("%s%% reacted"));
         assertFalse(zh.contains("已反應 %s%%"));
+        assertTrue(en.contains("\"hud.deadrecall.alchemy.cauldron.more_effects\""));
+        assertTrue(zh.contains("\"hud.deadrecall.alchemy.cauldron.more_effects\""));
     }
 
     @Test

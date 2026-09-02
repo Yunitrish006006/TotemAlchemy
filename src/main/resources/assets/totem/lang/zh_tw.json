@@ -32,6 +32,7 @@
   "hud.deadrecall.alchemy.cauldron.timing": "火候：%s",
   "hud.deadrecall.alchemy.cauldron.stage": "%s：%s",
   "hud.deadrecall.alchemy.cauldron.more_stages": "另有 %s 份材料…",
+  "hud.deadrecall.alchemy.cauldron.more_effects": "另有 %s 種效果…",
   "hud.deadrecall.alchemy.cauldron.details": "容量 %s/%s 份",
   "book.deadrecall.alchemy_manual.page.15": "藥水混合",
   "book.deadrecall.alchemy_manual.mixture.mix": "可將不同藥水倒在一起；三瓶剛好裝滿一鍋。",

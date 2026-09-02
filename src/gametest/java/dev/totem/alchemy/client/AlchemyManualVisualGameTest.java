@@ -6,6 +6,7 @@ import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
 import dev.totem.alchemy.client.manual.AlchemyDiscoveryClientCache;
 import dev.totem.alchemy.client.manual.AlchemyResearchClientCache;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
 import dev.totem.core.api.v1.manual.TotemManualAssembler;
@@ -162,6 +163,36 @@ public final class AlchemyManualVisualGameTest implements FabricClientGameTest {
                     && hit.getBlockPos().equals(cauldronTarget.get()));
             context.waitTicks(5);
             context.takeScreenshot("alchemy-cauldron-hud-zh-tw");
+
+            singleplayer.getServer().runOnServer(server -> {
+                BlockPos target = cauldronTarget.get();
+                if (!(server.overworld().getBlockEntity(target) instanceof AlchemyCauldronBlockEntity cauldron)) {
+                    throw new AssertionError("Effect HUD fixture lost its Alchemy Cauldron");
+                }
+                cauldron.extractMixtureUnits(AlchemyMixtureState.MAX_VOLUME_UNITS);
+                AlchemyMixtureState finished = new AlchemyMixtureState(1);
+                finished.setBaseActivated(true);
+                finished.putEffect("minecraft:speed", 20.0D * 180.0D, 0);
+                finished.putEffect("minecraft:regeneration", 20.0D * 45.0D, 1);
+                ItemStack bottle = AlchemyMixtureBottle.toPotion(finished);
+                AlchemyMixtureState repoured = AlchemyMixtureBottle.fromPotion(bottle);
+                if (!repoured.isHeatLockedAfterBottling() || !cauldron.mergeMixture(repoured)) {
+                    throw new AssertionError("Could not repour the finished bottled potion");
+                }
+            });
+            context.waitFor(client -> {
+                BlockPos target = cauldronTarget.get();
+                if (target == null || client.level == null
+                        || !(client.level.getBlockEntity(target) instanceof AlchemyCauldronBlockEntity cauldron)) {
+                    return false;
+                }
+                AlchemyMixtureState mixture = cauldron.mixtureSnapshot();
+                return mixture.isHeatLockedAfterBottling()
+                        && mixture.effects().containsKey("minecraft:speed")
+                        && mixture.effects().containsKey("minecraft:regeneration");
+            });
+            context.waitTicks(5);
+            context.takeScreenshot("alchemy-cauldron-hud-effects-zh-tw");
         }
     }
 
