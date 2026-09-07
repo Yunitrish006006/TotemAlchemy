@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "#totem:alchemy/sulfur_bowls",
+    "#totem:alchemy/saltpeters",
+    [
+      "minecraft:coal",
+      "minecraft:charcoal"
+    ]
+  ],
+  "result": {
+    "id": "minecraft:gunpowder",
+    "count": 4
+  }
+
+}

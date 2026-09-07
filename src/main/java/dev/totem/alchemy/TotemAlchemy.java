@@ -15,6 +15,7 @@ import dev.totem.alchemy.discovery.AlchemyDiscoveryConnectionSync;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import dev.totem.alchemy.discovery.AlchemyMaterialAcquisitionDiscovery;
 import dev.totem.alchemy.manual.AlchemyManual;
+import dev.totem.alchemy.migration.LegacyAlchemyNbtMigration;
 import dev.totem.alchemy.recipe.AlchemyRecipes;
 import dev.totem.alchemy.registry.AlchemyCriteria;
 import dev.totem.alchemy.registry.AlchemyGameRules;
@@ -30,6 +31,7 @@ public final class TotemAlchemy implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        LegacyAlchemyNbtMigration.register();
         AlchemyBlocks.register();
         AlchemyBlockEntities.register();
         AlchemyMobEffects.register();
@@ -50,6 +52,6 @@ public final class TotemAlchemy implements ModInitializer {
         CherryBrewInteractions.register();
         FireflyStrengthInteractions.register();
         PigManureInteractions.register();
-        LOGGER.info("TotemAlchemy initialized without DeadRecall implementation dependency");
+        LOGGER.info("TotemAlchemy initialized");
     }
 }

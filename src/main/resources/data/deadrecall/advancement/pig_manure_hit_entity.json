@@ -2,24 +2,8 @@
   "parent": "deadrecall:alchemy_manual",
   "criteria": {
     "hit_entity": {
-      "trigger": "deadrecall:pig_manure_hit_entity"
+      "trigger": "minecraft:impossible"
     }
   },
-  "display": {
-    "description": {
-      "translate": "advancements.deadrecall.pig_manure_hit_entity.description"
-    },
-    "frame": "goal",
-    "icon": {
-      "id": "totem:alchemy/pig_manure"
-    },
-    "title": {
-      "translate": "advancements.deadrecall.pig_manure_hit_entity.title"
-    }
-  },
-  "requirements": [
-    [
-      "hit_entity"
-    ]
-  ]
+  "requirements": [["hit_entity"]]
 }

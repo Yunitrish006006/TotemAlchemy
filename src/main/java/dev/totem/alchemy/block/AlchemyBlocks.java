@@ -27,9 +27,7 @@ public final class AlchemyBlocks {
     public static final PigManureLayerBlock PIG_MANURE_LAYER = registerPigManureLayer();
 
     /** Canonical standalone TotemAlchemy registry id. */
-    public static final Block ALCHEMY_CAULDRON = registerAlchemyCauldron("totem", "alchemy_cauldron");
-    /** Legacy world-compatibility block. New content must never reference this id. */
-    public static final Block LEGACY_ALCHEMY_CAULDRON = registerAlchemyCauldron("deadrecall", "alchemy_cauldron");
+    public static final Block ALCHEMY_CAULDRON = registerAlchemyCauldron("alchemy_cauldron");
 
     private AlchemyBlocks() {
     }
@@ -40,7 +38,7 @@ public final class AlchemyBlocks {
     }
 
     private static PigManureLayerBlock registerPigManureLayer() {
-        Identifier id = Identifier.fromNamespaceAndPath("deadrecall", "pig_manure_layer");
+        Identifier id = canonicalId("pig_manure_layer");
         ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id);
         PigManureLayerBlock block = new PigManureLayerBlock(
                 BlockBehaviour.Properties.ofFullCopy(Blocks.SNOW).setId(blockKey)
@@ -48,15 +46,15 @@ public final class AlchemyBlocks {
         return Registry.register(BuiltInRegistries.BLOCK, id, block);
     }
 
-    private static Block registerAlchemyCauldron(String namespace, String name) {
-        Identifier id = Identifier.fromNamespaceAndPath(namespace, name);
+    private static Block registerAlchemyCauldron(String name) {
+        Identifier id = canonicalId(name);
         ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id);
         BlockBehaviour.Properties properties = BlockBehaviour.Properties.ofFullCopy(Blocks.CAULDRON).setId(blockKey);
         return Registry.register(BuiltInRegistries.BLOCK, id, new AlchemyCauldronBlock(properties));
     }
 
     private static Block registerBlock(String name, Block baseBlock, BiFunction<Block, BlockBehaviour.Properties, Block> factory) {
-        Identifier id = Identifier.fromNamespaceAndPath("deadrecall", name);
+        Identifier id = canonicalId(name);
         ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id);
         BlockBehaviour.Properties properties = BlockBehaviour.Properties.ofFullCopy(baseBlock).setId(blockKey);
         Block block = factory.apply(baseBlock, properties);
@@ -64,7 +62,7 @@ public final class AlchemyBlocks {
     }
 
     public static boolean isAlchemyCauldron(BlockState state) {
-        return state.is(ALCHEMY_CAULDRON) || state.is(LEGACY_ALCHEMY_CAULDRON);
+        return state.is(ALCHEMY_CAULDRON);
     }
 
     public static BlockState getPigManureState(BlockState cleanState) {
@@ -121,5 +119,9 @@ public final class AlchemyBlocks {
 
     public static void register() {
         TotemAlchemy.LOGGER.info("正在註冊模組方塊...");
+    }
+
+    private static Identifier canonicalId(String path) {
+        return Identifier.fromNamespaceAndPath("totem", "alchemy/" + path);
     }
 }

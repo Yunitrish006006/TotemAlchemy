@@ -33,7 +33,7 @@ import java.util.Set;
 /** Verifies that the cauldron state carried through the modular cutover survives saved-world reloads. */
 public final class AlchemyCauldronPersistenceGameTest {
     private static final BlockPos CAULDRON_POS = new BlockPos(2, 2, 2);
-    private static final Identifier HOT_COCOA = Identifier.fromNamespaceAndPath("deadrecall", "hot_cocoa");
+    private static final Identifier HOT_COCOA = Identifier.fromNamespaceAndPath("totem", "alchemy/hot_cocoa");
 
     @GameTest(maxTicks = 40)
     public void independentEffectRollsCanSelectSeveralAndFallbackStillGuaranteesOne(GameTestHelper helper) {

@@ -2,12 +2,14 @@ package dev.totem.alchemy.discovery;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.storage.SavedDataStorage;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,8 +33,25 @@ public final class AlchemyDiscoverySavedData extends SavedData {
             PLAYER_CODEC.listOf().optionalFieldOf("players", List.of()).forGetter(AlchemyDiscoverySavedData::playerList)
     ).apply(instance, AlchemyDiscoverySavedData::new));
 
+    /** All new world data is written under the canonical Alchemy owner ID. */
     public static final SavedDataType<AlchemyDiscoverySavedData> TYPE = new SavedDataType<>(
+            Identifier.fromNamespaceAndPath("totem", "alchemy/brew_discoveries"),
+            AlchemyDiscoverySavedData::new,
+            CODEC,
+            DataFixTypes.SAVED_DATA_COMMAND_STORAGE
+    );
+
+    /** Read-only compatibility type for worlds created by the standalone extraction builds. */
+    private static final SavedDataType<AlchemyDiscoverySavedData> LEGACY_MODULE_TYPE = new SavedDataType<>(
             Identifier.fromNamespaceAndPath("totem-alchemy", "brew_discoveries"),
+            AlchemyDiscoverySavedData::new,
+            CODEC,
+            DataFixTypes.SAVED_DATA_COMMAND_STORAGE
+    );
+
+    /** Read-only compatibility type for worlds written before Alchemy was extracted. */
+    private static final SavedDataType<AlchemyDiscoverySavedData> LEGACY_DEADRECALL_TYPE = new SavedDataType<>(
+            Identifier.fromNamespaceAndPath("deadrecall", "brew_discoveries"),
             AlchemyDiscoverySavedData::new,
             CODEC,
             DataFixTypes.SAVED_DATA_COMMAND_STORAGE
@@ -50,10 +69,12 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     private AlchemyDiscoverySavedData(List<PlayerDiscoveries> players) {
         boolean normalizedLegacyData = false;
         for (PlayerDiscoveries player : players) {
-            Set<String> discoveries = new HashSet<>(player.discoveries());
+            Set<String> discoveries = canonicalizeValues(player.discoveries());
+            normalizedLegacyData |= !discoveries.equals(new HashSet<>(player.discoveries()));
             discoveriesByPlayer.put(player.player(), discoveries);
 
-            Set<String> knownMaterials = new HashSet<>(player.knownMaterials());
+            Set<String> knownMaterials = canonicalizeValues(player.knownMaterials());
+            normalizedLegacyData |= !knownMaterials.equals(new HashSet<>(player.knownMaterials()));
             knownMaterials.removeIf(material -> material == null || material.isBlank());
             if (!knownMaterials.isEmpty()) {
                 knownMaterialsByPlayer.put(player.player(), knownMaterials);
@@ -68,7 +89,9 @@ public final class AlchemyDiscoverySavedData extends SavedData {
                 try {
                     int count = Integer.parseInt(encoded.substring(split + 1));
                     if (count > 0) {
-                        counts.put(encoded.substring(0, split), count);
+                        String key = LegacyAlchemyIds.canonicalizeEmbedded(encoded.substring(0, split));
+                        normalizedLegacyData |= !key.equals(encoded.substring(0, split));
+                        counts.put(key, count);
                     }
                 } catch (NumberFormatException ignored) {
                 }
@@ -83,6 +106,7 @@ public final class AlchemyDiscoverySavedData extends SavedData {
                 researchByPlayer.put(player.player(), counts);
             }
 
+            normalizedLegacyData |= containsLegacyIdentifier(player.materialSamples());
             Map<String, Integer> materialSamples = decodePositiveCounts(player.materialSamples());
             Map<String, Integer> legacySamples = new HashMap<>();
             counts.forEach((key, count) -> {
@@ -114,7 +138,9 @@ public final class AlchemyDiscoverySavedData extends SavedData {
                     long totalTicks = Long.parseLong(values[0]);
                     int samples = Integer.parseInt(values[1]);
                     if (totalTicks > 0L && samples > 0) {
-                        timings.put(encoded.substring(0, split), new ProcessingTimeStats(totalTicks, samples));
+                        String key = LegacyAlchemyIds.canonicalizeEmbedded(encoded.substring(0, split));
+                        normalizedLegacyData |= !key.equals(encoded.substring(0, split));
+                        timings.put(key, new ProcessingTimeStats(totalTicks, samples));
                     }
                 } catch (NumberFormatException ignored) {
                 }
@@ -129,7 +155,32 @@ public final class AlchemyDiscoverySavedData extends SavedData {
     }
 
     public static AlchemyDiscoverySavedData get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(TYPE);
+        return loadCanonical(server.overworld().getDataStorage());
+    }
+
+    /**
+     * Returns canonical storage, copying one legacy file only when the
+     * canonical file is absent. The source remains untouched so a failed save
+     * can retry the migration safely on the next start.
+     */
+    private static synchronized AlchemyDiscoverySavedData loadCanonical(SavedDataStorage storage) {
+        AlchemyDiscoverySavedData canonical = storage.get(TYPE);
+        if (canonical != null) {
+            return canonical;
+        }
+
+        AlchemyDiscoverySavedData legacy = storage.get(LEGACY_MODULE_TYPE);
+        if (legacy == null) {
+            legacy = storage.get(LEGACY_DEADRECALL_TYPE);
+        }
+        if (legacy == null) {
+            return storage.computeIfAbsent(TYPE);
+        }
+
+        AlchemyDiscoverySavedData migrated = legacy.copyForCanonicalStorage();
+        storage.set(TYPE, migrated);
+        migrated.setDirty();
+        return migrated;
     }
 
     public boolean record(UUID playerId, String discovery) {
@@ -272,6 +323,20 @@ public final class AlchemyDiscoverySavedData extends SavedData {
         }).toList();
     }
 
+    private AlchemyDiscoverySavedData copyForCanonicalStorage() {
+        return new AlchemyDiscoverySavedData(playerList());
+    }
+
+    private static Set<String> canonicalizeValues(List<String> values) {
+        Set<String> result = new HashSet<>();
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                result.add(LegacyAlchemyIds.canonicalizeEmbedded(value));
+            }
+        }
+        return result;
+    }
+
     private static Map<String, Integer> decodePositiveCounts(List<String> encodedCounts) {
         Map<String, Integer> result = new HashMap<>();
         for (String encoded : encodedCounts) {
@@ -282,12 +347,17 @@ public final class AlchemyDiscoverySavedData extends SavedData {
             try {
                 int count = Integer.parseInt(encoded.substring(split + 1));
                 if (count > 0) {
-                    result.put(encoded.substring(0, split), count);
+                    String key = LegacyAlchemyIds.canonicalizeEmbedded(encoded.substring(0, split));
+                    result.merge(key, count, Math::max);
                 }
             } catch (NumberFormatException ignored) {
             }
         }
         return result;
+    }
+
+    private static boolean containsLegacyIdentifier(List<String> values) {
+        return values != null && values.stream().anyMatch(value -> value != null && value.contains("deadrecall:"));
     }
 
     public record ProcessingTimeStats(long totalTicks, int samples) {

@@ -1,10 +1,6 @@
 {
   "replace": false,
   "values": [
-    "totem:alchemy/saltpeter",
-    {
-      "id": "deadrecall:saltpeter",
-      "required": false
-    }
+    "totem:alchemy/saltpeter"
   ]
 }

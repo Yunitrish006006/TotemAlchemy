@@ -19,7 +19,7 @@ public final class AlchemyConflictCatalog {
                     List.of("minecraft:instant_health"), "minecraft:instant_damage",
                     "effect.minecraft.instant_health", "effect.minecraft.instant_damage"),
             new Entry("strength_weakness",
-                    List.of("minecraft:strength", "deadrecall:firefly_strength", "totem:alchemy/firefly_strength"),
+                    List.of("minecraft:strength", "totem:alchemy/firefly_strength"),
                     "minecraft:weakness",
                     "book.totem_alchemy.reaction.strength_family", "effect.minecraft.weakness"),
             new Entry("regeneration_poison",

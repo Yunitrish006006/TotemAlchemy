@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "deadrecall:item/cocoa_powder"
+    "model": "totem:item/alchemy/cocoa_powder"
   }
 }

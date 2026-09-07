@@ -25,11 +25,11 @@ public final class AlchemyManual {
     public static final String REACTION_RESEARCH_PAGE = "book.totem_alchemy.reaction_research.slot";
 
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
-    private static final Identifier MANUAL_ADVANCEMENT = Identifier.fromNamespaceAndPath("deadrecall", "alchemy_manual");
+    private static final Identifier MANUAL_ADVANCEMENT = Identifier.fromNamespaceAndPath("totem", "alchemy/alchemy_manual");
     private static final List<String> PAGE_KEYS = buildPageKeys();
     private static final TotemManualSection SECTION = new TotemManualSection(
             Identifier.fromNamespaceAndPath("totem", "alchemy/manual"), SECTION_ORDER,
-            "book.deadrecall.alchemy_manual.title", PAGE_KEYS);
+            "book.totem.alchemy_manual.title", PAGE_KEYS);
 
     private AlchemyManual() {}
 
@@ -39,7 +39,7 @@ public final class AlchemyManual {
         pages.add("book.totem_alchemy.guide.stations");
         pages.addAll(AlchemyMaterialCatalog.pageKeys());
         pages.add(REACTION_RESEARCH_PAGE);
-        pages.add("book.deadrecall.alchemy_manual.page.8");
+        pages.add("book.totem.alchemy_manual.page.8");
         return List.copyOf(pages);
     }
 

@@ -112,7 +112,7 @@ public abstract class BrewingStandBlockEntityMixin {
         }
         consumeIngredient(level, pos, slots);
         level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 1.0F, 0.8F);
-        notifyNearbyPlayers(level, pos, "message.deadrecall.alchemy.vanilla_brew_failure", chancePercent);
+        notifyNearbyPlayers(level, pos, "message.totem.alchemy.vanilla_brew_failure", chancePercent);
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(
                     ParticleTypes.LARGE_SMOKE,
@@ -157,14 +157,14 @@ public abstract class BrewingStandBlockEntityMixin {
                 notifyNearbyPlayers(
                         level,
                         pos,
-                        "message.deadrecall.alchemy.vanilla_brew_success",
+                        "message.totem.alchemy.vanilla_brew_success",
                         context.chancePercent()
                 );
             } else {
                 notifyNearbyPlayers(
                         level,
                         pos,
-                        "message.deadrecall.alchemy.multi_outcome_success",
+                        "message.totem.alchemy.multi_outcome_success",
                         context.chancePercent(),
                         outcomeSetName(context.outcomes())
                 );

@@ -2,26 +2,8 @@
   "parent": "deadrecall:alchemy_manual",
   "criteria": {
     "crafted_stone_bowl": {
-      "conditions": {
-        "recipe_id": "deadrecall:stone_bowl"
-      },
-      "trigger": "minecraft:recipe_crafted"
+      "trigger": "minecraft:impossible"
     }
   },
-  "display": {
-    "description": {
-      "translate": "advancements.deadrecall.stone_bowl.description"
-    },
-    "icon": {
-      "id": "totem:alchemy/stone_bowl"
-    },
-    "title": {
-      "translate": "advancements.deadrecall.stone_bowl.title"
-    }
-  },
-  "requirements": [
-    [
-      "crafted_stone_bowl"
-    ]
-  ]
+  "requirements": [["crafted_stone_bowl"]]
 }

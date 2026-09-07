@@ -114,7 +114,7 @@ public final class AlchemyMaterialAcquisitionDiscovery {
         Item material = BuiltInRegistries.ITEM.getValue(materialId);
         ServerPlayNetworking.send(player, new AlchemyMaterialDiscoveredPayload(materialId));
         player.sendOverlayMessage(Component.translatable(
-                "message.deadrecall.alchemy.material_recorded",
+                "message.totem.alchemy.material_recorded",
                 new ItemStack(material).getHoverName()
         ));
         ACTIVATION_COOLDOWNS.put(playerId, ACTIVATION_INTERVAL_TICKS);

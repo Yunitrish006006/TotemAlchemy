@@ -8,13 +8,13 @@ import net.minecraft.resources.Identifier;
 public final class AlchemyCriteria {
     public static final SimplePlayerCriterionTrigger PIG_MANURE_HIT_ENTITY = Registry.register(
             BuiltInRegistries.TRIGGER_TYPES,
-            Identifier.fromNamespaceAndPath("deadrecall", "pig_manure_hit_entity"),
+            Identifier.fromNamespaceAndPath("totem", "alchemy/pig_manure_hit_entity"),
             new SimplePlayerCriterionTrigger()
     );
 
     public static final SimplePlayerCriterionTrigger PIG_MANURE_GOT_HIT = Registry.register(
             BuiltInRegistries.TRIGGER_TYPES,
-            Identifier.fromNamespaceAndPath("deadrecall", "pig_manure_got_hit"),
+            Identifier.fromNamespaceAndPath("totem", "alchemy/pig_manure_got_hit"),
             new SimplePlayerCriterionTrigger()
     );
 

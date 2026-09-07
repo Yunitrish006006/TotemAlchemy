@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class AlchemyDiscoverySavedDataTest {
     @Test
@@ -70,5 +71,30 @@ final class AlchemyDiscoverySavedDataTest {
                 .getOrDefault("minecraft:sugar>minecraft:swiftness", 0));
         assertEquals(1, restored.research(playerId)
                 .getOrDefault("minecraft:sugar>minecraft:slowness", 0));
+    }
+
+    @Test
+    void legacyAlchemyIdentifiersRewriteWhenPersistentDiscoveriesDecode() {
+        UUID playerId = UUID.fromString("c3f17f0a-2ca4-48de-979f-9f81823bf6fe");
+        String legacyMaterial = "deadrecall:cocoa_powder";
+        String legacyDiscovery = legacyMaterial + ">deadrecall:cherry_swiftness";
+        AlchemyDiscoverySavedData legacy = new AlchemyDiscoverySavedData();
+        legacy.record(playerId, legacyDiscovery);
+        legacy.recordKnownMaterial(playerId, legacyMaterial);
+        legacy.recordResearch(playerId, legacyDiscovery);
+        legacy.recordMaterialSample(playerId, legacyMaterial);
+        legacy.recordProcessingTime(playerId, legacyMaterial, 200);
+
+        var encoded = AlchemyDiscoverySavedData.CODEC.encodeStart(JsonOps.INSTANCE, legacy).getOrThrow();
+        AlchemyDiscoverySavedData restored =
+                AlchemyDiscoverySavedData.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow();
+
+        String canonicalMaterial = "totem:alchemy/cocoa_powder";
+        String canonicalDiscovery = canonicalMaterial + ">totem:alchemy/cherry_swiftness";
+        assertTrue(restored.has(playerId, canonicalDiscovery));
+        assertTrue(restored.hasKnownMaterial(playerId, canonicalMaterial));
+        assertEquals(1, restored.research(playerId).getOrDefault(canonicalDiscovery, 0));
+        assertEquals(1, restored.materialSampleCount(playerId, canonicalMaterial));
+        assertEquals(200, restored.processingTime(playerId, canonicalMaterial).totalTicks());
     }
 }

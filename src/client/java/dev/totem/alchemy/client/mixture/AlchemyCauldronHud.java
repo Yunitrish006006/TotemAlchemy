@@ -26,7 +26,7 @@ import java.util.List;
 
 /** Always-on native crosshair tooltip for a synchronized Alchemy Cauldron mixture. */
 public final class AlchemyCauldronHud {
-    private static final Identifier HUD_ID = Identifier.fromNamespaceAndPath("totem", "alchemy_cauldron_tooltip");
+    private static final Identifier HUD_ID = Identifier.fromNamespaceAndPath("totem", "alchemy/cauldron_tooltip");
     private static final int PANEL_TOP = 12;
     private static final int PANEL_PADDING = 5;
     private static final int LINE_HEIGHT = 11;
@@ -52,13 +52,13 @@ public final class AlchemyCauldronHud {
         }
 
         AlchemyMixtureState mixture = cauldron.mixtureSnapshot();
-        Component title = Component.translatable("block.totem.alchemy_cauldron")
+        Component title = Component.translatable("block.totem.alchemy.alchemy_cauldron")
                 .withStyle(ChatFormatting.BOLD);
         List<Component> statusLines = mixture.isHeatLockedAfterBottling()
                 ? effectLines(mixture, client.level.tickRateManager().tickrate())
                 : stageLines(mixture);
         Component details = Component.translatable(
-                "hud.deadrecall.alchemy.cauldron.details",
+                "hud.totem.alchemy.cauldron.details",
                 mixture.volumeUnits(), AlchemyMixtureState.MAX_VOLUME_UNITS);
 
         Font font = client.font;
@@ -105,7 +105,7 @@ public final class AlchemyCauldronHud {
 
         List<Component> visible = new ArrayList<>(all.subList(0, MAX_VISIBLE_EFFECTS));
         visible.add(Component.translatable(
-                "hud.deadrecall.alchemy.cauldron.more_effects",
+                "hud.totem.alchemy.cauldron.more_effects",
                 all.size() - MAX_VISIBLE_EFFECTS
         ).withStyle(ChatFormatting.DARK_GRAY));
         return List.copyOf(visible);
@@ -123,7 +123,7 @@ public final class AlchemyCauldronHud {
             AlchemyMixtureTiming.State timing = AlchemyMixtureTiming.classify(mixture);
             Component timingText = Component.translatable(timing.translationKey())
                     .withStyle(AlchemyMixtureTooltipLines.timingColor(timing));
-            return List.of(Component.translatable("hud.deadrecall.alchemy.cauldron.timing", timingText));
+            return List.of(Component.translatable("hud.totem.alchemy.cauldron.timing", timingText));
         }
         if (all.size() <= MAX_VISIBLE_STAGES) {
             return List.copyOf(all);
@@ -131,7 +131,7 @@ public final class AlchemyCauldronHud {
 
         List<Component> visible = new ArrayList<>(all.subList(0, MAX_VISIBLE_STAGES));
         visible.add(Component.translatable(
-                "hud.deadrecall.alchemy.cauldron.more_stages",
+                "hud.totem.alchemy.cauldron.more_stages",
                 all.size() - MAX_VISIBLE_STAGES
         ).withStyle(ChatFormatting.DARK_GRAY));
         return List.copyOf(visible);
@@ -141,7 +141,7 @@ public final class AlchemyCauldronHud {
         Component timingText = Component.translatable(timing.translationKey())
                 .withStyle(AlchemyMixtureTooltipLines.timingColor(timing));
         return Component.translatable(
-                "hud.deadrecall.alchemy.cauldron.stage",
+                "hud.totem.alchemy.cauldron.stage",
                 AlchemyMixtureTooltipLines.ingredientName(ingredientId),
                 timingText
         );

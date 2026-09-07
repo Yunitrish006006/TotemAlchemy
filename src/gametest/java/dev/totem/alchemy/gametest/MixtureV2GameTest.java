@@ -93,13 +93,13 @@ public final class MixtureV2GameTest {
                 new ItemStack(Items.MAGMA_CREAM),
                 awkward,
                 PotionContents.createItemStack(Items.POTION, Potions.STRENGTH),
-                new MultiOutcomeBrewing.Outcome(Potions.STRENGTH, "message.deadrecall.alchemy.outcome.strength")
+                new MultiOutcomeBrewing.Outcome(Potions.STRENGTH, "message.totem.alchemy.outcome.strength")
         );
         ItemStack second = dev.totem.alchemy.mixture.AlchemyMixtureBrewing.applyBrewingStandIngredient(
                 new ItemStack(Items.SPIDER_EYE),
                 first,
                 PotionContents.createItemStack(Items.POTION, Potions.POISON),
-                new MultiOutcomeBrewing.Outcome(Potions.POISON, "message.deadrecall.alchemy.outcome.poison")
+                new MultiOutcomeBrewing.Outcome(Potions.POISON, "message.totem.alchemy.outcome.poison")
         );
         AlchemyMixtureState result = AlchemyMixtureBottle.fromPotion(second);
         require(helper, result.effects().containsKey("minecraft:strength"),

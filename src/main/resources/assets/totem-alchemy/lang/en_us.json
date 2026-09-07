@@ -31,7 +31,7 @@
   "book.totem_alchemy.research.note.lingering": "Converts to lingering form",
   "book.totem_alchemy.research.note.cherry_variant": "Mutates Swiftness into Cherry Swiftness",
   "book.totem_alchemy.research.note.firefly_variant": "Mutates Strength into Firefly Strength",
-  "message.deadrecall.alchemy.material_recorded": "New brewing material: %s. Added to the Alchemy Handbook",
+  "message.totem.alchemy.material_recorded": "New brewing material: %s. Added to the Alchemy Handbook",
   "book.totem_alchemy.material_slot.nether_wart": "",
   "book.totem_alchemy.material_slot.red_mushroom": "",
   "book.totem_alchemy.material_slot.brown_mushroom": "",
@@ -133,5 +133,5 @@
   "book.totem_alchemy.reaction.result.complete": "Complete neutralization",
   "book.totem_alchemy.reaction.result.positive_remains": "Left-side effect remains",
   "book.totem_alchemy.reaction.result.negative_remains": "Right-side effect remains",
-  "message.deadrecall.alchemy.conflict_discovery_recorded": "The manual recorded a new opposing reaction."
+  "message.totem.alchemy.conflict_discovery_recorded": "The manual recorded a new opposing reaction."
 }

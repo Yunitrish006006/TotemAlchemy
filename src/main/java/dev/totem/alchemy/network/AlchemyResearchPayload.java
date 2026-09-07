@@ -14,7 +14,7 @@ public record AlchemyResearchPayload(List<String> entries) implements CustomPack
     public static final int MAX_ENTRIES = 1024;
     public static final int MAX_ENTRY_LENGTH = 256;
     public static final Type<AlchemyResearchPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("totem-alchemy", "brew_research"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "alchemy/brew_research"));
     public static final StreamCodec<FriendlyByteBuf, AlchemyResearchPayload> CODEC = StreamCodec.of(
             (buffer, payload) -> write(buffer, payload.entries()),
             AlchemyResearchPayload::read

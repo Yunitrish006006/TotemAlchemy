@@ -24,43 +24,43 @@ public final class AlchemyMixtureTooltipLines {
         }
         lines.accept(Component.translatable(
                 state.hasPendingReactions()
-                        ? "tooltip.deadrecall.alchemy.mixture.incomplete"
-                        : "tooltip.deadrecall.alchemy.mixture.complete"
+                        ? "tooltip.totem.alchemy.mixture.incomplete"
+                        : "tooltip.totem.alchemy.mixture.complete"
         ).withStyle(state.hasPendingReactions() ? ChatFormatting.GOLD : ChatFormatting.GRAY));
         Item resultItem = AlchemyCompoundBrewing.resultItem(state);
         if (resultItem != null) {
             lines.accept(Component.translatable(
-                    "tooltip.deadrecall.alchemy.mixture.product",
+                    "tooltip.totem.alchemy.mixture.product",
                     new ItemStack(resultItem).getHoverName()
             ).withStyle(ChatFormatting.GRAY));
         }
         lines.accept(Component.translatable(
-                "tooltip.deadrecall.alchemy.mixture.volume",
+                "tooltip.totem.alchemy.mixture.volume",
                 state.volumeUnits(),
                 AlchemyMixtureState.MAX_VOLUME_UNITS
         ).withStyle(ChatFormatting.DARK_GRAY));
         lines.accept(Component.translatable(
-                "tooltip.deadrecall.alchemy.mixture.stability",
+                "tooltip.totem.alchemy.mixture.stability",
                 state.stability()
         ).withStyle(ChatFormatting.DARK_GRAY));
 
         AlchemyMixtureTiming.State timing = AlchemyMixtureTiming.classify(state);
         lines.accept(Component.translatable(
-                "tooltip.deadrecall.alchemy.mixture.timing_state",
+                "tooltip.totem.alchemy.mixture.timing_state",
                 Component.translatable(timing.translationKey())
         ).withStyle(timingColor(timing)));
 
         for (AlchemyMixtureState.Reaction reaction : state.reactions()) {
             lines.accept(Component.translatable(
-                    "tooltip.deadrecall.alchemy.mixture.reacting_ingredient",
+                    "tooltip.totem.alchemy.mixture.reacting_ingredient",
                     ingredientName(reaction.ingredientId())
             ).withStyle(ChatFormatting.YELLOW));
         }
 
         if (state.hasPendingReactions()) {
-            lines.accept(Component.translatable("tooltip.deadrecall.alchemy.mixture.drink_warning")
+            lines.accept(Component.translatable("tooltip.totem.alchemy.mixture.drink_warning")
                     .withStyle(ChatFormatting.DARK_GRAY));
-            lines.accept(Component.translatable("tooltip.deadrecall.alchemy.mixture.repour_hint")
+            lines.accept(Component.translatable("tooltip.totem.alchemy.mixture.repour_hint")
                     .withStyle(ChatFormatting.DARK_GRAY));
         }
     }

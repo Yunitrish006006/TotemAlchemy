@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Snowball.class)
 public abstract class SnowballMixin {
     @Inject(method = "onHitEntity", at = @At("HEAD"), cancellable = true)
-    private void deadrecall$applyPigManureStink(EntityHitResult hitResult, CallbackInfo ci) {
+    private void totem$applyPigManureStink(EntityHitResult hitResult, CallbackInfo ci) {
         Snowball snowball = (Snowball) (Object) this;
         if (!AlchemyItems.isPigManure(snowball.getItem())) {
             return;
@@ -30,7 +30,7 @@ public abstract class SnowballMixin {
     }
 
     @Inject(method = "onHit", at = @At("HEAD"))
-    private void deadrecall$spreadPigManureOnGrass(HitResult hitResult, CallbackInfo ci) {
+    private void totem$spreadPigManureOnGrass(HitResult hitResult, CallbackInfo ci) {
         Snowball snowball = (Snowball) (Object) this;
         if (!AlchemyItems.isPigManure(snowball.getItem())
                 || !(snowball.level() instanceof ServerLevel serverLevel)

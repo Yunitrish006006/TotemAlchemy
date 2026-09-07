@@ -1,0 +1,27 @@
+{
+  "parent": "totem:alchemy/alchemy_manual",
+  "criteria": {
+    "crafted_stone_bowl": {
+      "conditions": {
+        "recipe_id": "totem:alchemy/stone_bowl"
+      },
+      "trigger": "minecraft:recipe_crafted"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.totem.stone_bowl.description"
+    },
+    "icon": {
+      "id": "totem:alchemy/stone_bowl"
+    },
+    "title": {
+      "translate": "advancements.totem.stone_bowl.title"
+    }
+  },
+  "requirements": [
+    [
+      "crafted_stone_bowl"
+    ]
+  ]
+}

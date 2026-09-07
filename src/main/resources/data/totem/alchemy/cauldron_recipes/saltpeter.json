@@ -1,0 +1,40 @@
+{
+  "brewing_system": "mixture",
+  "start": "full_water_cauldron",
+  "initial_level": 3,
+  "requires_lit_campfire": true,
+  "cook_mode": "per_ingredient",
+  "cook_ticks": 200,
+  "consume_level_per_cook": true,
+  "success_chance": 0.8,
+  "ingredient_message": "message.totem.alchemy.ingredient_added",
+  "ingredient_sound": "minecraft:block.brewing_stand.brew",
+  "ingredients": [
+    {
+      "id": "wood_ash",
+      "item": "totem:alchemy/wood_ash",
+      "success_chance": 0.85
+    },
+    {
+      "id": "mushroom",
+      "items": [
+        "minecraft:brown_mushroom",
+        "minecraft:red_mushroom"
+      ],
+      "can_start": false,
+      "success_chance": 0.8
+    },
+    {
+      "id": "pig_manure",
+      "item": "totem:alchemy/pig_manure",
+      "can_start": false,
+      "success_chance": 0.75
+    }
+  ],
+  "result": {
+    "type": "drop_item",
+    "item": "totem:alchemy/saltpeter",
+    "count": 1
+  }
+
+}

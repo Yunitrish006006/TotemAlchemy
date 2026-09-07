@@ -25,9 +25,9 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /** Regression coverage for named food/solid recipes running on the shared mixture state machine. */
 public final class AlchemyCompoundBrewingGameTest {
-    private static final Identifier SALTPETER = Identifier.fromNamespaceAndPath("deadrecall", "saltpeter");
-    private static final Identifier HOT_COCOA = Identifier.fromNamespaceAndPath("deadrecall", "hot_cocoa");
-    private static final Identifier CHERRY_BREW = Identifier.fromNamespaceAndPath("deadrecall", "cherry_brew");
+    private static final Identifier SALTPETER = Identifier.fromNamespaceAndPath("totem", "alchemy/saltpeter");
+    private static final Identifier HOT_COCOA = Identifier.fromNamespaceAndPath("totem", "alchemy/hot_cocoa");
+    private static final Identifier CHERRY_BREW = Identifier.fromNamespaceAndPath("totem", "alchemy/cherry_brew");
 
     @GameTest(maxTicks = 40)
     public void unfinishedHotCocoaBottleRetainsEveryReactionTimer(GameTestHelper helper) {
@@ -82,7 +82,7 @@ public final class AlchemyCompoundBrewingGameTest {
         require(helper, bottle.is(AlchemyItems.CHERRY_BREW),
                 "Finished cherry brew did not retain its established item and texture");
         AlchemyMixtureState restored = AlchemyMixtureBottle.fromPotion(bottle);
-        require(helper, restored.effects().containsKey("deadrecall:cherry_bloom"),
+        require(helper, restored.effects().containsKey("totem:alchemy/cherry_bloom"),
                 "Cherry brew did not expose Cherry Bloom through the shared mixture effect data");
         require(helper, AlchemyMixtureBottle.isDrinkablePotion(bottle)
                         && CHERRY_BREW.equals(AlchemyCompoundBrewing.activeRecipeId(restored))

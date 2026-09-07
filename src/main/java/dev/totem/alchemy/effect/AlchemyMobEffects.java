@@ -21,7 +21,7 @@ public final class AlchemyMobEffects {
     }
 
     private static Holder.Reference<MobEffect> register(String name, MobEffect effect) {
-        Identifier id = Identifier.fromNamespaceAndPath("deadrecall", name);
+        Identifier id = Identifier.fromNamespaceAndPath("totem", "alchemy/" + name);
         ResourceKey<MobEffect> key = ResourceKey.create(Registries.MOB_EFFECT, id);
         return Registry.registerForHolder(BuiltInRegistries.MOB_EFFECT, key, effect);
     }

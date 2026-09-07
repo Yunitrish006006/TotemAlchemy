@@ -16,7 +16,7 @@ import net.minecraft.world.item.ItemStack;
 public final class AlchemyItemGroups {
     private static final ResourceKey<CreativeModeTab> TAB_KEY = ResourceKey.create(
             Registries.CREATIVE_MODE_TAB,
-            Identifier.fromNamespaceAndPath("totem-alchemy", "main")
+            Identifier.fromNamespaceAndPath("totem", "alchemy/main")
     );
 
     private AlchemyItemGroups() {

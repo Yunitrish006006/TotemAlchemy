@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "deadrecall:item/wood_ash"
+    "model": "totem:item/alchemy/wood_ash"
   }
 }

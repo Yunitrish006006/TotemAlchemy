@@ -33,7 +33,7 @@ public final class AlchemyMaterialResearchOverlay {
     private static final int CONTENT_BOTTOM = 176;
 
     private static final Identifier PAGE_FILTER_ID =
-            Identifier.fromNamespaceAndPath("totem-alchemy", "researched_material_pages");
+            Identifier.fromNamespaceAndPath("totem", "alchemy/researched_material_pages");
     private static final Map<Item, String> MATERIAL_NOTES = Map.ofEntries(
             Map.entry(Items.NETHER_WART, "book.totem_alchemy.research.note.base"),
             Map.entry(Items.REDSTONE, "book.totem_alchemy.research.note.extend"),
@@ -49,7 +49,7 @@ public final class AlchemyMaterialResearchOverlay {
     public static void register() {
         TotemManualPageFilterRegistry.register(PAGE_FILTER_ID, AlchemyMaterialResearchOverlay::isPageVisible);
         TotemManualPageOverlayRegistry.register(
-                Identifier.fromNamespaceAndPath("totem-alchemy", "material_research_pages"),
+                Identifier.fromNamespaceAndPath("totem", "alchemy/material_research_pages"),
                 AlchemyMaterialResearchOverlay::render);
     }
 

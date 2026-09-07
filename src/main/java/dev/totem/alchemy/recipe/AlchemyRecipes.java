@@ -9,7 +9,7 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 public final class AlchemyRecipes {
     public static final RecipeSerializer<FlintFromBowlRecipe> FLINT_FROM_BOWL =
         Registry.register(BuiltInRegistries.RECIPE_SERIALIZER,
-            Identifier.fromNamespaceAndPath("deadrecall", "flint_from_bowl"),
+            Identifier.fromNamespaceAndPath("totem", "alchemy/flint_from_bowl"),
             FlintFromBowlRecipe.SERIALIZER);
 
     private AlchemyRecipes() {

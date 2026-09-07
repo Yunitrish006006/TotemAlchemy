@@ -1,0 +1,25 @@
+{
+  "parent": "totem:alchemy/alchemy_manual",
+  "criteria": {
+    "got_hit": {
+      "trigger": "totem:alchemy/pig_manure_got_hit"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.totem.pig_manure_got_hit.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "id": "totem:alchemy/pig_manure"
+    },
+    "title": {
+      "translate": "advancements.totem.pig_manure_got_hit.title"
+    }
+  },
+  "requirements": [
+    [
+      "got_hit"
+    ]
+  ]
+}

@@ -31,7 +31,7 @@
   "book.totem_alchemy.research.note.lingering": "Convierte en forma persistente",
   "book.totem_alchemy.research.note.cherry_variant": "Muta Rapidez en Rapidez de cereza",
   "book.totem_alchemy.research.note.firefly_variant": "Muta Fuerza en Fuerza de luciérnaga",
-  "message.deadrecall.alchemy.material_recorded": "Nuevo material para pociones: %s. Añadido al Manual de alquimia",
+  "message.totem.alchemy.material_recorded": "Nuevo material para pociones: %s. Añadido al Manual de alquimia",
   "book.totem_alchemy.material_slot.nether_wart": "",
   "book.totem_alchemy.material_slot.red_mushroom": "",
   "book.totem_alchemy.material_slot.brown_mushroom": "",
@@ -133,5 +133,5 @@
   "book.totem_alchemy.reaction.result.complete": "Neutralización completa",
   "book.totem_alchemy.reaction.result.positive_remains": "Permanece el efecto del lado izquierdo",
   "book.totem_alchemy.reaction.result.negative_remains": "Permanece el efecto del lado derecho",
-  "message.deadrecall.alchemy.conflict_discovery_recorded": "El manual registró una nueva reacción opuesta."
+  "message.totem.alchemy.conflict_discovery_recorded": "El manual registró una nueva reacción opuesta."
 }

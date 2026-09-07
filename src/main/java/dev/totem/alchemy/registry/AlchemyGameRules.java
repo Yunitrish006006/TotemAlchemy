@@ -12,7 +12,7 @@ public final class AlchemyGameRules {
             GameRuleBuilder.forBoolean(true)
                     .category(TotemGameRuleCategories.TOTEM)
                     .buildAndRegister(Identifier.fromNamespaceAndPath(
-                            "totem", "alchemy_auto_record_brewing_materials"));
+                            "totem", "alchemy/auto_record_brewing_materials"));
 
     private AlchemyGameRules() {
     }

@@ -12,7 +12,7 @@ import java.util.List;
 
 /** Visual overlay retained only for the concrete Alchemy Cauldron recipe reference page. */
 public final class AlchemyManualPageOverlay {
-    private static final String CAULDRON_RECIPE_PAGE = "book.deadrecall.alchemy_manual.page.8";
+    private static final String CAULDRON_RECIPE_PAGE = "book.totem.alchemy_manual.page.8";
     private static final int MUTED = 0xFF765B3D;
 
     private AlchemyManualPageOverlay() {
@@ -20,7 +20,7 @@ public final class AlchemyManualPageOverlay {
 
     public static void register() {
         TotemManualPageOverlayRegistry.register(
-                Identifier.fromNamespaceAndPath("totem-alchemy", "manual_ingredients"),
+                Identifier.fromNamespaceAndPath("totem", "alchemy/manual_ingredients"),
                 AlchemyManualPageOverlay::render
         );
     }
@@ -38,7 +38,7 @@ public final class AlchemyManualPageOverlay {
                         new ItemStack(AlchemyItems.PIG_MANURE)),
                 new ItemStack(AlchemyItems.SALTPETER), y);
         centeredClipped(context, Component.translatable(
-                "book.deadrecall.alchemy_manual.diagram.saltpeter"), y + 21, MUTED, 140);
+                "book.totem.alchemy_manual.diagram.saltpeter"), y + 21, MUTED, 140);
 
         y += 40;
         recipe(context,
@@ -46,7 +46,7 @@ public final class AlchemyManualPageOverlay {
                         new ItemStack(Items.SUGAR)),
                 new ItemStack(AlchemyItems.HOT_COCOA), y);
         centeredClipped(context, Component.translatable(
-                "book.deadrecall.alchemy_manual.diagram.hot_cocoa"), y + 21, MUTED, 150);
+                "book.totem.alchemy_manual.diagram.hot_cocoa"), y + 21, MUTED, 150);
 
         y += 40;
         recipe(context,
@@ -54,7 +54,7 @@ public final class AlchemyManualPageOverlay {
                         new ItemStack(Items.GLOW_BERRIES), new ItemStack(Items.SWEET_BERRIES)),
                 new ItemStack(AlchemyItems.CHERRY_BREW), y);
         centeredClipped(context, Component.translatable(
-                "book.deadrecall.alchemy_manual.diagram.cherry_brew"), y + 21, MUTED, 150);
+                "book.totem.alchemy_manual.diagram.cherry_brew"), y + 21, MUTED, 150);
     }
 
     private static void recipe(TotemManualPageRenderContext context, List<ItemStack> ingredients,

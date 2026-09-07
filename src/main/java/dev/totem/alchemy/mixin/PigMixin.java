@@ -20,30 +20,30 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Pig.class)
 public abstract class PigMixin extends Animal {
     @Unique
-    private PigManureGoal deadrecall$manureGoal;
+    private PigManureGoal totem$manureGoal;
 
     protected PigMixin(EntityType<? extends Animal> entityType, Level level) {
         super(entityType, level);
     }
 
     @Inject(method = "registerGoals", at = @At("TAIL"))
-    private void deadrecall$addPigManureGoal(CallbackInfo ci) {
-        deadrecall$manureGoal = new PigManureGoal((Mob) (Object) this);
-        this.goalSelector.addGoal(5, deadrecall$manureGoal);
+    private void totem$addPigManureGoal(CallbackInfo ci) {
+        totem$manureGoal = new PigManureGoal((Mob) (Object) this);
+        this.goalSelector.addGoal(5, totem$manureGoal);
     }
 
     @Inject(method = "mobInteract", at = @At("HEAD"))
-    private void deadrecall$queueManureAfterFeeding(
+    private void totem$queueManureAfterFeeding(
             Player player,
             InteractionHand hand,
             CallbackInfoReturnable<InteractionResult> cir
     ) {
         ItemStack food = player.getItemInHand(hand);
         if (!level().isClientSide()
-                && deadrecall$manureGoal != null
+                && totem$manureGoal != null
                 && isFood(food)
                 && (canFallInLove() || canAgeUp())) {
-            deadrecall$manureGoal.queueAfterFeeding();
+            totem$manureGoal.queueAfterFeeding();
         }
     }
 }

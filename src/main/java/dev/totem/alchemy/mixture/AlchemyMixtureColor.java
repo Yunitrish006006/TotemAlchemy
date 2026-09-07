@@ -21,12 +21,14 @@ public final class AlchemyMixtureColor {
         }
 
         Identifier compoundRecipe = AlchemyCompoundBrewing.activeRecipeId(state);
-        if (compoundRecipe != null && "deadrecall".equals(compoundRecipe.getNamespace())) {
+        if (compoundRecipe != null
+                && "totem".equals(compoundRecipe.getNamespace())
+                && compoundRecipe.getPath().startsWith("alchemy/")) {
             return switch (compoundRecipe.getPath()) {
                 // Vanilla cocoa-bean / cherry-petal / pale mineral families, kept readable at normal fluid scale.
-                case "hot_cocoa" -> 0x6E3F24;
-                case "cherry_brew" -> 0xE58A9F;
-                case "saltpeter" -> 0xB8B39A;
+                case "alchemy/hot_cocoa" -> 0x6E3F24;
+                case "alchemy/cherry_brew" -> 0xE58A9F;
+                case "alchemy/saltpeter" -> 0xB8B39A;
                 default -> effectColor(state);
             };
         }

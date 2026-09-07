@@ -173,7 +173,7 @@ public final class AlchemyMixtureTiming {
         }
 
         public String translationKey() {
-            return "tooltip.deadrecall.alchemy.mixture.timing." + translationSuffix;
+            return "tooltip.totem.alchemy.mixture.timing." + translationSuffix;
         }
     }
 }

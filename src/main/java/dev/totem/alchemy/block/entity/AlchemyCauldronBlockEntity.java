@@ -10,6 +10,7 @@ import dev.totem.alchemy.mixture.AlchemyMixtureColor;
 import dev.totem.alchemy.mixture.AlchemyCompoundBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
+import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
@@ -570,7 +571,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
-        recipeId = readIdentifier(input.getStringOr("recipe_id", ""));
+        recipeId = LegacyAlchemyIds.canonicalize(readIdentifier(input.getStringOr("recipe_id", "")));
         addedIngredients.clear();
         cookedIngredients.clear();
         pendingDiscoveries.clear();
@@ -624,13 +625,13 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
                 continue;
             }
             try {
-                String reactionId = decodeToken(parts[0]);
+                String reactionId = LegacyAlchemyIds.canonicalizeEmbedded(decodeToken(parts[0]));
                 UUID researcherId = parts[1].isBlank() ? null : UUID.fromString(parts[1]);
                 List<String> potionIds = new ArrayList<>();
                 if (!parts[2].isBlank()) {
                     for (String encodedPotion : parts[2].split(",")) {
                         if (!encodedPotion.isBlank()) {
-                            potionIds.add(decodeToken(encodedPotion));
+                            potionIds.add(LegacyAlchemyIds.canonicalize(decodeToken(encodedPotion)));
                         }
                     }
                 }
@@ -656,12 +657,12 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     private void loadLegacyState(ValueInput input) {
         String legacyMode = input.getStringOr("recipe_mode", "NONE");
         if ("SALTPETER".equals(legacyMode)) {
-            recipeId = Identifier.fromNamespaceAndPath("deadrecall", "saltpeter");
+            recipeId = Identifier.fromNamespaceAndPath("totem", "alchemy/saltpeter");
             addLegacyIngredient(input, "ash", "wood_ash");
             addLegacyIngredient(input, "mushroom", "mushroom");
             addLegacyIngredient(input, "manure", "pig_manure");
         } else if ("HOT_COCOA".equals(legacyMode)) {
-            recipeId = Identifier.fromNamespaceAndPath("deadrecall", "hot_cocoa");
+            recipeId = Identifier.fromNamespaceAndPath("totem", "alchemy/hot_cocoa");
             boolean cocoaAdded = input.getBooleanOr("cocoa_added", false);
             boolean hotCocoaReady = input.getBooleanOr("hot_cocoa_ready", false);
             readyForExtraction = hotCocoaReady;

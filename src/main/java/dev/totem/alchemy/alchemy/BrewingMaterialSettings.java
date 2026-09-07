@@ -22,7 +22,7 @@ public final class BrewingMaterialSettings {
     public static final int DEFAULT_PROCESSING_TICKS = 20 * 20;
 
     private static final Gson GSON = new Gson();
-    private static final String DIRECTORY = "totem_alchemy/brewing_material_settings";
+    private static final String DIRECTORY = "alchemy/brewing_material_settings";
     private static volatile Map<String, Setting> settings = Map.of();
 
     private BrewingMaterialSettings() {
@@ -32,7 +32,7 @@ public final class BrewingMaterialSettings {
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
             @Override
             public Identifier getFabricId() {
-                return Identifier.fromNamespaceAndPath("totem-alchemy", "brewing_material_settings");
+                return Identifier.fromNamespaceAndPath("totem", "alchemy/brewing_material_settings");
             }
 
             @Override

@@ -42,11 +42,14 @@ Client 與 Server 都放入：
 | Java | 25+ |
 | 必要 Totem 模組 | `totem-core >=0.7.15 <0.8.0` |
 
-Alchemy 不依賴其他功能模組。使用相容的 DeadRecall 整合 JAR 時不要再
-安裝獨立 TotemAlchemy。
+Alchemy 不依賴其他功能模組。所有新的煉金遊戲內容都使用
+`totem:alchemy/*` canonical ID；不會註冊 `deadrecall:*` 作為可遊玩的
+物品、方塊、效果、配方或資源。
 
-獨立安裝只註冊 `totem:alchemy/*` canonical 物品；舊
-`deadrecall:*` 物品 ID 的解碼與轉換只由 DeadRecall 相容整合包提供。
+舊世界與玩家資料只經由明確的一向式遷移讀取：TotemCore 在 chunk、方塊實體、
+玩家、實體、藥水與效果的 registry codec 執行前，呼叫 Alchemy allow-list 的
+raw-NBT 改寫；Alchemy 也會在解碼自身的煉藥鍋、混合液與探索資料時改寫為
+canonical ID，下一次儲存只會寫出新 ID。
 
 ## 入門材料
 
@@ -217,11 +220,11 @@ _ S _
 煉藥鍋配方位於：
 
 ```text
-data/<namespace>/deadrecall/cauldron_recipes/*.json
+data/<namespace>/alchemy/cauldron_recipes/*.json
 ```
 
 內建範例在
-[`src/main/resources/data/deadrecall/deadrecall/cauldron_recipes/`](src/main/resources/data/deadrecall/deadrecall/cauldron_recipes/)。
+[`src/main/resources/data/totem/alchemy/cauldron_recipes/`](src/main/resources/data/totem/alchemy/cauldron_recipes/)。
 格式可定義起始鍋狀態、初始水位、營火需求、逐材料／全投入後烹煮、
 ticks、容器返還、完成音效與掉落／裝瓶結果。加入
 `"brewing_system": "mixture"` 可讓命名配方使用共用混合液反應、HUD 與
@@ -268,14 +271,14 @@ data/<namespace>/totem_alchemy/brewing_outcome_weights/*.json
 
 ## 舊世界相容
 
-新取得的八個煉金物品使用 `totem:alchemy/<物品名稱>` canonical ID，例如
-`totem:alchemy/stone_bowl` 與 `totem:alchemy/cherry_brew`。模組仍註冊全部
-舊版煉藥鍋 NBT（包括舊 `SALTPETER` 與 `HOT_COCOA` 狀態）仍由 Alchemy
-自己讀取，並在下一個伺服器 tick 轉成可續煮的混合液反應。沒有新資料的舊熱
-可可與櫻花釀在第一次倒入煉藥鍋時也會補上完成狀態與效果資料。
-`deadrecall:*` 物品 ID 則由 DeadRecall 整合包註冊；Core 遷移表讓配方與
-煉藥鍋接受舊堆疊並只產生 canonical 結果。升級前請先備份世界；不要同時
-安裝整合 JAR 與獨立功能 JAR。
+新取得的煉金物品、方塊、效果、藥水、配方、資料包與 advancement 都使用
+`totem:alchemy/<名稱>`，例如 `totem:alchemy/stone_bowl`、
+`totem:alchemy/cherry_brew` 與 `totem:alchemy/alchemy_cauldron`。
+
+舊版煉藥鍋 NBT（包括 `SALTPETER` 與 `HOT_COCOA` 狀態）、混合液中的
+舊效果／藥水／反應 ID，以及舊探索儲存檔都會在讀取時轉為 canonical state。
+下一次世界儲存只寫出新 ID。TotemCore 的相容解碼層會在 registry 解碼前改寫
+舊 ID；升級前仍應先備份世界。
 
 ## 開發與驗證
 
@@ -284,5 +287,6 @@ data/<namespace>/totem_alchemy/brewing_outcome_weights/*.json
 ```
 
 發佈候選版會使用 Java 25 與相容的 TotemCore 0.7.x JAR 執行單元測試、編譯、
-Dedicated Server GameTests 與 Client GameTest。舊物品遷移改由 DeadRecall 整合啟動測試驗證。
+Dedicated Server GameTests 與 Client GameTest。遷移測試確認 Alchemy 自有
+持久化資料會在解碼時改寫為 canonical ID。
 所有權與驗證契約見 [EXTRACTION.md](EXTRACTION.md)。

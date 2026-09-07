@@ -33,18 +33,50 @@ public final class AlchemyMixtureGameTest {
     public void strengthAndWeaknessNeutralizeAcrossFireflyFamily(GameTestHelper helper) {
         AlchemyMixtureState state = new AlchemyMixtureState(1);
         state.putEffect("minecraft:strength", 900.0D, 0);
-        state.putEffect("deadrecall:firefly_strength", 600.0D, 0);
+        state.putEffect("totem:alchemy/firefly_strength", 600.0D, 0);
         state.putEffect("minecraft:weakness", 750.0D, 0);
 
         double remaining = state.effects().entrySet().stream()
                 .filter(entry -> entry.getKey().equals("minecraft:strength")
-                        || entry.getKey().equals("deadrecall:firefly_strength"))
+                        || entry.getKey().equals("totem:alchemy/firefly_strength"))
                 .mapToDouble(entry -> entry.getValue().potencyTicks())
                 .sum();
         requireNear(helper, remaining, 750.0D,
                 "Weakness did not neutralize the combined strength-family quantity");
         require(helper, !state.effects().containsKey("minecraft:weakness"),
                 "Weakness remained despite a larger positive strength-family dose");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void legacyMixtureIdentifiersRewriteToCanonicalOnDecode(GameTestHelper helper) {
+        AlchemyMixtureState legacy = new AlchemyMixtureState(1);
+        legacy.setCanonicalPotionId("deadrecall:cherry_swiftness");
+        legacy.putEffect("deadrecall:firefly_strength", 600.0D, 0);
+        legacy.addReaction(new AlchemyMixtureState.Reaction(
+                "compound:deadrecall:hot_cocoa:milk",
+                "deadrecall:cocoa_powder",
+                20,
+                200,
+                1,
+                "deadrecall:saturation",
+                "deadrecall:cherry_swiftness",
+                Map.of("deadrecall:firefly_strength", new AlchemyMixtureState.EffectDose(20.0D, 0)),
+                Map.of("deadrecall:cherry_bloom", new AlchemyMixtureState.EffectDose(40.0D, 0))
+        ));
+
+        AlchemyMixtureState decoded = AlchemyMixtureState.decode(legacy.encode());
+        AlchemyMixtureState.Reaction reaction = decoded.reactions().iterator().next();
+        require(helper, "totem:alchemy/cherry_swiftness".equals(decoded.canonicalPotionId()),
+                "Legacy potion ID did not rewrite during mixture decode");
+        require(helper, decoded.effects().containsKey("totem:alchemy/firefly_strength"),
+                "Legacy effect ID did not rewrite during mixture decode");
+        require(helper, "compound:totem:alchemy/hot_cocoa:milk".equals(reaction.id())
+                        && "totem:alchemy/cocoa_powder".equals(reaction.ingredientId())
+                        && "totem:alchemy/saturation".equals(reaction.sourcePotionId())
+                        && "totem:alchemy/cherry_swiftness".equals(reaction.targetPotionId())
+                        && reaction.targetEffects().containsKey("totem:alchemy/cherry_bloom"),
+                "Legacy reaction metadata did not rewrite during mixture decode");
         helper.succeed();
     }
 

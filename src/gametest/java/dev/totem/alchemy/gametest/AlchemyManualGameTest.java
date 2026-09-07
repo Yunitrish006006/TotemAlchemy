@@ -73,7 +73,7 @@ public final class AlchemyManualGameTest {
                 return;
             }
             var advancement = player.level().getServer().getAdvancements().get(
-                    net.minecraft.resources.Identifier.fromNamespaceAndPath("deadrecall", "alchemy_manual"));
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath("totem", "alchemy_manual"));
             if (advancement == null || !player.getAdvancements().getOrStartProgress(advancement).isDone()) {
                 helper.fail("Obtaining the Alchemy guide did not award its module advancement");
                 return;
@@ -174,9 +174,9 @@ public final class AlchemyManualGameTest {
             );
             List<MultiOutcomeBrewing.Outcome> outcomes = List.of(
                     new MultiOutcomeBrewing.Outcome(
-                            Potions.SWIFTNESS, "message.deadrecall.alchemy.outcome.swiftness"),
+                            Potions.SWIFTNESS, "message.totem.alchemy.outcome.swiftness"),
                     new MultiOutcomeBrewing.Outcome(
-                            Potions.SLOWNESS, "message.deadrecall.alchemy.outcome.slowness")
+                            Potions.SLOWNESS, "message.totem.alchemy.outcome.slowness")
             );
             List<ItemStack> outputs = inputs.stream().map(input -> AlchemyMixtureBrewing.applyBrewingStandOutcomes(
                     ingredient,

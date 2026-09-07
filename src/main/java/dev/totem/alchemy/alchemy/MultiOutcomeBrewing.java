@@ -83,7 +83,7 @@ public final class MultiOutcomeBrewing {
     }
 
     private static Outcome outcome(Holder<Potion> potion, String key) {
-        return new Outcome(potion, "message.deadrecall.alchemy.outcome." + key);
+        return new Outcome(potion, "message.totem.alchemy.outcome." + key);
     }
 
     public static void beginBatch(RandomSource random, ItemStack ingredient, Iterable<ItemStack> inputs) {

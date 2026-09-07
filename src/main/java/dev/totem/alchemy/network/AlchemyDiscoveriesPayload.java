@@ -14,7 +14,7 @@ public record AlchemyDiscoveriesPayload(List<String> discoveries) implements Cus
     public static final int MAX_DISCOVERIES = 512;
     public static final int MAX_KEY_LENGTH = 192;
     public static final Type<AlchemyDiscoveriesPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("totem-alchemy", "brew_discoveries"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "alchemy/brew_discoveries"));
     public static final StreamCodec<FriendlyByteBuf, AlchemyDiscoveriesPayload> CODEC = StreamCodec.of(
             (buffer, payload) -> write(buffer, payload.discoveries()),
             AlchemyDiscoveriesPayload::read

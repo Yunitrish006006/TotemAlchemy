@@ -23,7 +23,7 @@ public final class AlchemyReactionResearchOverlay {
 
     public static void register() {
         TotemManualPageOverlayRegistry.register(
-                Identifier.fromNamespaceAndPath("totem-alchemy", "reaction_research"),
+                Identifier.fromNamespaceAndPath("totem", "alchemy/reaction_research"),
                 AlchemyReactionResearchOverlay::render
         );
     }

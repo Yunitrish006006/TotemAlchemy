@@ -19,8 +19,8 @@ import java.util.List;
 
 /** Verifies the external datapack recipe and the Alchemy-owned Stone Bowl return. */
 public final class FlintFromBowlRecipeGameTest {
-    private static final Identifier FLINT_RECIPE_ID = Identifier.fromNamespaceAndPath("deadrecall", "flint_from_bowl");
-    private static final Identifier COCOA_RECIPE_ID = Identifier.fromNamespaceAndPath("deadrecall", "cocoa_powder");
+    private static final Identifier FLINT_RECIPE_ID = Identifier.fromNamespaceAndPath("totem", "alchemy/flint_from_bowl");
+    private static final Identifier COCOA_RECIPE_ID = Identifier.fromNamespaceAndPath("totem", "alchemy/cocoa_powder");
 
     @GameTest(maxTicks = 20)
     public void flintRecipeLoadsAndReturnsTheStoneBowl(GameTestHelper helper) {

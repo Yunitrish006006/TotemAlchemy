@@ -1,7 +1,7 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "deadrecall:item/hot_cocoa",
+    "model": "totem:item/alchemy/hot_cocoa",
     "tints": [
       {
         "type": "minecraft:constant",

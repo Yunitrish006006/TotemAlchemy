@@ -12,9 +12,9 @@ import java.util.Set;
 public final class AlchemyBlockEntities {
     public static final BlockEntityType<AlchemyCauldronBlockEntity> ALCHEMY_CAULDRON = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE,
-            Identifier.fromNamespaceAndPath("totem", "alchemy_cauldron"),
+            Identifier.fromNamespaceAndPath("totem", "alchemy/alchemy_cauldron"),
             new BlockEntityType<>(AlchemyCauldronBlockEntity::new,
-                    Set.of(AlchemyBlocks.ALCHEMY_CAULDRON, AlchemyBlocks.LEGACY_ALCHEMY_CAULDRON))
+                    Set.of(AlchemyBlocks.ALCHEMY_CAULDRON))
     );
 
     private AlchemyBlockEntities() {

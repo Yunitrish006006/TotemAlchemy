@@ -23,7 +23,7 @@ import java.util.Map;
 /** Server data-pack overrides for the hidden true distribution of multi-outcome brewing. */
 public final class BrewingOutcomeWeights {
     private static final Gson GSON = new Gson();
-    private static final String DIRECTORY = "totem_alchemy/brewing_outcome_weights";
+    private static final String DIRECTORY = "alchemy/brewing_outcome_weights";
     private static volatile Map<String, Map<String, Double>> overrides = Map.of();
 
     private BrewingOutcomeWeights() {
@@ -33,7 +33,7 @@ public final class BrewingOutcomeWeights {
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
             @Override
             public Identifier getFabricId() {
-                return Identifier.fromNamespaceAndPath("totem-alchemy", "brewing_outcome_weights");
+                return Identifier.fromNamespaceAndPath("totem", "alchemy/brewing_outcome_weights");
             }
 
             @Override

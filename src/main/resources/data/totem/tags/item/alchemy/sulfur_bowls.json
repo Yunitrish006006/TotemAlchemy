@@ -1,10 +1,6 @@
 {
   "replace": false,
   "values": [
-    "totem:alchemy/sulfur_bowl",
-    {
-      "id": "deadrecall:sulfur_bowl",
-      "required": false
-    }
+    "totem:alchemy/sulfur_bowl"
   ]
 }

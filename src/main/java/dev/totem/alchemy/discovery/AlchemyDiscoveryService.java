@@ -121,7 +121,7 @@ public final class AlchemyDiscoveryService {
             if (data.record(subjectId, key) && livePlayer != null) {
                 ItemStack resultStack = PotionContents.createItemStack(net.minecraft.world.item.Items.POTION, result);
                 livePlayer.sendOverlayMessage(Component.translatable(
-                        "message.deadrecall.alchemy.discovery_recorded", resultStack.getHoverName()));
+                        "message.totem.alchemy.discovery_recorded", resultStack.getHoverName()));
             }
         }
         if (livePlayer != null) send(livePlayer);
@@ -196,7 +196,7 @@ public final class AlchemyDiscoveryService {
             changed |= firstRelation || firstResolution;
             if (firstRelation && livePlayer != null) {
                 livePlayer.sendOverlayMessage(Component.translatable(
-                        "message.deadrecall.alchemy.conflict_discovery_recorded"));
+                        "message.totem.alchemy.conflict_discovery_recorded"));
             }
         }
         return changed;
@@ -235,7 +235,7 @@ public final class AlchemyDiscoveryService {
         if (discoveryChanged) {
             ItemStack resultStack = PotionContents.createItemStack(net.minecraft.world.item.Items.POTION, result);
             player.sendOverlayMessage(Component.translatable(
-                    "message.deadrecall.alchemy.discovery_recorded", resultStack.getHoverName()));
+                    "message.totem.alchemy.discovery_recorded", resultStack.getHoverName()));
         }
         return discoveryChanged;
     }

@@ -1,6 +1,7 @@
 package dev.totem.alchemy.mixture;
 
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
+import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import net.minecraft.util.RandomSource;
 
 import java.nio.charset.StandardCharsets;
@@ -512,7 +513,7 @@ public final class AlchemyMixtureState {
             case "minecraft:slowness" -> "minecraft:speed";
             case "minecraft:instant_health" -> "minecraft:instant_damage";
             case "minecraft:instant_damage" -> "minecraft:instant_health";
-            case "minecraft:strength", "deadrecall:firefly_strength", "totem:alchemy/firefly_strength" -> "minecraft:weakness";
+            case "minecraft:strength", "totem:alchemy/firefly_strength" -> "minecraft:weakness";
             case "minecraft:weakness" -> "minecraft:strength";
             case "minecraft:regeneration" -> "minecraft:poison";
             case "minecraft:poison" -> "minecraft:regeneration";
@@ -689,7 +690,7 @@ public final class AlchemyMixtureState {
         if (weakness == null) {
             return;
         }
-        List<String> positives = List.of("minecraft:strength", "deadrecall:firefly_strength", "totem:alchemy/firefly_strength");
+        List<String> positives = List.of("minecraft:strength", "totem:alchemy/firefly_strength");
         double positiveTotal = positives.stream()
                 .map(effects::get)
                 .filter(java.util.Objects::nonNull)
@@ -794,10 +795,68 @@ public final class AlchemyMixtureState {
         if (!sawBaseMarker) {
             state.baseActivated = inferLegacyBase(state);
         }
+        rewriteLegacyIds(state);
         // Migrate mixtures created by builds that intentionally preserved opposing rolled outcomes.
-    state.provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
-    state.neutralizeOpposites();
+        state.provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
+        state.neutralizeOpposites();
         return state;
+    }
+
+    /** Rewrites Alchemy-owned identifiers while decoding an old stored mixture. */
+    private static void rewriteLegacyIds(AlchemyMixtureState state) {
+        state.canonicalPotionId = LegacyAlchemyIds.canonicalize(state.canonicalPotionId);
+        rewriteEffects(state.effects);
+
+        Map<String, Reaction> rewrittenReactions = new LinkedHashMap<>();
+        state.reactions.values().forEach(reaction -> {
+            Reaction rewritten = new Reaction(
+                    LegacyAlchemyIds.canonicalizeEmbedded(reaction.id()),
+                    LegacyAlchemyIds.canonicalize(reaction.ingredientId()),
+                    reaction.elapsedTicks(),
+                    reaction.requiredTicks(),
+                    reaction.volumeUnits(),
+                    blankToNull(LegacyAlchemyIds.canonicalize(reaction.sourcePotionId())),
+                    blankToNull(LegacyAlchemyIds.canonicalize(reaction.targetPotionId())),
+                    rewriteEffectsCopy(reaction.sourceEffects()),
+                    rewriteEffectsCopy(reaction.targetEffects())
+            );
+            rewrittenReactions.merge(rewritten.id(), rewritten, Reaction::mergeSameReaction);
+        });
+        state.reactions.clear();
+        state.reactions.putAll(rewrittenReactions);
+
+        Map<String, CompletedStage> rewrittenStages = new LinkedHashMap<>();
+        state.completedStages.values().forEach(stage -> {
+            CompletedStage rewritten = new CompletedStage(
+                    LegacyAlchemyIds.canonicalizeEmbedded(stage.id()),
+                    LegacyAlchemyIds.canonicalize(stage.ingredientId()),
+                    stage.overcookTicks(),
+                    stage.perfectWindowTicks()
+            );
+            rewrittenStages.merge(rewritten.id(), rewritten, CompletedStage::mergeSameStage);
+        });
+        state.completedStages.clear();
+        state.completedStages.putAll(rewrittenStages);
+
+        Set<String> rewrittenProvenance = new LinkedHashSet<>();
+        state.provenance.forEach(value -> rewrittenProvenance.add(LegacyAlchemyIds.canonicalizeEmbedded(value)));
+        state.provenance.clear();
+        state.provenance.addAll(rewrittenProvenance);
+    }
+
+    private static Map<String, EffectDose> rewriteEffectsCopy(Map<String, EffectDose> effects) {
+        Map<String, EffectDose> rewritten = new LinkedHashMap<>(effects);
+        rewriteEffects(rewritten);
+        return rewritten;
+    }
+
+    private static void rewriteEffects(Map<String, EffectDose> effects) {
+        Map<String, EffectDose> rewritten = new LinkedHashMap<>();
+        effects.forEach((id, dose) -> rewritten.merge(
+                LegacyAlchemyIds.canonicalize(id), dose, EffectDose::merge
+        ));
+        effects.clear();
+        effects.putAll(rewritten);
     }
 
     private static boolean inferLegacyBase(AlchemyMixtureState state) {

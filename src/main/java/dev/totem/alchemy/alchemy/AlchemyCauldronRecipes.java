@@ -1,6 +1,7 @@
 package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.TotemAlchemy;
+import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -27,9 +28,10 @@ import java.util.Map;
 
 public final class AlchemyCauldronRecipes {
     private static final Gson GSON = new Gson();
-    private static final String RECIPE_DIRECTORY = "deadrecall/cauldron_recipes";
+    /** New data packs define recipes at data/<namespace>/alchemy/cauldron_recipes/*.json. */
+    private static final String RECIPE_DIRECTORY = "alchemy/cauldron_recipes";
     private static final Identifier RELOAD_LISTENER_ID =
-            Identifier.fromNamespaceAndPath("deadrecall", "alchemy_cauldron_recipes");
+            Identifier.fromNamespaceAndPath("totem", "alchemy/cauldron_recipes");
 
     private static Map<Identifier, AlchemyCauldronRecipe> recipes = Map.of();
 
@@ -55,7 +57,7 @@ public final class AlchemyCauldronRecipes {
     }
 
     public static AlchemyCauldronRecipe get(Identifier id) {
-        return recipes.get(id);
+        return recipes.get(LegacyAlchemyIds.canonicalize(id));
     }
 
     public static SoundEvent getSound(Identifier id) {
@@ -90,7 +92,7 @@ public final class AlchemyCauldronRecipes {
     private static Identifier toRecipeId(Identifier resourceId) {
         String path = resourceId.getPath();
         String recipePath = path.substring(RECIPE_DIRECTORY.length() + 1, path.length() - ".json".length());
-        return Identifier.fromNamespaceAndPath(resourceId.getNamespace(), recipePath);
+        return Identifier.fromNamespaceAndPath(resourceId.getNamespace(), "alchemy/" + recipePath);
     }
 
     private static AlchemyCauldronRecipe parseRecipe(Identifier id, JsonObject json) {
@@ -112,17 +114,17 @@ public final class AlchemyCauldronRecipes {
         String successMessageKey = getString(
                 json,
                 "success_message",
-                "message.deadrecall.alchemy.brew_success"
+                "message.totem.alchemy.brew_success"
         );
         String failureMessageKey = getString(
                 json,
                 "failure_message",
-                "message.deadrecall.alchemy.brew_failure"
+                "message.totem.alchemy.brew_failure"
         );
         Identifier failureSound = json.has("failure_sound")
                 ? getOptionalIdentifier(json, "failure_sound")
                 : Identifier.parse("minecraft:block.fire.extinguish");
-        String defaultMessageKey = getString(json, "ingredient_message", "message.deadrecall.alchemy.ingredient_added");
+        String defaultMessageKey = getString(json, "ingredient_message", "message.totem.alchemy.ingredient_added");
         Identifier defaultAddSound = getOptionalIdentifier(json, "ingredient_sound");
         Identifier completeSound = getOptionalIdentifier(json, "complete_sound");
 

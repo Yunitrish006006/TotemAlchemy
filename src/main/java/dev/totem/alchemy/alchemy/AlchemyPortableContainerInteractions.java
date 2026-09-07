@@ -88,7 +88,7 @@ public final class AlchemyPortableContainerInteractions {
                 replaceHeld(player, hand, stack, filled);
                 level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 0.85F);
                 player.sendOverlayMessage(Component.translatable(
-                        "message.deadrecall.alchemy.large_flask_filled",
+                        "message.totem.alchemy.large_flask_filled",
                         extracted.volumeUnits()
                 ));
                 return true;
@@ -100,7 +100,7 @@ public final class AlchemyPortableContainerInteractions {
             ItemStack emptied = new ItemStack(AlchemyItems.LARGE_POTION_FLASK);
             replaceHeld(player, hand, stack, emptied);
             level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0F, 0.85F);
-            player.sendOverlayMessage(Component.translatable("message.deadrecall.alchemy.large_flask_poured"));
+            player.sendOverlayMessage(Component.translatable("message.totem.alchemy.large_flask_poured"));
             return true;
         }
 
@@ -121,7 +121,7 @@ public final class AlchemyPortableContainerInteractions {
             level.setBlock(pos, Blocks.CAULDRON.defaultBlockState(), 3);
             replaceHeld(player, hand, stack, filledBucket);
             level.playSound(null, pos, SoundEvents.BUCKET_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
-            player.sendOverlayMessage(Component.translatable("message.deadrecall.alchemy.mixture_bucket_filled"));
+            player.sendOverlayMessage(Component.translatable("message.totem.alchemy.mixture_bucket_filled"));
             return true;
         }
 
@@ -132,7 +132,7 @@ public final class AlchemyPortableContainerInteractions {
             }
             replaceHeld(player, hand, stack, new ItemStack(Items.BUCKET));
             level.playSound(null, pos, SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 1.0F, 1.0F);
-            player.sendOverlayMessage(Component.translatable("message.deadrecall.alchemy.mixture_bucket_poured"));
+            player.sendOverlayMessage(Component.translatable("message.totem.alchemy.mixture_bucket_poured"));
             return true;
         }
 

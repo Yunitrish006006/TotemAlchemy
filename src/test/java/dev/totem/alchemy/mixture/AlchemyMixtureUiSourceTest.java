@@ -34,8 +34,8 @@ class AlchemyMixtureUiSourceTest {
         assertFalse(hud.contains("stability()"));
         assertFalse(en.contains("%s%% reacted"));
         assertFalse(zh.contains("已反應 %s%%"));
-        assertTrue(en.contains("\"hud.deadrecall.alchemy.cauldron.more_effects\""));
-        assertTrue(zh.contains("\"hud.deadrecall.alchemy.cauldron.more_effects\""));
+        assertTrue(en.contains("\"hud.totem.alchemy.cauldron.more_effects\""));
+        assertTrue(zh.contains("\"hud.totem.alchemy.cauldron.more_effects\""));
     }
 
     @Test

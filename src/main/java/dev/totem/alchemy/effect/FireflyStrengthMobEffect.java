@@ -17,7 +17,7 @@ public final class FireflyStrengthMobEffect extends MobEffect {
         super(MobEffectCategory.BENEFICIAL, 0xD8F26A);
         addAttributeModifier(
                 Attributes.ATTACK_DAMAGE,
-                Identifier.fromNamespaceAndPath("deadrecall", "firefly_strength_attack_damage"),
+                Identifier.fromNamespaceAndPath("totem", "alchemy/firefly_strength_attack_damage"),
                 3.3D,
                 AttributeModifier.Operation.ADD_VALUE
         );

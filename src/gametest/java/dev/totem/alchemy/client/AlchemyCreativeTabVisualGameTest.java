@@ -54,7 +54,7 @@ public final class AlchemyCreativeTabVisualGameTest implements FabricClientGameT
             if (creativeScreen == null) {
                 throw new IllegalStateException("Creative inventory was not opened");
             }
-            Identifier tabId = Identifier.fromNamespaceAndPath("totem-alchemy", "main");
+            Identifier tabId = Identifier.fromNamespaceAndPath("totem", "alchemy/main");
             CreativeModeTab tab = BuiltInRegistries.CREATIVE_MODE_TAB.getValue(tabId);
             if (tab == null) {
                 throw new IllegalStateException("Missing module-owned Alchemy Creative tab");

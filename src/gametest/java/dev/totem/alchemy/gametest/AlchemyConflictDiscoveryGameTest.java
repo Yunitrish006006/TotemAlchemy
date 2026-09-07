@@ -54,9 +54,9 @@ public final class AlchemyConflictDiscoveryGameTest {
             ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
             List<MultiOutcomeBrewing.Outcome> outcomes = List.of(
                     new MultiOutcomeBrewing.Outcome(
-                            Potions.SWIFTNESS, "message.deadrecall.alchemy.outcome.swiftness"),
+                            Potions.SWIFTNESS, "message.totem.alchemy.outcome.swiftness"),
                     new MultiOutcomeBrewing.Outcome(
-                            Potions.SLOWNESS, "message.deadrecall.alchemy.outcome.slowness")
+                            Potions.SLOWNESS, "message.totem.alchemy.outcome.slowness")
             );
             ItemStack output = AlchemyMixtureBrewing.applyBrewingStandOutcomes(
                     ingredient,

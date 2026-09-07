@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "deadrecall:item/sulfur_bowl"
+    "model": "totem:item/alchemy/sulfur_bowl"
   }
 }

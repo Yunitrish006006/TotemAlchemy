@@ -265,7 +265,7 @@ public final class AlchemyHandler {
                 Component.translatable(match.ingredient().messageOrDefault(match.recipe().defaultMessageKey()))
                         .append(Component.literal(" "))
                         .append(Component.translatable(
-                                "message.deadrecall.alchemy.ingredient_success_chance",
+                                "message.totem.alchemy.ingredient_success_chance",
                                 chancePercent(match.ingredient().successChance())
                         ))
         );
@@ -297,7 +297,7 @@ public final class AlchemyHandler {
                 Component.translatable(match.ingredient().messageOrDefault(match.recipe().defaultMessageKey()))
                         .append(Component.literal(" "))
                         .append(Component.translatable(
-                                "message.deadrecall.alchemy.ingredient_success_chance",
+                                "message.totem.alchemy.ingredient_success_chance",
                                 chancePercent(match.ingredient().successChance())
                         ))
         );
@@ -323,7 +323,7 @@ public final class AlchemyHandler {
             level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0F, 1.0F);
             return new CauldronAction(
                     new ItemStack(Items.GLASS_BOTTLE),
-                    Component.translatable("message.deadrecall.alchemy.mixture_poured")
+                    Component.translatable("message.totem.alchemy.mixture_poured")
             );
         }
 
@@ -346,7 +346,7 @@ public final class AlchemyHandler {
                 level.setBlock(pos, level.getBlockState(pos).setValue(LayeredCauldronBlock.LEVEL, remaining), 3);
             }
             level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
-            return new CauldronAction(output, Component.translatable("message.deadrecall.alchemy.mixture_bottled"));
+            return new CauldronAction(output, Component.translatable("message.totem.alchemy.mixture_bottled"));
         }
 
         AlchemyMixtureState preview = previewMixture(level, pos);
@@ -360,7 +360,7 @@ public final class AlchemyHandler {
         level.playSound(null, pos, SoundEvents.BREWING_STAND_BREW, SoundSource.BLOCKS, 0.8F, 0.9F);
         return new CauldronAction(
                 ItemStack.EMPTY,
-                Component.translatable("message.deadrecall.alchemy.mixture_reaction_started")
+                Component.translatable("message.totem.alchemy.mixture_reaction_started")
         );
     }
 

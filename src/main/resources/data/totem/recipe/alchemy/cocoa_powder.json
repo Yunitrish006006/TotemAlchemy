@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:cocoa_beans",
+    "minecraft:sugar",
+    "totem:alchemy/stone_bowl"
+  ],
+  "result": {
+    "id": "totem:alchemy/cocoa_powder",
+    "count": 1
+  }
+
+}

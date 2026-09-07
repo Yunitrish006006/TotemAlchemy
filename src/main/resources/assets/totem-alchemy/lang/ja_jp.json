@@ -31,7 +31,7 @@
   "book.totem_alchemy.research.note.lingering": "残留化する",
   "book.totem_alchemy.research.note.cherry_variant": "俊敏を桜の俊敏へ変異させる",
   "book.totem_alchemy.research.note.firefly_variant": "力をホタルの力へ変異させる",
-  "message.deadrecall.alchemy.material_recorded": "新たな醸造材料: %s。錬金術ハンドブックに追加した",
+  "message.totem.alchemy.material_recorded": "新たな醸造材料: %s。錬金術ハンドブックに追加した",
   "book.totem_alchemy.material_slot.nether_wart": "",
   "book.totem_alchemy.material_slot.red_mushroom": "",
   "book.totem_alchemy.material_slot.brown_mushroom": "",
@@ -133,5 +133,5 @@
   "book.totem_alchemy.reaction.result.complete": "完全に中和された",
   "book.totem_alchemy.reaction.result.positive_remains": "左側の効果が残る",
   "book.totem_alchemy.reaction.result.negative_remains": "右側の効果が残る",
-  "message.deadrecall.alchemy.conflict_discovery_recorded": "手引書に新たな拮抗反応を記録した。"
+  "message.totem.alchemy.conflict_discovery_recorded": "手引書に新たな拮抗反応を記録した。"
 }

@@ -6,6 +6,7 @@ import dev.totem.alchemy.alchemy.AlchemyHandler;
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
+import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import dev.totem.core.api.v1.migration.LegacyItemMigrationRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -186,7 +187,9 @@ public final class AlchemyCompoundBrewing {
         }
         for (String marker : state.provenance()) {
             if (marker.startsWith(RECIPE_MARKER)) {
-                return Identifier.tryParse(marker.substring(RECIPE_MARKER.length()));
+                return LegacyAlchemyIds.canonicalize(
+                        Identifier.tryParse(marker.substring(RECIPE_MARKER.length()))
+                );
             }
         }
         return null;
@@ -244,7 +247,9 @@ public final class AlchemyCompoundBrewing {
             if (!marker.startsWith(RESULT_MARKER)) {
                 continue;
             }
-            Identifier id = Identifier.tryParse(marker.substring(RESULT_MARKER.length()));
+            Identifier id = LegacyAlchemyIds.canonicalize(
+                    Identifier.tryParse(marker.substring(RESULT_MARKER.length()))
+            );
             return id == null ? null : BuiltInRegistries.ITEM.getValue(id);
         }
         return null;

@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "layers=1": { "model": "totem:block/alchemy/pig_manure_layer_2" },
+    "layers=2": { "model": "totem:block/alchemy/pig_manure_layer_4" },
+    "layers=3": { "model": "totem:block/alchemy/pig_manure_layer_6" },
+    "layers=4": { "model": "totem:block/alchemy/pig_manure_layer_8" },
+    "layers=5": { "model": "totem:block/alchemy/pig_manure_layer_10" },
+    "layers=6": { "model": "totem:block/alchemy/pig_manure_layer_12" },
+    "layers=7": { "model": "totem:block/alchemy/pig_manure_layer_14" },
+    "layers=8": { "model": "totem:block/alchemy/pig_manure_layer_full" }
+  }
+}
