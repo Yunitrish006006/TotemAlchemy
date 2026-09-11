@@ -22,4 +22,4 @@ Commands used from TotemAlchemy with Java 25:
 
 Logs: `/tmp/alchemy-flask-enchantments-final.log`, `/tmp/alchemy-flask-production.log`.
 JAR SHA-256: `c482c912769079aaa0515c9f3d63707b57d9da19883c79080e4b21f02da22676`.
-Local candidate only; not committed, pushed or published.
+Validation preceded publication. Verified release details are recorded in `.github/staging/modrinth-published-0.1.50.json`.
