@@ -51,7 +51,8 @@ public final class AlchemyMixtureBottle {
         if (encoded.isBlank()) {
             return AlchemyMixtureState.empty();
         }
-        AlchemyMixtureState state = AlchemyMixtureState.decode(encoded);
+        AlchemyMixtureState state = AlchemyMixtureState.decode(encoded, stack.getItem() instanceof LargePotionFlaskItem
+                ? AlchemyMixtureState.MAX_FLASK_VOLUME_UNITS : AlchemyMixtureState.MAX_VOLUME_UNITS);
         // Migrate finished portable mixtures made before the heat-lock marker existed.
         state.lockHeatIfFinished();
         return state;

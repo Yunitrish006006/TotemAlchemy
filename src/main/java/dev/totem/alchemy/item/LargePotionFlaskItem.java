@@ -26,7 +26,7 @@ import net.minecraft.world.level.Level;
 
 import java.util.function.Consumer;
 
-/** Three-dose portable Alchemy mixture container. */
+/** Enchantable portable Alchemy mixture container, with three base doses. */
 public final class LargePotionFlaskItem extends Item {
     public LargePotionFlaskItem(Properties properties) {
         super(properties);
@@ -80,7 +80,7 @@ public final class LargePotionFlaskItem extends Item {
     @Override
     public int getBarWidth(ItemStack stack) {
         int units = AlchemyMixtureBottle.storedMixture(stack).volumeUnits();
-        return Math.round(13.0F * units / AlchemyMixtureState.MAX_VOLUME_UNITS);
+        return Math.min(13, Math.round(13.0F * units / FlaskEnchantments.capacity(stack)));
     }
 
     @Override
@@ -117,7 +117,8 @@ public final class LargePotionFlaskItem extends Item {
         level.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
                 SoundEvents.GENERIC_DRINK, entity.getSoundSource(), 0.5F, 1.0F);
 
-        if (!(entity instanceof Player player) || !player.getAbilities().instabuild) {
+        if (!FlaskEnchantments.isBottomless(stack)
+                && (!(entity instanceof Player player) || !player.getAbilities().instabuild)) {
             if (working.isEmpty()) {
                 AlchemyMixtureBottle.clearState(stack);
             } else {

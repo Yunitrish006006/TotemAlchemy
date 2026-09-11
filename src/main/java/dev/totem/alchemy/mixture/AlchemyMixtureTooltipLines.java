@@ -37,7 +37,8 @@ public final class AlchemyMixtureTooltipLines {
         lines.accept(Component.translatable(
                 "tooltip.totem.alchemy.mixture.volume",
                 state.volumeUnits(),
-                AlchemyMixtureState.MAX_VOLUME_UNITS
+                stack.getItem() instanceof dev.totem.alchemy.item.LargePotionFlaskItem
+                        ? dev.totem.alchemy.item.FlaskEnchantments.capacity(stack) : AlchemyMixtureState.MAX_VOLUME_UNITS
         ).withStyle(ChatFormatting.DARK_GRAY));
         lines.accept(Component.translatable(
                 "tooltip.totem.alchemy.mixture.stability",

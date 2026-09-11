@@ -18,7 +18,7 @@ Alchemy 章節會自動整合到同一本手冊。
 多人靠近同一座釀造台時，由開始釀造當下最近的非旁觀玩家取得紀錄。效果索引會反向整理同一筆研究。
 Alchemy 使用共用 Totem 手冊的第一章排序；手冊封面與目錄之後會優先顯示煉金內容。
 
-目前版本為 **0.1.48**，支援 TotemCore **0.7.x**。
+目前版本為 **0.1.50**，支援 TotemCore **0.7.x**。
 
 0.1.48 補齊英文、繁體中文與西班牙文資源；繁體中文維持為優先語系。
 
@@ -33,14 +33,14 @@ Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
 2. TotemCore `0.7.x`
-3. TotemAlchemy `0.1.48`
+3. TotemAlchemy `0.1.50`
 
 | 項目 | 需求 |
 | --- | --- |
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core >=0.7.15 <0.8.0` |
+| 必要 Totem 模組 | `totem-core >=0.7.18 <0.8.0` |
 
 Alchemy 不依賴其他功能模組。所有新的煉金遊戲內容都使用
 `totem:alchemy/*` canonical ID；不會註冊 `deadrecall:*` 作為可遊玩的
@@ -290,3 +290,13 @@ data/<namespace>/totem_alchemy/brewing_outcome_weights/*.json
 Dedicated Server GameTests 與 Client GameTest。遷移測試確認 Alchemy 自有
 持久化資料會在解碼時改寫為 canonical ID。
 所有權與驗證契約見 [EXTRACTION.md](EXTRACTION.md)。
+
+## 大號藥水瓶附魔
+
+大號藥水瓶可在原版附魔台附魔，也能透過附魔書與鐵砧加工；不需要安裝 TotemEnchanting。
+
+- **無限續杯 I**：飲用時仍獲得藥效，但瓶內藥水份數不減少。空瓶不會憑空產生藥水；倒入煉藥鍋仍消耗實際倒出的份數。
+- **容量擴充 I～V**：每級增加一份容量，基本三份，最多八份；可與無限續杯同時存在。
+
+空瓶直接對鍋使用即可裝填；已有藥水時，**蹲下對鍋使用**可補充相容的混合液，正常使用則倒出。
+每次只轉移容器剩餘空間能容納的份數；煉藥鍋仍最多三份。裝填與倒出會保留瓶上的附魔及名稱。

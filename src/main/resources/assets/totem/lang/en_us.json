@@ -155,5 +155,8 @@
   "advancements.totem.pig_manure_hit_entity.title": "Small Gift, Big Smell",
   "advancements.totem.pig_manure_hit_entity.description": "Hit a living entity with pig manure.",
   "advancements.totem.pig_manure_got_hit.title": "Who Fell in the Outhouse?",
-  "advancements.totem.pig_manure_got_hit.description": "Get hit by pig manure."
+  "advancements.totem.pig_manure_got_hit.description": "Get hit by pig manure.",
+  "enchantment.totem.alchemy.bottomless": "Bottomless",
+  "enchantment.totem.alchemy.capacity": "Capacity",
+  "book.totem.alchemy_manual.flask_enchantments": "Flask Enchantments\n\nBottomless: drinking gives effects without using a dose. Pouring still uses doses.\n\nCapacity I–V: +1 dose per level; 3 base, 8 maximum.\n\nSneak-use a cauldron to refill a partly full flask."
 }

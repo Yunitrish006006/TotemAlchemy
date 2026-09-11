@@ -34,12 +34,13 @@ public final class AlchemyManual {
     private AlchemyManual() {}
 
     private static List<String> buildPageKeys() {
-        List<String> pages = new ArrayList<>(AlchemyMaterialCatalog.pageCount() + 4);
+        List<String> pages = new ArrayList<>(AlchemyMaterialCatalog.pageCount() + 5);
         pages.add("book.totem_alchemy.guide.principles");
         pages.add("book.totem_alchemy.guide.stations");
         pages.addAll(AlchemyMaterialCatalog.pageKeys());
         pages.add(REACTION_RESEARCH_PAGE);
         pages.add("book.totem.alchemy_manual.page.8");
+        pages.add("book.totem.alchemy_manual.flask_enchantments");
         return List.copyOf(pages);
     }
 

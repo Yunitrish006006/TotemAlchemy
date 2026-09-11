@@ -78,27 +78,34 @@ public final class AlchemyPortableContainerInteractions {
     ) {
         if (stack.is(AlchemyItems.LARGE_POTION_FLASK)) {
             AlchemyMixtureState stored = AlchemyMixtureBottle.storedMixture(stack);
-            if (stored.isEmpty()) {
-                AlchemyMixtureState extracted = extractForFlask(level, pos);
-                if (extracted.isEmpty()) {
-                    return false;
-                }
-                ItemStack filled = new ItemStack(AlchemyItems.LARGE_POTION_FLASK);
-                AlchemyMixtureBottle.writeState(filled, extracted);
+            int capacity = dev.totem.alchemy.item.FlaskEnchantments.capacity(stack);
+            // Empty flasks fill normally; crouch to top up an already filled flask.
+            if (stored.isEmpty() || player.isShiftKeyDown()) {
+                int room = capacity - stored.volumeUnits();
+                if (room <= 0) return false;
+                AlchemyMixtureState preview = peekForFlask(level, pos, room);
+                if (preview.isEmpty() || (!stored.isEmpty() && !AlchemyCompoundBrewing.canMerge(stored, preview))) return false;
+                AlchemyMixtureState filledState = stored.isEmpty() ? preview.copy(capacity) : stored.copy(capacity);
+                if (!stored.isEmpty() && !filledState.mergeFrom(preview)) return false;
+                AlchemyMixtureState extracted = extractForFlask(level, pos, room);
+                if (extracted.volumeUnits() != preview.volumeUnits()) throw new IllegalStateException("Flask source changed during transfer");
+                ItemStack filled = stack.copyWithCount(1);
+                AlchemyMixtureBottle.writeState(filled, filledState);
                 replaceHeld(player, hand, stack, filled);
                 level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 0.85F);
                 player.sendOverlayMessage(Component.translatable(
-                        "message.totem.alchemy.large_flask_filled",
-                        extracted.volumeUnits()
-                ));
+                        "message.totem.alchemy.large_flask_filled", extracted.volumeUnits()));
                 return true;
             }
 
-            if (!pourMixture(level, pos, stored)) {
-                return false;
-            }
-            ItemStack emptied = new ItemStack(AlchemyItems.LARGE_POTION_FLASK);
-            replaceHeld(player, hand, stack, emptied);
+            int room = cauldronRoom(level, pos);
+            if (room <= 0) return false;
+            AlchemyMixtureState remaining = stored.copy();
+            AlchemyMixtureState poured = remaining.extractUnits(room);
+            if (!pourMixture(level, pos, poured)) return false;
+            ItemStack result = stack.copyWithCount(1);
+            AlchemyMixtureBottle.writeState(result, remaining);
+            replaceHeld(player, hand, stack, result);
             level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0F, 0.85F);
             player.sendOverlayMessage(Component.translatable("message.totem.alchemy.large_flask_poured"));
             return true;
@@ -139,15 +146,29 @@ public final class AlchemyPortableContainerInteractions {
         return false;
     }
 
-    private static AlchemyMixtureState extractForFlask(ServerLevel level, BlockPos pos) {
+    private static AlchemyMixtureState peekForFlask(ServerLevel level, BlockPos pos, int requested) {
+        BlockState state = level.getBlockState(pos);
+        if (state.is(Blocks.WATER_CAULDRON))
+            return AlchemyMixtureBrewing.waterState(Math.min(requested, state.getValue(LayeredCauldronBlock.LEVEL)));
+        if (state.is(AlchemyBlocks.ALCHEMY_CAULDRON)
+                && level.getBlockEntity(pos) instanceof AlchemyCauldronBlockEntity cauldron) {
+            AlchemyMixtureState preview = cauldron.mixtureSnapshot();
+            if (!AlchemyCompoundBrewing.isSolidProcess(preview)) return preview.extractUnits(requested);
+        }
+        return AlchemyMixtureState.empty();
+    }
+
+    private static AlchemyMixtureState extractForFlask(ServerLevel level, BlockPos pos, int requested) {
         BlockState state = level.getBlockState(pos);
         if (state.is(Blocks.WATER_CAULDRON)) {
             int volume = state.getValue(LayeredCauldronBlock.LEVEL);
             if (volume <= 0) {
                 return AlchemyMixtureState.empty();
             }
-            AlchemyMixtureState water = AlchemyMixtureBrewing.waterState(volume);
-            level.setBlock(pos, Blocks.CAULDRON.defaultBlockState(), 3);
+            int taken = Math.min(volume, requested);
+            AlchemyMixtureState water = AlchemyMixtureBrewing.waterState(taken);
+            level.setBlock(pos, taken == volume ? Blocks.CAULDRON.defaultBlockState()
+                    : state.setValue(LayeredCauldronBlock.LEVEL, volume - taken), 3);
             return water;
         }
         if (!state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
@@ -160,7 +181,7 @@ public final class AlchemyPortableContainerInteractions {
         if (AlchemyCompoundBrewing.isSolidProcess(cauldron.mixtureSnapshot())) {
             return AlchemyMixtureState.empty();
         }
-        AlchemyMixtureState extracted = cauldron.extractMixtureUnits(AlchemyMixtureState.MAX_VOLUME_UNITS);
+        AlchemyMixtureState extracted = cauldron.extractMixtureUnits(Math.min(requested, AlchemyMixtureState.MAX_VOLUME_UNITS));
         updateLevelAfterExtraction(level, pos, cauldron);
         return extracted;
     }
@@ -181,8 +202,18 @@ public final class AlchemyPortableContainerInteractions {
         }
     }
 
+    private static int cauldronRoom(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.is(Blocks.CAULDRON)) return 3;
+        if (state.is(Blocks.WATER_CAULDRON)) return 3 - state.getValue(LayeredCauldronBlock.LEVEL);
+        if (state.is(AlchemyBlocks.ALCHEMY_CAULDRON)
+                && level.getBlockEntity(pos) instanceof AlchemyCauldronBlockEntity cauldron)
+            return 3 - cauldron.mixtureSnapshot().volumeUnits();
+        return 0;
+    }
+
     private static boolean pourMixture(ServerLevel level, BlockPos pos, AlchemyMixtureState incoming) {
-        if (incoming == null || incoming.isEmpty()) {
+        if (incoming == null || incoming.isEmpty() || incoming.volumeUnits() > AlchemyMixtureState.MAX_VOLUME_UNITS) {
             return false;
         }
         BlockState state = level.getBlockState(pos);

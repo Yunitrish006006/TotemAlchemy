@@ -155,5 +155,8 @@
   "advancements.totem.pig_manure_hit_entity.title": "禮輕味重",
   "advancements.totem.pig_manure_hit_entity.description": "用豬糞砸中一名生物。",
   "advancements.totem.pig_manure_got_hit.title": "誰掉到茅坑裡啦",
-  "advancements.totem.pig_manure_got_hit.description": "被豬糞砸中。"
+  "advancements.totem.pig_manure_got_hit.description": "被豬糞砸中。",
+  "enchantment.totem.alchemy.bottomless": "無限續杯",
+  "enchantment.totem.alchemy.capacity": "容量擴充",
+  "book.totem.alchemy_manual.flask_enchantments": "藥水瓶附魔\n\n無限續杯：飲用後藥效照常生效，但不扣瓶內份數。倒入煉藥鍋仍會扣除倒出的份數。\n\n容量擴充 I～V：每級增加一份容量，從三份擴充至最多八份。\n\n蹲下對鍋使用可補滿未空的瓶子。"
 }

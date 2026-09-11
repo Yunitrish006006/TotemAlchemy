@@ -50,7 +50,7 @@ public final class AlchemyItems {
             props -> new Item(props.stacksTo(1).craftRemainder(STONE_BOWL)));
 
     public static final Item LARGE_POTION_FLASK = canonical("large_potion_flask",
-            props -> new LargePotionFlaskItem(props.stacksTo(1)));
+            props -> new LargePotionFlaskItem(props.stacksTo(1).enchantable(10)));
 
     private AlchemyItems() {
     }

@@ -39,7 +39,7 @@ public final class AlchemyManualGameTest {
                 helper.fail("Alchemy manual source did not create a canonical Totem manual");
                 return;
             }
-            int expectedPageCount = AlchemyMaterialCatalog.pageCount() + 4;
+            int expectedPageCount = AlchemyMaterialCatalog.pageCount() + 5;
             if (AlchemyManual.pageKeys().size() != expectedPageCount) {
                 helper.fail("Alchemy manual page count did not follow the material catalog: expected "
                         + expectedPageCount + ", got " + AlchemyManual.pageKeys().size());
@@ -73,7 +73,7 @@ public final class AlchemyManualGameTest {
                 return;
             }
             var advancement = player.level().getServer().getAdvancements().get(
-                    net.minecraft.resources.Identifier.fromNamespaceAndPath("totem", "alchemy_manual"));
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath("totem", "alchemy/alchemy_manual"));
             if (advancement == null || !player.getAdvancements().getOrStartProgress(advancement).isDone()) {
                 helper.fail("Obtaining the Alchemy guide did not award its module advancement");
                 return;

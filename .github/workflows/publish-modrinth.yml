@@ -1,11 +1,6 @@
 name: Publish Modrinth
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - gradle.properties
-      - .github/workflows/publish-modrinth.yml
   workflow_dispatch:
     inputs:
       dry_run:
@@ -16,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: modrinth-${{ github.workflow }}-${{ github.ref }}
@@ -23,12 +19,13 @@ concurrency:
 
 env:
   MODULE_ID: totem-alchemy
+  # Stable Core 0.7.18 API.
   CORE_REF: f87cd10fe8aefce77925b9e75dad237f17f38966
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 75
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -51,7 +48,7 @@ jobs:
             echo "dry_run=${REQUESTED_DRY_RUN}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed="$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" 2>/dev/null || true)"
+          changed="$(git diff --name-only "${BEFORE_SHA}" "${GITHUB_SHA}" 2>/dev/null || true)"
           previous="$(git show "${BEFORE_SHA}:gradle.properties" 2>/dev/null | sed -n 's/^mod_version=//p' || true)"
           if grep -Fxq '.github/workflows/publish-modrinth.yml' <<<"$changed" || [[ -z "$previous" || "$previous" != "$current" ]]; then
             echo 'should_publish=true' >> "$GITHUB_OUTPUT"
@@ -86,20 +83,40 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x gradlew .lockstep/TotemCore/gradlew
+          chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
-          core="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core" = '0.7.18'
-          core_jar="$GITHUB_WORKSPACE/.lockstep/TotemCore/build/libs/totem-core-${core}.jar"
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          test "$core_version" = '0.7.18'
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           test -f "$core_jar"
-          ./gradlew -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
+          ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
           version="$(sed -n 's/^mod_version=//p' gradle.properties)"
           archive="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
           artifact="build/libs/${archive}-${version}.jar"
           if [[ ! -f "$artifact" ]]; then
-            ./gradlew -PtotemCoreJar="$core_jar" remapJar --no-daemon --stacktrace
+            ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" remapJar --no-daemon --stacktrace
           fi
           test -f "$artifact"
+
+      - name: Require successful Build for this commit
+        if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..120}; do
+            runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/build.yml/runs?head_sha=${GITHUB_SHA}&event=push&per_page=10")"
+            latest="$(jq -c '.workflow_runs | sort_by(.run_number) | last // null' <<<"$runs")"
+            if [[ "$(jq -r '.status // empty' <<<"$latest")" == completed ]]; then
+              test "$(jq -r '.conclusion' <<<"$latest")" = success || { echo 'Build failed; refusing publication.' >&2; exit 1; }
+              echo "Verified Build for ${GITHUB_SHA}."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo 'Timed out waiting for Build; refusing publication.' >&2
+          exit 1
 
       - name: Validate or publish to Modrinth
         id: modrinth
@@ -108,40 +125,62 @@ jobs:
         env:
           DRY_RUN: ${{ steps.release.outputs.dry_run }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
         run: |
           set -euo pipefail
-          test -n "$MODRINTH_TOKEN" || { echo 'MODRINTH_TOKEN is missing or empty.' >&2; exit 1; }
           version="$(sed -n 's/^mod_version=//p' gradle.properties)"
           archive="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
           minecraft="$(sed -n 's/^minecraft_version=//p' gradle.properties)"
           artifact="build/libs/${archive}-${version}.jar"
+          test -n "$MODRINTH_TOKEN"
           test -f "$artifact"
-
           unzip -p "$artifact" fabric.mod.json >/tmp/fabric.mod.json
-          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.18 <0.8.0' \
-            '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' \
-            /tmp/fabric.mod.json >/dev/null
+          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.18 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
 
           api='https://api.modrinth.com/v2'
-          ua="Yunitrish006006/${MODULE_ID}-publisher/3.0"
-          args=(--fail --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H "User-Agent: ${ua}")
+          ua="Yunitrish006006/${MODULE_ID}-publisher/2.0"
+          args=(--silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H "User-Agent: ${ua}")
+          modrinth_request() {
+            local output="$1"
+            shift
+            local status
+            status="$(curl "${args[@]}" --output "$output" --write-out '%{http_code}' "$@")"
+            if [[ ! "$status" =~ ^2 ]]; then
+              echo "Modrinth API request failed with HTTP ${status}." >&2
+              jq -r 'if type == "object" then "\(.error // "unknown_error"): \(.description // .message // "No description returned")" else "No structured error returned" end' "$output" >&2 || true
+              return 1
+            fi
+          }
 
-          curl "${args[@]}" "$api/user" >/tmp/user.json
-          user_id="$(jq -er '.id' /tmp/user.json)"
-          curl "${args[@]}" "$api/user/${user_id}/projects" >/tmp/projects.json
-          project_count="$(jq '[.[] | select((((.title // "") | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy") or (((.slug // "") | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy"))] | length' /tmp/projects.json)"
-          test "$project_count" = '1' || { echo "Expected exactly one TotemAlchemy Modrinth project; found ${project_count}." >&2; exit 1; }
-          project="$(jq -er '.[] | select((((.title // "") | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy") or (((.slug // "") | ascii_downcase | gsub("[^a-z0-9]"; "")) == "totemalchemy")) | .id' /tmp/projects.json)"
-
+          project_ref="$(printf '%s' "$MODRINTH_PROJECT_ID" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          project_ref="${project_ref#https://modrinth.com/project/}"
+          project_ref="${project_ref#https://modrinth.com/mod/}"
+          project_ref="${project_ref%/}"
+          if ! modrinth_request /tmp/project.json "$api/project/${project_ref}"; then
+            previous_marker="$(find .github/staging -maxdepth 1 -name 'modrinth-published-*.json' -print | sort -V | tail -1)"
+            test -n "$previous_marker"
+            previous_version_id="$(jq -er '.modrinth_version_id' "$previous_marker")"
+            echo "Configured project reference failed; resolving it from ${previous_marker}." >&2
+            modrinth_request /tmp/previous-version.json "$api/version/${previous_version_id}"
+            project_ref="$(jq -er '.project_id' /tmp/previous-version.json)"
+            modrinth_request /tmp/project.json "$api/project/${project_ref}"
+          fi
+          project="$(jq -er '.id' /tmp/project.json)"
+          jq '{id,slug,status}' /tmp/project.json | tee /tmp/project-summary.json
+          curl --fail-with-body "${args[@]}" "$api/project/${project}/version?include_changelog=false" >/tmp/versions.json
+          count="$(jq --arg v "$version" '[.[] | select(.version_number == $v)] | length' /tmp/versions.json)"
           sha="$(sha512sum "$artifact" | awk '{print $1}')"
+          test "$sha" = "$(jq -er .sha512 ".github/staging/release-validation-${version}.json")"
           if [[ "$DRY_RUN" == true ]]; then
-            echo "Dry run passed for ${MODULE_ID} ${version}."
+            test "$count" = '0' || { echo "Version ${version} already exists; choose an unused release version." >&2; exit 1; }
+            echo "Validated unused version ${version}; dependencies: Fabric API and external totem-core-0.7.18.jar."
             echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "project_id=$project" >> "$GITHUB_OUTPUT"
             echo "sha512=$sha" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          curl "${args[@]}" "$api/project/${project}/version?include_changelog=false" >/tmp/versions.json
+          curl --fail-with-body "${args[@]}" "$api/project/${project}/version?include_changelog=false" >/tmp/versions.json
           count="$(jq --arg v "$version" '[.[] | select(.version_number == $v)] | length' /tmp/versions.json)"
           if [[ "$count" != 0 ]]; then
             test "$count" = '1'
@@ -150,33 +189,52 @@ jobs:
             test "$remote_sha" = "$sha" || { echo "Version ${version} exists with a different SHA-512." >&2; exit 1; }
             echo "Modrinth already has byte-identical ${MODULE_ID} ${version}; verifying it."
           else
-            changelog="$(git log -1 --format=%B)"
-            data="$(jq -nc \
-              --arg name "TotemAlchemy ${version}" \
-              --arg version "$version" \
-              --arg changelog "$changelog" \
-              --arg project "$project" \
-              --arg minecraft "$minecraft" \
-              '{name:$name,version_number:$version,changelog:$changelog,dependencies:[],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
-            curl "${args[@]}" -X POST "$api/version" \
-              -F "data=${data};type=application/json" \
-              -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" \
-              >/tmp/version.json
+            changelog_file=".github/staging/modrinth-changelog-${version}.md"
+            if [[ -f "$changelog_file" ]]; then changelog="$(cat "$changelog_file")"; else changelog="$(git log -1 --format=%B)"; fi
+            data="$(jq -nc --arg name "${MODULE_ID} ${version}" --arg version "$version" --arg changelog "$changelog" --arg project "$project" --arg minecraft "$minecraft" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[{project_id:"P7dR8mSH",dependency_type:"required"},{file_name:"totem-core-0.7.18.jar",dependency_type:"required"}],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
+            printf '%s\n' "$data" >/tmp/version-create.json
+            curl --fail-with-body "${args[@]}" -X POST "$api/version" -F 'data=</tmp/version-create.json;type=application/json' -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" >/tmp/version.json
             version_id="$(jq -er '.id' /tmp/version.json)"
           fi
-
-          curl "${args[@]}" "$api/version/${version_id}" >/tmp/remote.json
-          jq -e \
-            --arg project "$project" \
-            --arg version "$version" \
-            --arg minecraft "$minecraft" \
-            --arg filename "$(basename "$artifact")" \
-            --arg sha "$sha" \
-            '.project_id == $project and .version_number == $version and .game_versions == [$minecraft] and .loaders == ["fabric"] and (([.files[] | select(.primary == true)][0] // .files[0]).filename == $filename) and (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512 == $sha)' \
-            /tmp/remote.json >/dev/null
+          curl --fail-with-body "${args[@]}" "$api/version/${version_id}" >/tmp/remote.json
+          jq -e --arg project "$project" --arg version "$version" --arg minecraft "$minecraft" --arg filename "$(basename "$artifact")" --arg sha "$sha" '.project_id == $project and .version_number == $version and .game_versions == [$minecraft] and .loaders == ["fabric"] and (([.files[] | select(.primary == true)][0] // .files[0]).filename == $filename) and (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512 == $sha)' /tmp/remote.json >/dev/null
+          jq -e --arg fabric 'P7dR8mSH' --arg core_file 'totem-core-0.7.18.jar' -f .github/scripts/verify-modrinth-remote-dependencies.jq /tmp/remote.json >/dev/null
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "project_id=$project" >> "$GITHUB_OUTPUT"
           echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
           echo "sha512=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Retain release artifact and non-sensitive validation metadata
+        if: steps.release.outputs.should_publish == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alchemy-release-${{ github.sha }}
+          path: |
+            build/libs/totem-alchemy-*.jar
+            /tmp/project-summary.json
+            /tmp/remote.json
+          if-no-files-found: error
+
+      - name: Submit project for public review
+        if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
+        shell: bash
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ steps.modrinth.outputs.project_id }}
+        run: |
+          set -euo pipefail
+          api='https://api.modrinth.com/v2'
+          args=(--fail-with-body --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H 'User-Agent: Yunitrish006006/totem-alchemy-publisher/2.0')
+          curl "${args[@]}" "$api/project/${MODRINTH_PROJECT_ID}" >/tmp/project-before-review.json
+          status="$(jq -er '.status' /tmp/project-before-review.json)"
+          if [[ "$status" != 'approved' && "$status" != 'processing' ]]; then
+            curl "${args[@]}" -X PATCH -H 'Content-Type: application/json' \
+              --data '{"requested_status":"approved"}' \
+              "$api/project/${MODRINTH_PROJECT_ID}" >/dev/null
+          fi
+          curl "${args[@]}" "$api/project/${MODRINTH_PROJECT_ID}" >/tmp/project-after-review.json
+          jq -e '.status == "approved" or .status == "processing" or .requested_status == "approved"' \
+            /tmp/project-after-review.json >/dev/null
 
       - name: Record verified publication
         if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
@@ -194,8 +252,4 @@ jobs:
           api="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/${marker}"
           existing="$(curl --silent --show-error -H "Authorization: Bearer ${GH_TOKEN}" -H 'X-GitHub-Api-Version: 2022-11-28' "$api" | jq -r '.sha // empty')"
           payload="$(jq -n --arg message "release: record Modrinth ${MOD_VERSION}" --arg content "$encoded" --arg branch "$GITHUB_REF_NAME" --arg sha "$existing" 'if $sha == "" then {message:$message,content:$content,branch:$branch} else {message:$message,content:$content,branch:$branch,sha:$sha} end')"
-          curl --fail --silent --show-error -X PUT \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "$api" -d "$payload" >/dev/null
+          curl --fail --silent --show-error -X PUT -H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "$api" -d "$payload" >/dev/null

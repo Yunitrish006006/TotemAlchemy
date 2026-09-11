@@ -82,21 +82,21 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean initializeMixture(AlchemyMixtureState initial) {
-        if (initial == null || initial.isEmpty() || recipeId != null || readyForExtraction || hasMixture()) {
+        if (initial == null || initial.isEmpty() || initial.volumeUnits() > AlchemyMixtureState.MAX_VOLUME_UNITS || recipeId != null || readyForExtraction || hasMixture()) {
             return false;
         }
-        mixture = initial.copy();
+        mixture = initial.copy(AlchemyMixtureState.MAX_VOLUME_UNITS);
         pendingDiscoveries.clear();
         setChanged();
         return true;
     }
 
     public boolean mergeMixture(AlchemyMixtureState incoming) {
-        if (incoming == null || incoming.isEmpty() || recipeId != null || readyForExtraction) {
+        if (incoming == null || incoming.isEmpty() || incoming.volumeUnits() > AlchemyMixtureState.MAX_VOLUME_UNITS || recipeId != null || readyForExtraction) {
             return false;
         }
         if (!hasMixture()) {
-            mixture = incoming.copy();
+            mixture = incoming.copy(AlchemyMixtureState.MAX_VOLUME_UNITS);
             setChanged();
             return true;
         }

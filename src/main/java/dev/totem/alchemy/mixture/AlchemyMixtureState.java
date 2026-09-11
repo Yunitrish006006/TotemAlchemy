@@ -24,6 +24,8 @@ import java.util.Set;
  */
 public final class AlchemyMixtureState {
     public static final int MAX_VOLUME_UNITS = 3;
+    public static final int MAX_FLASK_VOLUME_UNITS = 8;
+    private final int capacity;
     public static final int DEFAULT_REACTION_TICKS = 20 * 20;
     public static final int MIN_PERFECT_WINDOW_TICKS = 20 * 5;
     public static final int MAX_PERFECT_WINDOW_TICKS = 20 * 15;
@@ -47,7 +49,12 @@ public final class AlchemyMixtureState {
     private final Set<String> provenance = new LinkedHashSet<>();
 
     public AlchemyMixtureState(int volumeUnits) {
-        this.volumeUnits = clampVolume(volumeUnits);
+        this(volumeUnits, MAX_VOLUME_UNITS);
+    }
+
+    public AlchemyMixtureState(int volumeUnits, int capacity) {
+        this.capacity = Math.max(MAX_VOLUME_UNITS, Math.min(MAX_FLASK_VOLUME_UNITS, capacity));
+        this.volumeUnits = Math.max(0, Math.min(this.capacity, volumeUnits));
         this.stability = STABILITY_MAX;
     }
 
@@ -56,7 +63,13 @@ public final class AlchemyMixtureState {
     }
 
     public AlchemyMixtureState copy() {
-        AlchemyMixtureState copy = new AlchemyMixtureState(volumeUnits);
+        return copy(capacity);
+    }
+
+    public AlchemyMixtureState copy(int capacity) {
+        int bounded = Math.max(MAX_VOLUME_UNITS, Math.min(MAX_FLASK_VOLUME_UNITS, capacity));
+        if (volumeUnits > bounded) throw new IllegalArgumentException("Mixture exceeds destination capacity");
+        AlchemyMixtureState copy = new AlchemyMixtureState(volumeUnits, bounded);
         copy.stability = stability;
         copy.overcookTicks = overcookTicks;
         copy.perfectWindowTicks = perfectWindowTicks;
@@ -528,7 +541,7 @@ public final class AlchemyMixtureState {
 
     /** Merge another liquid into this state. Volume and all captured effect quantities are conserved. */
     public boolean mergeFrom(AlchemyMixtureState other) {
-        if (other == null || other.isEmpty() || volumeUnits + other.volumeUnits > MAX_VOLUME_UNITS) {
+        if (other == null || other.isEmpty() || volumeUnits + other.volumeUnits > capacity) {
             return false;
         }
         boolean activeHeat = canAdvanceUnderHeat() || other.canAdvanceUnderHeat();
@@ -626,7 +639,7 @@ public final class AlchemyMixtureState {
     }
 
     private AlchemyMixtureState scaledCopy(double factor, int newVolume) {
-        AlchemyMixtureState result = new AlchemyMixtureState(newVolume);
+        AlchemyMixtureState result = new AlchemyMixtureState(newVolume, Math.max(MAX_VOLUME_UNITS, newVolume));
         result.stability = stability;
         result.overcookTicks = overcookTicks;
         result.perfectWindowTicks = perfectWindowTicks;
@@ -754,10 +767,14 @@ public final class AlchemyMixtureState {
     }
 
     public static AlchemyMixtureState decode(String encoded) {
+        return decode(encoded, MAX_VOLUME_UNITS);
+    }
+
+    public static AlchemyMixtureState decode(String encoded, int capacity) {
         if (encoded == null || encoded.isBlank()) {
             return empty();
         }
-        AlchemyMixtureState state = empty();
+        AlchemyMixtureState state = new AlchemyMixtureState(0, capacity);
         boolean sawBaseMarker = false;
         for (String line : encoded.split("\\R")) {
             if (line.isBlank()) {
@@ -766,7 +783,7 @@ public final class AlchemyMixtureState {
             String[] part = line.split("\\|", -1);
             try {
                 switch (part[0]) {
-                    case "V" -> state.volumeUnits = clampVolume(Integer.parseInt(part[1]));
+                    case "V" -> state.volumeUnits = Math.max(0, Math.min(state.capacity, Integer.parseInt(part[1])));
                     case "S" -> state.stability = Math.max(0, Math.min(STABILITY_MAX, Integer.parseInt(part[1])));
                     case "B" -> {
                         state.baseActivated = Integer.parseInt(part[1]) != 0;
@@ -1010,7 +1027,7 @@ public final class AlchemyMixtureState {
             ingredientId = nullToBlank(ingredientId);
             elapsedTicks = Math.max(0, elapsedTicks);
             requiredTicks = Math.max(1, requiredTicks);
-            volumeUnits = Math.max(1, Math.min(MAX_VOLUME_UNITS, volumeUnits));
+            volumeUnits = Math.max(1, Math.min(MAX_FLASK_VOLUME_UNITS, volumeUnits));
             sourceEffects = Map.copyOf(sourceEffects == null ? Map.of() : sourceEffects);
             targetEffects = Map.copyOf(targetEffects == null ? Map.of() : targetEffects);
         }
@@ -1049,7 +1066,7 @@ public final class AlchemyMixtureState {
             String sourcePotion = java.util.Objects.equals(sourcePotionId, other.sourcePotionId) ? sourcePotionId : null;
             String targetPotion = java.util.Objects.equals(targetPotionId, other.targetPotionId) ? targetPotionId : null;
             return new Reaction(id, ingredientId, elapsed, Math.max(requiredTicks, other.requiredTicks),
-                    Math.min(MAX_VOLUME_UNITS, volumeUnits + other.volumeUnits), sourcePotion, targetPotion, source, target);
+                    Math.min(MAX_FLASK_VOLUME_UNITS, volumeUnits + other.volumeUnits), sourcePotion, targetPotion, source, target);
         }
 
         private static Reaction mergeSameReaction(Reaction left, Reaction right) {
