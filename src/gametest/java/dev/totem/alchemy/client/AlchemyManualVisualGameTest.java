@@ -46,7 +46,7 @@ public final class AlchemyManualVisualGameTest implements FabricClientGameTest {
         });
         context.waitFor(client -> reload.get() != null && reload.get().isDone());
         context.runOnClient(client -> {
-            if (!I18n.get("book.totem.alchemy_manual.title").equals("Alchemy 煉金手冊")) {
+            if (!I18n.get("book.totem.alchemy_manual.title").equals("圖靈騰煉金手冊")) {
                 throw new AssertionError("Traditional Chinese Alchemy manual resources were not loaded");
             }
             if (!I18n.get("book.totem_alchemy.material_slot.red_mushroom").isEmpty()) {

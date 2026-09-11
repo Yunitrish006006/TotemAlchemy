@@ -26,7 +26,7 @@ public final class AlchemyItemGroups {
         if (BuiltInRegistries.CREATIVE_MODE_TAB.getOptional(TAB_KEY).isEmpty()) {
             Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, TAB_KEY,
                     FabricCreativeModeTab.builder()
-                            .title(Component.translatable("itemGroup.totem_alchemy.main"))
+                            .title(Component.translatable("itemGroup.totem.alchemy.main"))
                             .icon(() -> new ItemStack(AlchemyItems.CHERRY_BREW))
                             .build());
         }

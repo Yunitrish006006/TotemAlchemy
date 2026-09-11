@@ -23,12 +23,30 @@ public final class AlchemyCreativeTabVisualGameTest implements FabricClientGameT
             singleplayer.getClientLevel().waitForChunksRender();
             singleplayer.getServer().runCommand("gamemode creative @a");
             context.waitFor(AlchemyCreativeTabVisualGameTest::hasCreativeAbilities);
-            context.runOnClient(AlchemyCreativeTabVisualGameTest::openCreativeScreen);
-            context.waitTicks(20);
-            context.runOnClient(AlchemyCreativeTabVisualGameTest::selectAlchemyCreativeTab);
-            context.waitTicks(2);
-            context.takeScreenshot("totem-alchemy-creative-showcase");
-            context.runOnClient(AlchemyCreativeTabVisualGameTest::closeScreen);
+            for (String locale : List.of("en_us", "zh_tw")) {
+                java.util.concurrent.atomic.AtomicReference<java.util.concurrent.CompletableFuture<Void>> reload =
+                        new java.util.concurrent.atomic.AtomicReference<>();
+                context.runOnClient(client -> {
+                    client.options.languageCode = locale;
+                    client.getLanguageManager().setSelected(locale);
+                    reload.set(client.reloadResourcePacks());
+                });
+                context.waitFor(client -> reload.get() != null && reload.get().isDone());
+                context.runOnClient(AlchemyCreativeTabVisualGameTest::openCreativeScreen);
+                context.waitTicks(20);
+                context.runOnClient(AlchemyCreativeTabVisualGameTest::selectAlchemyCreativeTab);
+                context.waitTicks(2);
+                context.runOnClient(client -> {
+                    var tab = BuiltInRegistries.CREATIVE_MODE_TAB.getValue(Identifier.parse("totem:alchemy/main"));
+                    String expected = locale.equals("zh_tw") ? "圖靈騰煉金" : "Totem Alchemy";
+                    if (!tab.getDisplayName().getString().equals(expected)) {
+                        throw new AssertionError("Untranslated Alchemy tab: " + tab.getDisplayName().getString());
+                    }
+                });
+                context.takeScreenshot(locale.equals("en_us")
+                        ? "totem-alchemy-creative-showcase" : "totem-alchemy-creative-zh_tw");
+                context.runOnClient(AlchemyCreativeTabVisualGameTest::closeScreen);
+            }
         }
     }
 
@@ -70,7 +88,7 @@ public final class AlchemyCreativeTabVisualGameTest implements FabricClientGameT
             boolean selected = (Boolean) screenExtension
                     .getMethod("setSelectedTab", tabClass)
                     .invoke(creativeScreen, tab);
-            if (!selected) {
+            if (!selected && screenExtension.getMethod("getSelectedTab").invoke(creativeScreen) != tab) {
                 throw new IllegalStateException("Could not switch to the Alchemy Creative tab");
             }
         } catch (ReflectiveOperationException exception) {

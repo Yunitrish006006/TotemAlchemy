@@ -40,7 +40,7 @@ Client 與 Server 都放入：
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core >=0.7.18 <0.8.0` |
+| 必要 Totem 模組 | `totem-core >=0.7.21 <0.8.0` |
 
 Alchemy 不依賴其他功能模組。所有新的煉金遊戲內容都使用
 `totem:alchemy/*` canonical ID；不會註冊 `deadrecall:*` 作為可遊玩的
