@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:brewing",
+  "input": {
+    "item": "minecraft:lingering_potion",
+    "potion_contents": {
+      "potions": "minecraft:strength"
+    }
+  },
+  "reagent": {
+    "item": "minecraft:firefly_bush"
+  },
+  "output": {
+    "id": "minecraft:lingering_potion",
+    "components": {
+      "minecraft:potion_contents": {
+        "potion": "totem:alchemy/firefly_strength"
+      }
+    }
+  }
+}

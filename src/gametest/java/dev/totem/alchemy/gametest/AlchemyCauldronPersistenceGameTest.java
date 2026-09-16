@@ -76,7 +76,7 @@ public final class AlchemyCauldronPersistenceGameTest {
             require(helper, MultiOutcomeBrewing.activeOutcomes().size() == 2,
                     "Brewing batch did not retain its two selected outcomes");
             List<ItemStack> outputs = inputs.stream()
-                    .map(input -> helper.getLevel().potionBrewing().mix(sugar, input))
+                    .map(input -> dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), sugar, input))
                     .toList();
             String expectedState = null;
             for (ItemStack output : outputs) {
@@ -172,7 +172,7 @@ public final class AlchemyCauldronPersistenceGameTest {
 
         for (Map.Entry<Item, Integer> entry : expectedPools.entrySet()) {
             ItemStack ingredient = new ItemStack(entry.getKey());
-            require(helper, helper.getLevel().potionBrewing().hasMix(awkward, ingredient),
+            require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), awkward, ingredient),
                     "Effect-pool ingredient was not brewable from awkward potion: " + ingredient);
             require(helper, MultiOutcomeBrewing.outcomeCount(ingredient, awkward) == entry.getValue(),
                     "Effect-pool ingredient had the wrong number of outcomes: " + ingredient);
@@ -221,17 +221,17 @@ public final class AlchemyCauldronPersistenceGameTest {
 
         ItemStack saturation = PotionContents.createItemStack(Items.POTION, AlchemyPotions.SATURATION);
         ItemStack resistance = PotionContents.createItemStack(Items.POTION, AlchemyPotions.RESISTANCE);
-        require(helper, helper.getLevel().potionBrewing().hasMix(
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(),
                         saturation,
                         new ItemStack(Items.GLOWSTONE_DUST)
                 ),
                 "Saturation potion could not be strengthened");
-        require(helper, helper.getLevel().potionBrewing().hasMix(
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(),
                         resistance,
                         new ItemStack(Items.REDSTONE)
                 ),
                 "Resistance potion could not be extended");
-        require(helper, helper.getLevel().potionBrewing().hasMix(
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(),
                         resistance,
                         new ItemStack(Items.GLOWSTONE_DUST)
                 ),
@@ -247,9 +247,9 @@ public final class AlchemyCauldronPersistenceGameTest {
         assertPotionMix(helper, Potions.STRONG_SWIFTNESS, cherryLeaves, AlchemyPotions.STRONG_CHERRY_SWIFTNESS);
 
         ItemStack baseCherry = PotionContents.createItemStack(Items.POTION, AlchemyPotions.CHERRY_SWIFTNESS);
-        require(helper, helper.getLevel().potionBrewing().hasMix(baseCherry, new ItemStack(Items.REDSTONE)),
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), baseCherry, new ItemStack(Items.REDSTONE)),
                 "Cherry swiftness potion could not be extended");
-        require(helper, helper.getLevel().potionBrewing().hasMix(baseCherry, new ItemStack(Items.GLOWSTONE_DUST)),
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), baseCherry, new ItemStack(Items.GLOWSTONE_DUST)),
                 "Cherry swiftness potion could not be strengthened");
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(cherryLeaves) - 0.80D) < 0.000_001D,
                 "Cherry leaves did not use the designed 80% brewing chance");
@@ -264,9 +264,9 @@ public final class AlchemyCauldronPersistenceGameTest {
         assertPotionMix(helper, Potions.STRONG_STRENGTH, fireflyBush, AlchemyPotions.STRONG_FIREFLY_STRENGTH);
 
         ItemStack baseFirefly = PotionContents.createItemStack(Items.POTION, AlchemyPotions.FIREFLY_STRENGTH);
-        require(helper, helper.getLevel().potionBrewing().hasMix(baseFirefly, new ItemStack(Items.REDSTONE)),
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), baseFirefly, new ItemStack(Items.REDSTONE)),
                 "Firefly strength potion could not be extended");
-        require(helper, helper.getLevel().potionBrewing().hasMix(baseFirefly, new ItemStack(Items.GLOWSTONE_DUST)),
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), baseFirefly, new ItemStack(Items.GLOWSTONE_DUST)),
                 "Firefly strength potion could not be strengthened");
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(fireflyBush) - 0.82D) < 0.000_001D,
                 "Firefly bush did not use the designed 82% brewing chance");
@@ -277,9 +277,9 @@ public final class AlchemyCauldronPersistenceGameTest {
     public void redMushroomCanReplaceNetherWartForAwkwardPotion(GameTestHelper helper) {
         ItemStack waterPotion = PotionContents.createItemStack(Items.POTION, Potions.WATER);
         ItemStack redMushroom = new ItemStack(Items.RED_MUSHROOM);
-        require(helper, helper.getLevel().potionBrewing().hasMix(waterPotion, redMushroom),
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), waterPotion, redMushroom),
                 "Red mushroom was not registered as an alternative awkward-potion ingredient");
-        ItemStack result = helper.getLevel().potionBrewing().mix(redMushroom, waterPotion);
+        ItemStack result = dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), redMushroom, waterPotion);
         require(helper, result.is(Items.POTION),
                 "Red mushroom replacement did not preserve the potion container");
         require(helper, result.getOrDefault(
@@ -294,7 +294,7 @@ public final class AlchemyCauldronPersistenceGameTest {
         ItemStack sugar = new ItemStack(Items.SUGAR);
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(sugar, List.of(result)) - 0.70D) < 0.000_001D,
                 "Unstable mushroom base did not subtract 20 points from later brewing steps");
-        ItemStack swiftness = helper.getLevel().potionBrewing().mix(sugar, result);
+        ItemStack swiftness = dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), sugar, result);
         require(helper, VanillaBrewingChance.hasUnstableMushroomBase(swiftness),
                 "Unstable mushroom base did not propagate to the next potion result");
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(
@@ -492,9 +492,9 @@ public final class AlchemyCauldronPersistenceGameTest {
             net.minecraft.core.Holder<Potion> expectedPotion
     ) {
         ItemStack input = PotionContents.createItemStack(Items.POTION, inputPotion);
-        require(helper, helper.getLevel().potionBrewing().hasMix(input, ingredient),
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), input, ingredient),
                 "Expected potion mix was not registered: " + inputPotion);
-        ItemStack result = helper.getLevel().potionBrewing().mix(ingredient, input);
+        ItemStack result = dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), ingredient, input);
         require(helper, result.getOrDefault(
                         net.minecraft.core.component.DataComponents.POTION_CONTENTS,
                         PotionContents.EMPTY

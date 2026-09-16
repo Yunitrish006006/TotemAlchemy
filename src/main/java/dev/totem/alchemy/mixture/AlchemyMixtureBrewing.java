@@ -1,6 +1,9 @@
 package dev.totem.alchemy.mixture;
 
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
+import dev.totem.alchemy.alchemy.AlchemyBrewing;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.crafting.RecipePropertySet;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -32,7 +35,10 @@ public final class AlchemyMixtureBrewing {
         if (BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated()) return true;
         if (MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) return true;
         ItemStack input = canonicalInput(state);
-        return !input.isEmpty() && level.potionBrewing().hasMix(input, ingredient);
+        if (input.isEmpty()) return false;
+        return level instanceof ServerLevel serverLevel
+                ? AlchemyBrewing.recipe(serverLevel, input, ingredient).isPresent()
+                : level.recipeAccess().propertySet(RecipePropertySet.BREWING_REAGENTS).test(ingredient);
     }
 
     public static boolean schedule(Level level, AlchemyMixtureState state, ItemStack ingredient) {
@@ -65,7 +71,9 @@ public final class AlchemyMixtureBrewing {
 
     private static ScheduleResult scheduleInternal(Level level, AlchemyMixtureState state, ItemStack ingredient,
                                                     RandomSource random, List<MultiOutcomeBrewing.Outcome> selectedOutcomes) {
-        if (!canReact(level, state, ingredient)) return ScheduleResult.NOT_SCHEDULED;
+        if (!(level instanceof ServerLevel serverLevel) || !canReact(level, state, ingredient)) {
+            return ScheduleResult.NOT_SCHEDULED;
+        }
 
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
         String sourcePotion = state.canonicalPotionId();
@@ -107,7 +115,7 @@ public final class AlchemyMixtureBrewing {
         } else {
             ItemStack input = canonicalInput(state);
             if (input.isEmpty()) return ScheduleResult.NOT_SCHEDULED;
-            ItemStack output = level.potionBrewing().mix(ingredient, input);
+            ItemStack output = AlchemyBrewing.mix(serverLevel, ingredient, input);
             AlchemyMixtureState targetState = AlchemyMixtureBottle.fromPotion(output);
             if (targetState.isEmpty()) return ScheduleResult.NOT_SCHEDULED;
             source = state.effects();

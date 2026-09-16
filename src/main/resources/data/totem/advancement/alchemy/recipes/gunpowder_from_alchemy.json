@@ -12,7 +12,7 @@
     },
     "has_the_recipe": {
       "trigger": "minecraft:recipe_unlocked",
-      "conditions": { "recipe": "totem:alchemy/gunpowder_from_alchemy" }
+      "conditions": { "recipes": "totem:alchemy/gunpowder_from_alchemy" }
     }
   },
   "requirements": [["has_alchemy_materials", "has_the_recipe"]],

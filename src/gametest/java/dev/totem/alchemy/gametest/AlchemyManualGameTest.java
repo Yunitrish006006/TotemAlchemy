@@ -231,7 +231,7 @@ public final class AlchemyManualGameTest {
                     PotionContents.createItemStack(Items.POTION, Potions.WATER)
             );
             List<ItemStack> outputs = inputs.stream()
-                    .map(input -> helper.getLevel().potionBrewing().mix(ingredient, input))
+                    .map(input -> dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), ingredient, input))
                     .toList();
             if (outputs.stream().anyMatch(output -> !output
                     .getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.AWKWARD))) {
@@ -281,7 +281,7 @@ public final class AlchemyManualGameTest {
                 return;
             }
             List<ItemStack> outputs = inputs.stream()
-                    .map(input -> helper.getLevel().potionBrewing().mix(ingredient, input))
+                    .map(input -> dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), ingredient, input))
                     .toList();
             if (outputs.stream().anyMatch(output -> !output
                     .getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.AWKWARD))) {

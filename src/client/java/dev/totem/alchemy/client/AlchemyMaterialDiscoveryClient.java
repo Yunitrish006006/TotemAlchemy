@@ -19,7 +19,9 @@ public final class AlchemyMaterialDiscoveryClient {
                 (payload, context) -> context.client().execute(() -> {
                     Item material = BuiltInRegistries.ITEM.getValue(payload.material());
                     if (material != null && material != Items.AIR && AlchemyMaterialCatalog.contains(material)) {
-                        context.client().gameRenderer.displayItemActivation(new ItemStack(material));
+                        if (context.client().player != null) {
+                            context.client().player.displayItemActivation(new ItemStack(material));
+                        }
                     }
                 })
         );

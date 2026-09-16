@@ -41,7 +41,7 @@ public final class AlchemyLargeFlaskVisualGameTest implements FabricClientGameTe
         context.getInput().resizeWindow(1280, 720);
 
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             singleplayer.getServer().runOnServer(server -> {
                 var players = server.getPlayerList().getPlayers();
                 if (players.isEmpty()) {

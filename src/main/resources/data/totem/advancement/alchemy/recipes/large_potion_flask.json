@@ -12,7 +12,7 @@
     },
     "has_the_recipe": {
       "trigger": "minecraft:recipe_unlocked",
-      "conditions": { "recipe": "totem:alchemy/large_potion_flask" }
+      "conditions": { "recipes": "totem:alchemy/large_potion_flask" }
     }
   },
   "requirements": [["has_materials", "has_the_recipe"]],

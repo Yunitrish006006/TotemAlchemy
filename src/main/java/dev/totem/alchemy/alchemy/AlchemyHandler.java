@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Prediction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -106,12 +107,12 @@ public final class AlchemyHandler {
         world.setBlock(pos, layeredManure ? Blocks.AIR.defaultBlockState() : cleanState, 3);
         ItemStack manure = new ItemStack(AlchemyItems.PIG_MANURE, manureCount);
         if (!player.addItem(manure)) {
-            player.drop(manure, false);
+            player.drop(manure, false, Prediction.SERVER_ONLY);
         }
         if (!player.getAbilities().instabuild) {
             stack.hurtAndBreak(1, player, hand);
         }
-        world.playSound(null, pos, SoundEvents.SHOVEL_FLATTEN, SoundSource.BLOCKS, 1.0F, 1.0F);
+        world.playSound(null, pos, SoundEvents.SHOVEL_FLATTEN.value(), SoundSource.BLOCKS, 1.0F, 1.0F);
         return InteractionResult.SUCCESS;
     }
 
@@ -596,7 +597,7 @@ public final class AlchemyHandler {
             if (!replacement.isEmpty()) {
                 ItemStack copy = replacement.copy();
                 if (!player.getInventory().add(copy)) {
-                    player.drop(copy, false);
+                    player.drop(copy, false, Prediction.SERVER_ONLY);
                 }
             }
             return;
@@ -611,7 +612,7 @@ public final class AlchemyHandler {
         if (!replacement.isEmpty()) {
             ItemStack copy = replacement.copy();
             if (!player.getInventory().add(copy)) {
-                player.drop(copy, false);
+                player.drop(copy, false, Prediction.SERVER_ONLY);
             }
         }
     }

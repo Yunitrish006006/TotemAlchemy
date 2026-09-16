@@ -18,7 +18,7 @@ Alchemy 章節會自動整合到同一本手冊。
 多人靠近同一座釀造台時，由開始釀造當下最近的非旁觀玩家取得紀錄。效果索引會反向整理同一筆研究。
 Alchemy 使用共用 Totem 手冊的第一章排序；手冊封面與目錄之後會優先顯示煉金內容。
 
-目前版本為 **0.1.50**，支援 TotemCore **0.7.x**。
+目前版本為 **0.1.52**，支援 TotemCore **0.7.x**。
 
 0.1.48 補齊英文、繁體中文與西班牙文資源；繁體中文維持為優先語系。
 
@@ -31,14 +31,14 @@ Alchemy 使用共用 Totem 手冊的第一章排序；手冊封面與目錄之�
 
 Client 與 Server 都放入：
 
-1. Fabric API `0.154.2+26.2`
+1. Fabric API `0.160.5+26.3`
 2. TotemCore `0.7.x`
 3. TotemAlchemy `0.1.50`
 
 | 項目 | 需求 |
 | --- | --- |
-| Minecraft | 26.2 |
-| Fabric Loader | 0.19.3+ |
+| Minecraft | 26.3 |
+| Fabric Loader | 0.19.5+ |
 | Java | 25+ |
 | 必要 Totem 模組 | `totem-core >=0.7.21 <0.8.0` |
 

@@ -57,14 +57,14 @@ public final class AlchemyManualVisualGameTest implements FabricClientGameTest {
         context.getInput().resizeWindow(1280, 720);
 
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             singleplayer.getServer().runOnServer(server -> {
                 if (server.getPlayerList().getPlayers().isEmpty()) {
                     throw new AssertionError("Visual test had no connected server player");
                 }
                 var player = server.getPlayerList().getPlayers().getFirst();
                 ItemStack water = PotionContents.createItemStack(Items.POTION, Potions.WATER);
-                ItemStack awkward = server.overworld().potionBrewing().mix(
+                ItemStack awkward = dev.totem.alchemy.alchemy.AlchemyBrewing.mix(server.overworld(),
                         new ItemStack(Items.NETHER_WART), water);
                 if (!awkward.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY)
                         .is(Potions.AWKWARD)) {

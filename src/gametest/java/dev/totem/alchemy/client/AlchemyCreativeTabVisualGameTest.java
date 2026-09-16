@@ -20,7 +20,7 @@ public final class AlchemyCreativeTabVisualGameTest implements FabricClientGameT
     @Override
     public void runTest(ClientGameTestContext context) {
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             singleplayer.getServer().runCommand("gamemode creative @a");
             context.waitFor(AlchemyCreativeTabVisualGameTest::hasCreativeAbilities);
             for (String locale : List.of("en_us", "zh_tw")) {

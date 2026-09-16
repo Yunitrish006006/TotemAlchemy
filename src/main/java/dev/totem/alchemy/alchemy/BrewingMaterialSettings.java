@@ -24,6 +24,7 @@ public final class BrewingMaterialSettings {
     private static final Gson GSON = new Gson();
     private static final String DIRECTORY = "alchemy/brewing_material_settings";
     private static volatile Map<String, Setting> settings = Map.of();
+    private static volatile long revision;
 
     private BrewingMaterialSettings() {
     }
@@ -56,6 +57,10 @@ public final class BrewingMaterialSettings {
 
     public static boolean isStarter(Item ingredient) {
         return ingredient != null && isStarter(BuiltInRegistries.ITEM.getKey(ingredient).toString());
+    }
+
+    public static long revision() {
+        return revision;
     }
 
     public static boolean isStarter(String ingredientId) {
@@ -102,6 +107,7 @@ public final class BrewingMaterialSettings {
             }
         }
         settings = Map.copyOf(loaded);
+        revision++;
         TotemAlchemy.LOGGER.info("Loaded brewing material settings for {} ingredients", settings.size());
     }
 

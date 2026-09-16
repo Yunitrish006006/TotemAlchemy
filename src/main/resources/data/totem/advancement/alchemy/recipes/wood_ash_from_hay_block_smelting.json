@@ -7,7 +7,7 @@
     },
     "has_the_recipe": {
       "trigger": "minecraft:recipe_unlocked",
-      "conditions": { "recipe": "totem:alchemy/wood_ash_from_hay_block_smelting" }
+      "conditions": { "recipes": "totem:alchemy/wood_ash_from_hay_block_smelting" }
     }
   },
   "requirements": [["has_hay_block", "has_the_recipe"]],

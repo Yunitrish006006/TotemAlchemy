@@ -15,7 +15,7 @@ public final class AlchemyMaterialDiscoveryVisualGameTest implements FabricClien
     public void runTest(ClientGameTestContext context) {
         context.getInput().resizeWindow(1280, 720);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             singleplayer.getServer().runOnServer(server -> {
                 server.getGameRules().set(
                         AlchemyGameRules.AUTO_RECORD_BREWING_MATERIALS,

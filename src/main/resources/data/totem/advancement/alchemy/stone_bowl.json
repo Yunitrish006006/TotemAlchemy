@@ -3,7 +3,7 @@
   "criteria": {
     "crafted_stone_bowl": {
       "conditions": {
-        "recipe_id": "totem:alchemy/stone_bowl"
+        "recipes": "totem:alchemy/stone_bowl"
       },
       "trigger": "minecraft:recipe_crafted"
     }

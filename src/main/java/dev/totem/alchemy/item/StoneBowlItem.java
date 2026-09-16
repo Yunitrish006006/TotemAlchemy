@@ -2,6 +2,7 @@ package dev.totem.alchemy.item;
 
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -41,7 +42,7 @@ public class StoneBowlItem extends Item {
                     if (inHand.isEmpty()) {
                         player.setItemInHand(context.getHand(), sulfurBowl);
                     } else if (!player.getInventory().add(sulfurBowl)) {
-                        player.drop(sulfurBowl, false);
+                        player.drop(sulfurBowl, false, Prediction.SERVER_ONLY);
                     }
                 }
             }

@@ -9,6 +9,7 @@ import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Prediction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -272,7 +273,7 @@ public final class AlchemyPortableContainerInteractions {
         if (player.getAbilities().instabuild) {
             ItemStack copy = replacement.copy();
             if (!player.getInventory().add(copy)) {
-                player.drop(copy, false);
+                player.drop(copy, false, Prediction.SERVER_ONLY);
             }
             return;
         }
@@ -280,7 +281,7 @@ public final class AlchemyPortableContainerInteractions {
         if (current.isEmpty()) {
             player.setItemInHand(hand, replacement);
         } else if (!replacement.isEmpty() && !player.getInventory().add(replacement.copy())) {
-            player.drop(replacement.copy(), false);
+            player.drop(replacement.copy(), false, Prediction.SERVER_ONLY);
         }
     }
 }

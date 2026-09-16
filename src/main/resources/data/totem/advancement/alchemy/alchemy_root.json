@@ -3,14 +3,13 @@
   "criteria": {
     "crafted_brewing_stand": {
       "conditions": {
-        "recipe_id": "minecraft:brewing_stand"
+        "recipes": "minecraft:brewing_stand"
       },
       "trigger": "minecraft:recipe_crafted"
     }
   },
   "display": {
     "announce_to_chat": false,
-    "background": "minecraft:gui/advancements/backgrounds/stone",
     "description": {
       "translate": "advancements.totem.alchemy_root.description"
     },

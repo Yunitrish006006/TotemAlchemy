@@ -16,9 +16,9 @@ public final class PotionBrewingRegressionGameTest {
     public void vanillaWaterToAwkwardStillWorks(GameTestHelper helper) {
         ItemStack water = potion(Potions.WATER);
         ItemStack ingredient = new ItemStack(Items.NETHER_WART);
-        require(helper, helper.getLevel().potionBrewing().hasMix(water, ingredient),
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), water, ingredient),
                 "Nether wart stopped brewing water into awkward potion");
-        assertPotion(helper, helper.getLevel().potionBrewing().mix(ingredient, water), Potions.AWKWARD,
+        assertPotion(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), ingredient, water), Potions.AWKWARD,
                 "Nether wart did not produce awkward potion");
         helper.succeed();
     }
@@ -54,7 +54,7 @@ public final class PotionBrewingRegressionGameTest {
     public void unrelatedIngredientDoesNotBecomeABrewingRecipe(GameTestHelper helper) {
         ItemStack awkward = potion(Potions.AWKWARD);
         ItemStack diamond = new ItemStack(Items.DIAMOND);
-        require(helper, !helper.getLevel().potionBrewing().hasMix(awkward, diamond),
+        require(helper, !dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), awkward, diamond),
                 "Unrelated ingredient unexpectedly became a potion mix");
         helper.succeed();
     }
@@ -67,8 +67,8 @@ public final class PotionBrewingRegressionGameTest {
             String message
     ) {
         ItemStack input = potion(inputPotion);
-        require(helper, helper.getLevel().potionBrewing().hasMix(input, ingredient), message + " (recipe missing)");
-        assertPotion(helper, helper.getLevel().potionBrewing().mix(ingredient, input), expectedPotion, message);
+        require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), input, ingredient), message + " (recipe missing)");
+        assertPotion(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), ingredient, input), expectedPotion, message);
     }
 
     private static ItemStack potion(net.minecraft.core.Holder<net.minecraft.world.item.alchemy.Potion> potion) {

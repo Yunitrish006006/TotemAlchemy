@@ -1,6 +1,12 @@
 package dev.totem.alchemy.mixin;
 
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.alchemy.AlchemyBrewing;
+import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import net.minecraft.core.BlockPos;
@@ -43,9 +49,40 @@ public abstract class BrewingStandBlockEntityMixin {
      * Counts only ticks while the stand is actively brewing and captures the nearby researcher when the
      * cycle begins. Moving away before completion therefore no longer drops the player's journal update.
      */
+
+    @Inject(method = "isBrewable", at = @At("HEAD"), cancellable = true)
+    private static void totemAlchemy$allowLayeredBrewing(ServerLevel level, BrewingStandBlockEntity entity,
+                                                       CallbackInfoReturnable<Boolean> cir) {
+        ItemStack ingredient = entity.getItem(INGREDIENT_SLOT);
+        for (int slot = 0; slot < INGREDIENT_SLOT; slot++) {
+            if (AlchemyMixtureBrewing.canApplyBrewingStandIngredient(entity.getItem(slot), ingredient)) {
+                cir.setReturnValue(true);
+                return;
+            }
+        }
+    }
+
+    @WrapMethod(method = "doBrew")
+    private static void totemAlchemy$scopeBatch(ServerLevel level, BlockPos pos, BrewingStandBlockEntity entity,
+                                               Operation<Void> original) {
+        try {
+            original.call(level, pos, entity);
+        } finally {
+            SUCCESSFUL_BREW.remove();
+            MultiOutcomeBrewing.clearBatch();
+        }
+    }
+
+    @Redirect(method = "doBrew", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/core/NonNullList;set(ILjava/lang/Object;)Ljava/lang/Object;", ordinal = 0))
+    private static Object totemAlchemy$preserveBottle(NonNullList<ItemStack> slots, int slot, Object proposed) {
+        return slots.set(slot, AlchemyBrewing.preserveMixture(
+                slots.get(INGREDIENT_SLOT), slots.get(slot), (ItemStack) proposed));
+    }
+
     @Inject(method = "serverTick", at = @At("TAIL"))
     private static void totemAlchemy$trackProcessingTime(
-            Level level,
+            ServerLevel level,
             BlockPos pos,
             BlockState state,
             BrewingStandBlockEntity entity,
@@ -78,11 +115,12 @@ public abstract class BrewingStandBlockEntityMixin {
 
     @Inject(method = "doBrew", at = @At("HEAD"), cancellable = true)
     private static void totemAlchemy$rollIngredientSuccess(
-            Level level,
+            ServerLevel level,
             BlockPos pos,
-            NonNullList<ItemStack> slots,
+            BrewingStandBlockEntity entity,
             CallbackInfo ci
     ) {
+        NonNullList<ItemStack> slots = ((BrewingStandBlockEntityAccessor) (Object) entity).totemAlchemy$getItems();
         SUCCESSFUL_BREW.remove();
         MultiOutcomeBrewing.clearBatch();
 
@@ -106,15 +144,15 @@ public abstract class BrewingStandBlockEntityMixin {
             return;
         }
 
-        if (level instanceof ServerLevel serverLevel) {
+        {
             AlchemyDiscoveryService.recordProcessingAttempt(
-                    serverLevel, pos, ingredient, processingTicks, researcherId);
+                    level, pos, ingredient, processingTicks, researcherId);
         }
         consumeIngredient(level, pos, slots);
         level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 1.0F, 0.8F);
         notifyNearbyPlayers(level, pos, "message.totem.alchemy.vanilla_brew_failure", chancePercent);
-        if (level instanceof ServerLevel serverLevel) {
-            serverLevel.sendParticles(
+        {
+            level.sendParticles(
                     ParticleTypes.LARGE_SMOKE,
                     pos.getX() + 0.5D,
                     pos.getY() + 0.85D,
@@ -131,19 +169,20 @@ public abstract class BrewingStandBlockEntityMixin {
 
     @Inject(method = "doBrew", at = @At("RETURN"))
     private static void totemAlchemy$recordCompletedBrew(
-            Level level,
+            ServerLevel level,
             BlockPos pos,
-            NonNullList<ItemStack> slots,
+            BrewingStandBlockEntity entity,
             CallbackInfo ci
     ) {
+        NonNullList<ItemStack> slots = ((BrewingStandBlockEntityAccessor) (Object) entity).totemAlchemy$getItems();
         SuccessfulBrewContext context = SUCCESSFUL_BREW.get();
         try {
             if (context == null) {
                 return;
             }
-            if (level instanceof ServerLevel serverLevel) {
+            {
                 AlchemyDiscoveryService.recordSuccessfulBrewOutcomes(
-                        serverLevel,
+                        level,
                         pos,
                         context.ingredient(),
                         context.inputs(),
@@ -220,7 +259,7 @@ public abstract class BrewingStandBlockEntityMixin {
     }
 
     private static void notifyNearbyPlayers(
-            Level level,
+            ServerLevel level,
             BlockPos pos,
             String messageKey,
             Object... arguments
