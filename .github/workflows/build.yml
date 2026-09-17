@@ -66,6 +66,9 @@ jobs:
         run: |
           set -euo pipefail
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-0.7.23.jar"
+          export SDL_VIDEO_DRIVER=x11
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
           xvfb-run -a ./gradlew -PtotemCoreJar="$core_jar" runClientGameTest --no-daemon --stacktrace
 
       - name: Bind validated release artifact to this Build
