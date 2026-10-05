@@ -2,6 +2,7 @@ package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
@@ -22,6 +23,11 @@ public final class MixtureV2GameTest {
                 "Nether wart was not loaded as a starter material");
         require(helper, BrewingMaterialSettings.isStarter(Items.RED_MUSHROOM),
                 "Red mushroom was not loaded as a starter material");
+        require(helper, BrewingMaterialSettings.isStarter(Items.BROWN_MUSHROOM),
+                "Brown mushroom was not recognized through the mushroom starter tag");
+        require(helper, VanillaBrewingChance.chanceFor(new ItemStack(Items.BROWN_MUSHROOM))
+                        == VanillaBrewingChance.chanceFor(new ItemStack(Items.RED_MUSHROOM)),
+                "Mushroom starters did not share the same brewing success chance");
         require(helper, !BrewingMaterialSettings.isStarter(Items.MAGMA_CREAM),
                 "Magma cream was incorrectly treated as a starter material");
         helper.succeed();
