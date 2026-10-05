@@ -7,7 +7,7 @@
     }
   },
   "reagent": {
-    "item": "minecraft:red_mushroom"
+    "tag": "c:mushrooms"
   },
   "output": {
     "id": "minecraft:lingering_potion",
