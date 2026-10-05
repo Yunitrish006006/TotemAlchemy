@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.totem.alchemy.TotemAlchemy;
+import net.fabricmc.fabric.api.tag.convention.v2.ConventionalItemTags;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -12,6 +13,7 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 import java.io.BufferedReader;
 import java.util.HashMap;
@@ -56,7 +58,10 @@ public final class BrewingMaterialSettings {
     }
 
     public static boolean isStarter(Item ingredient) {
-        return ingredient != null && isStarter(BuiltInRegistries.ITEM.getKey(ingredient).toString());
+        if (ingredient == null) return false;
+        if (new ItemStack(ingredient).is(ConventionalItemTags.MUSHROOMS)) return true;
+        Setting setting = settings.get(BuiltInRegistries.ITEM.getKey(ingredient).toString());
+        return setting != null && setting.starter();
     }
 
     public static long revision() {
@@ -64,8 +69,14 @@ public final class BrewingMaterialSettings {
     }
 
     public static boolean isStarter(String ingredientId) {
+        if (ingredientId == null || ingredientId.isBlank()) return false;
         Setting setting = settings.get(ingredientId);
-        return setting != null && setting.starter();
+        if (setting != null && setting.starter()) return true;
+
+        Identifier id = Identifier.tryParse(ingredientId);
+        if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) return false;
+        Item item = BuiltInRegistries.ITEM.getValue(id);
+        return item != null && new ItemStack(item).is(ConventionalItemTags.MUSHROOMS);
     }
 
     public static boolean isConfigured(Item ingredient) {
