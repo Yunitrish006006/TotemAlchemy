@@ -1,6 +1,7 @@
 package dev.totem.alchemy.mixture;
 
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
+import dev.totem.alchemy.alchemy.BrewingModifierPolicy;
 import dev.totem.alchemy.alchemy.AlchemyBrewing;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.crafting.RecipePropertySet;
@@ -161,9 +162,9 @@ public final class AlchemyMixtureBrewing {
         AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(input);
         if (state.isEmpty()) return false;
         if (AlchemyCompoundBrewing.hasActiveRecipe(state)) return false;
-        if (ingredient.is(Items.REDSTONE) || ingredient.is(Items.GLOWSTONE_DUST)) return !state.effects().isEmpty();
-        if (ingredient.is(Items.GUNPOWDER)) return state.deliveryForm() == AlchemyMixtureState.DeliveryForm.DRINKABLE;
-        if (ingredient.is(Items.DRAGON_BREATH)) return state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH;
+        if (BrewingModifierPolicy.isModifierIngredient(ingredient)) {
+            return BrewingModifierPolicy.canApply(input, ingredient);
+        }
         if (BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated()) return true;
         return MultiOutcomeBrewing.isOutcomeIngredient(ingredient);
     }
@@ -182,6 +183,9 @@ public final class AlchemyMixtureBrewing {
         AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(input);
         if (state.isEmpty()) return vanillaOutput;
         if (AlchemyCompoundBrewing.hasActiveRecipe(state)) return vanillaOutput;
+        if (BrewingModifierPolicy.isModifierIngredient(ingredient)) {
+            return BrewingModifierPolicy.apply(ingredient, input, vanillaOutput);
+        }
 
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
         boolean startingBase = BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated();
@@ -192,23 +196,12 @@ public final class AlchemyMixtureBrewing {
             return AlchemyMixtureBottle.toPotion(state);
         }
 
-        if (!state.baseActivated() && !ingredient.is(Items.REDSTONE) && !ingredient.is(Items.GLOWSTONE_DUST)
-                && !ingredient.is(Items.GUNPOWDER) && !ingredient.is(Items.DRAGON_BREATH)) {
+        if (!state.baseActivated()) {
             state.setStability(0);
             state.addProvenance("unstable:no_starter");
         }
 
-        if (ingredient.is(Items.REDSTONE)) {
-            state.applyRedstoneModifier();
-        } else if (ingredient.is(Items.GLOWSTONE_DUST)) {
-            state.applyGlowstoneModifier();
-        } else if (ingredient.is(Items.GUNPOWDER)) {
-            state.setDeliveryForm(AlchemyMixtureState.DeliveryForm.SPLASH);
-            state.addProvenance("modifier:minecraft:gunpowder");
-        } else if (ingredient.is(Items.DRAGON_BREATH)) {
-            state.setDeliveryForm(AlchemyMixtureState.DeliveryForm.LINGERING);
-            state.addProvenance("modifier:minecraft:dragon_breath");
-        } else if (MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) {
+        if (MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) {
             Map<String, AlchemyMixtureState.EffectDose> additions = chosenOutcomes == null
                     ? (AlchemyMixtureBottle.isPotionContainer(vanillaOutput)
                         ? AlchemyMixtureBottle.fromPotion(vanillaOutput).effects() : Map.of())
