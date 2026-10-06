@@ -15,7 +15,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 ## M0 — Prerequisites and Vanilla safety
 
-- [ ] M0-T00 Repair `feature/all-mushrooms-starter` CI without dropping `#c:mushrooms` starter support. (separate PR #29)
+- [x] M0-T00 Repair `feature/all-mushrooms-starter` CI without dropping `#c:mushrooms` starter support. (separate PR #29)
 - [x] M0-T01 Add explicit vanilla Brewing Stand regression coverage for Water + Nether Wart.
 - [x] M0-T02 Add explicit vanilla Brewing Stand regression coverage for Awkward + Sugar.
 - [x] M0-T03 Add regression coverage for Redstone/Glowstone vanilla modifiers.
@@ -31,7 +31,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M1-T04 Add enabled-pack detection/state exposed to server-side alchemy code.
 - [x] M1-T05 Add reload lifecycle handling for pack-state changes.
 - [x] M1-T06 Add OFF/OFF pack-state tests.
-- [ ] M1-T07 Add ON/OFF, OFF/ON and ON/ON pack-state tests.
+- [x] M1-T07 Add ON/OFF, OFF/ON and ON/ON pack-state tests.
 - [x] M1-T08 Move no gameplay data yet; verify registration is behavior-neutral.
 
 ## M2 — Reaction data as single authority

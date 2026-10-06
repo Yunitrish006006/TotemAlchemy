@@ -7,6 +7,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManager;
 
+import java.util.function.Predicate;
+
 public final class AlchemyContentPackState {
     private static final Identifier TOTEM_ALCHEMY_MARKER =
             Identifier.fromNamespaceAndPath("totem", "alchemy_pack_state/totem_alchemy.json");
@@ -36,15 +38,17 @@ public final class AlchemyContentPackState {
     }
 
     private static void reload(ResourceManager resourceManager) {
-        boolean nextTotemAlchemy = resourceManager.getResource(TOTEM_ALCHEMY_MARKER).isPresent();
-        boolean nextMinecraftAlchemy = resourceManager.getResource(MINECRAFT_ALCHEMY_MARKER).isPresent();
+        Snapshot next = detect(
+                id -> resourceManager.getResource(id).isPresent(),
+                revision + 1
+        );
 
-        boolean changed = nextTotemAlchemy != totemAlchemyEnabled
-                || nextMinecraftAlchemy != minecraftAlchemyEnabled;
+        boolean changed = next.totemAlchemyEnabled() != totemAlchemyEnabled
+                || next.minecraftAlchemyEnabled() != minecraftAlchemyEnabled;
 
-        totemAlchemyEnabled = nextTotemAlchemy;
-        minecraftAlchemyEnabled = nextMinecraftAlchemy;
-        revision++;
+        totemAlchemyEnabled = next.totemAlchemyEnabled();
+        minecraftAlchemyEnabled = next.minecraftAlchemyEnabled();
+        revision = next.revision();
 
         if (changed) {
             TotemAlchemy.LOGGER.info(
@@ -53,6 +57,14 @@ public final class AlchemyContentPackState {
                     minecraftAlchemyEnabled
             );
         }
+    }
+
+    static Snapshot detect(Predicate<Identifier> hasResource, long nextRevision) {
+        return new Snapshot(
+                hasResource.test(TOTEM_ALCHEMY_MARKER),
+                hasResource.test(MINECRAFT_ALCHEMY_MARKER),
+                nextRevision
+        );
     }
 
     public static boolean totemAlchemyEnabled() {
