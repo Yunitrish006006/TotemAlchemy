@@ -348,7 +348,7 @@ public final class AlchemyMixtureState {
             addEffects(reaction.targetEffects());
         }
 
-        if (BrewingMaterialSettings.isStarter(reaction.ingredientId())) {
+        if (!baseActivated && BrewingMaterialSettings.isStarter(reaction.ingredientId())) {
             baseActivated = true;
         }
         if ("minecraft:gunpowder".equals(reaction.ingredientId())) {

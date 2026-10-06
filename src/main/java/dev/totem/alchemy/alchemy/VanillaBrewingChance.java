@@ -1,5 +1,6 @@
 package dev.totem.alchemy.alchemy;
 
+import net.fabricmc.fabric.api.tag.convention.v2.ConventionalItemTags;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
@@ -52,6 +53,7 @@ public final class VanillaBrewingChance {
     private VanillaBrewingChance() {}
 
     public static double chanceFor(ItemStack ingredient) {
+        if (ingredient != null && ingredient.is(ConventionalItemTags.MUSHROOMS)) return 0.65D;
         return INGREDIENT_CHANCES.getOrDefault(ingredient.getItem(), DEFAULT_SUCCESS_CHANCE);
     }
 
@@ -64,7 +66,8 @@ public final class VanillaBrewingChance {
     }
 
     public static boolean hasDesignedChance(ItemStack ingredient) {
-        return INGREDIENT_CHANCES.containsKey(ingredient.getItem());
+        return ingredient != null && (ingredient.is(ConventionalItemTags.MUSHROOMS)
+                || INGREDIENT_CHANCES.containsKey(ingredient.getItem()));
     }
 
     public static boolean isSuccessful(ItemStack ingredient, float randomRoll) {

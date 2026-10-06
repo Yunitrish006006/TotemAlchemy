@@ -107,13 +107,17 @@ public final class BrewingMigrationGameTest {
 
     @GameTest(maxTicks = 40)
     public void mushroomStarterAndUnrelatedSlotsRemainCorrect(GameTestHelper helper) {
+        for (var mushroom : List.of(Items.RED_MUSHROOM, Items.BROWN_MUSHROOM)) {
+            ItemStack water = PotionContents.createItemStack(Items.SPLASH_POTION, Potions.WATER);
+            BrewingStandBlockEntity stand = complete(helper, water, new ItemStack(mushroom), true, -1);
+            ItemStack output = stand.getItem(0);
+            require(helper, output.is(Items.SPLASH_POTION), "Starter changed the container");
+            require(helper, output.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.AWKWARD),
+                    "Mushroom starter did not activate the base");
+            require(helper, VanillaBrewingChance.hasUnstableMushroomBase(output), "Mushroom instability was lost");
+        }
+
         ItemStack water = PotionContents.createItemStack(Items.SPLASH_POTION, Potions.WATER);
-        BrewingStandBlockEntity stand = complete(helper, water, new ItemStack(Items.RED_MUSHROOM), true, -1);
-        ItemStack output = stand.getItem(0);
-        require(helper, output.is(Items.SPLASH_POTION), "Starter changed the container");
-        require(helper, output.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.AWKWARD),
-                "Mushroom starter did not activate the base");
-        require(helper, VanillaBrewingChance.hasUnstableMushroomBase(output), "Mushroom instability was lost");
         require(helper, !AlchemyBrewing.hasMix(helper.getLevel(), water, new ItemStack(Items.DIAMOND)),
                 "Unrelated ingredient became brewable");
         require(helper, ItemStack.matches(water, AlchemyBrewing.mix(

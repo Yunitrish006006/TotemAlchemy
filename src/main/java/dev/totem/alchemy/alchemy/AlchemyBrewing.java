@@ -1,6 +1,7 @@
 package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import net.fabricmc.fabric.api.tag.convention.v2.ConventionalItemTags;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -42,7 +43,7 @@ public final class AlchemyBrewing {
         ItemStack output = AlchemyMixtureBrewing.applyBrewingStandOutcomes(
                 ingredient, input, selectedOutput, MultiOutcomeBrewing.activeOutcomes());
         if (output.isEmpty()) return input.copy();
-        if (ingredient.is(Items.RED_MUSHROOM)
+        if (ingredient.is(ConventionalItemTags.MUSHROOMS)
                 && input.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER)
                 && output.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.AWKWARD)) {
             VanillaBrewingChance.markUnstableMushroomBase(output);
