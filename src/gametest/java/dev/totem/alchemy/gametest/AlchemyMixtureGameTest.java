@@ -65,6 +65,27 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void effectConcentrationIsQuantityPerBottleVolume(GameTestHelper helper) {
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forEffect(Potions.SWIFTNESS, "minecraft:speed");
+        require(helper, standard != null,
+                "Concentration fixture could not resolve standard swiftness dose");
+
+        double baseline = standard.concentrationForVolume(1);
+        requireNear(helper, baseline, standard.quantity(),
+                "One standard bottle did not retain its standard EffectDose concentration");
+        requireNear(helper, standard.concentrationForVolume(2), baseline / 2.0D,
+                "Doubling liquid volume without adding EffectDose did not halve concentration");
+
+        AlchemyMixtureState.EffectDose doubled = standard.merge(standard);
+        requireNear(helper, doubled.concentrationForVolume(2), baseline,
+                "Doubling EffectDose and volume together did not preserve concentration");
+        requireNear(helper, standard.concentrationForVolume(0), 0.0D,
+                "Zero liquid volume exposed a non-zero effect concentration");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void opposingSpeedEffectsNeutralizeByEffectQuantity(GameTestHelper helper) {
         AlchemyMixtureState state = new AlchemyMixtureState(1);
         state.putEffect("minecraft:speed", 2_000.0D, 0);

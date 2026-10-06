@@ -996,6 +996,16 @@ public final class AlchemyMixtureState {
             return new EffectDose(quantity * Math.max(0.0D, factor), amplifierCap);
         }
 
+        /**
+         * Effect quantity density in level-I-equivalent ticks per bottle-equivalent volume unit.
+         *
+         * <p>Quantity is conserved chemistry; concentration is the derived density after dilution. A zero or
+         * negative volume has no meaningful liquid concentration and therefore resolves to zero.</p>
+         */
+        public double concentrationForVolume(int volumeUnits) {
+            return volumeUnits <= 0 ? 0.0D : quantity / volumeUnits;
+        }
+
         public int durationForVolume(int volume) {
             int safeVolume = Math.max(1, volume);
             return Math.max(1, (int) Math.round(quantity / safeVolume / (amplifierCap + 1.0D)));
