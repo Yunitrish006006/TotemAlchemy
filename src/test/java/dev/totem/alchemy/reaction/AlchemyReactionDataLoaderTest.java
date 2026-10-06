@@ -33,6 +33,7 @@ class AlchemyReactionDataLoaderTest {
                           "result_base": "totem:alchemy/unstable_mushroom",
                           "success_chance": 0.65,
                           "activation_yield": 1.0,
+                          "processing_ticks": 320,
                           "brewing_stand": true,
                           "priority": 5
                         }
@@ -42,6 +43,7 @@ class AlchemyReactionDataLoaderTest {
         assertEquals(ReactionIngredient.Kind.TAG, reaction.starter().kind());
         assertEquals(id("c", "mushrooms"), reaction.starter().id());
         assertEquals(0.65D, reaction.successChance());
+        assertEquals(320, reaction.processingTicks());
         assertEquals(5, reaction.priority());
     }
 
@@ -55,6 +57,7 @@ class AlchemyReactionDataLoaderTest {
                           "ingredient": "minecraft:sugar",
                           "success_chance": 0.9,
                           "effect_yield": 1.0,
+                          "processing_ticks": 240,
                           "max_dose": 3,
                           "brewing_stand": true,
                           "outcomes": [
@@ -67,6 +70,7 @@ class AlchemyReactionDataLoaderTest {
 
         assertEquals(id("totem", "alchemy/awkward"), reaction.baseId());
         assertEquals(ReactionIngredient.item(id("minecraft", "sugar")), reaction.ingredient());
+        assertEquals(240, reaction.processingTicks());
         assertEquals(3, reaction.maxDose());
         assertEquals(List.of(
                 id("minecraft", "swiftness"),
