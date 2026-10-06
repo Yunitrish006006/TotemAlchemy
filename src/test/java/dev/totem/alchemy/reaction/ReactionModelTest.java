@@ -31,6 +31,7 @@ class ReactionModelTest {
                 ReactionIngredient.item(id("minecraft", "sugar")),
                 0.90D,
                 1.0D,
+                240,
                 3,
                 true,
                 source
@@ -55,6 +56,7 @@ class ReactionModelTest {
                 id("totem", "alchemy/unstable_mushroom"),
                 0.65D,
                 1.0D,
+                320,
                 true,
                 0
         );
@@ -77,6 +79,34 @@ class ReactionModelTest {
                 id("totem", "alchemy/awkward"),
                 1.0D,
                 1.0D,
+                400,
+                true,
+                0
+        ));
+    }
+
+    @Test
+    void reactionsRejectNonPositiveProcessingTime() {
+        assertThrows(IllegalArgumentException.class, () -> new IngredientReaction(
+                id("totem", "alchemy/reaction/invalid_time"),
+                id("totem", "alchemy/awkward"),
+                ReactionIngredient.item(id("minecraft", "sugar")),
+                1.0D,
+                1.0D,
+                0,
+                1,
+                true,
+                List.of()
+        ));
+
+        assertThrows(IllegalArgumentException.class, () -> new BaseReaction(
+                id("totem", "alchemy/base/invalid_time"),
+                Map.of(id("minecraft", "water"), 1.0D),
+                ReactionIngredient.item(id("minecraft", "nether_wart")),
+                id("totem", "alchemy/awkward"),
+                1.0D,
+                1.0D,
+                0,
                 true,
                 0
         ));
