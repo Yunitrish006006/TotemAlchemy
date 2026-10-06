@@ -71,6 +71,53 @@ class AlchemyReactionResolverTest {
     }
 
     @Test
+    void outcomeChanceComesFromResolvedReactionData() {
+        IngredientReaction reaction = new IngredientReaction(
+                id("totem", "reaction/sugar"),
+                AWKWARD,
+                ReactionIngredient.item(SUGAR),
+                0.90D,
+                1.0D,
+                240,
+                3,
+                true,
+                List.of(
+                        new ReactionOutcome(id("minecraft", "swiftness"), 0.50D, 10),
+                        new ReactionOutcome(id("minecraft", "slowness"), 0.30D, 0)
+                )
+        );
+        AlchemyReactionIndex index = AlchemyReactionIndex.build(
+                List.of(),
+                List.of(reaction)
+        );
+
+        assertEquals(
+                List.of(
+                        new ReactionOutcome(id("minecraft", "swiftness"), 0.50D, 10),
+                        new ReactionOutcome(id("minecraft", "slowness"), 0.30D, 0)
+                ),
+                AlchemyReactionResolver.outcomes(index, AWKWARD, SUGAR, tag -> false)
+        );
+        assertEquals(
+                0.50D,
+                AlchemyReactionResolver.outcomeChance(
+                        index,
+                        AWKWARD,
+                        SUGAR,
+                        tag -> false,
+                        id("minecraft", "swiftness")
+                ).orElseThrow()
+        );
+        assertTrue(AlchemyReactionResolver.outcomeChance(
+                index,
+                AWKWARD,
+                SUGAR,
+                tag -> false,
+                id("minecraft", "healing")
+        ).isEmpty());
+    }
+
+    @Test
     void unmatchedTagCandidatesReturnNoReactionOrChance() {
         IngredientReaction tagged = reaction(
                 "tagged",
