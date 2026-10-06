@@ -1,7 +1,7 @@
 package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
-import dev.totem.alchemy.reaction.AlchemyReactionResolver;
+import dev.totem.alchemy.reaction.BrewingReactionContext;
 import dev.totem.alchemy.reaction.IngredientReaction;
 import dev.totem.alchemy.reaction.ReactionOutcome;
 import net.minecraft.core.Holder;
