@@ -21,6 +21,7 @@ public record BaseReaction(
         Identifier resultBaseId,
         double successChance,
         double activationYield,
+        int processingTicks,
         boolean brewingStandCompatible,
         int priority
 ) {
@@ -36,6 +37,9 @@ public record BaseReaction(
         }
         if (!Double.isFinite(activationYield) || activationYield <= 0.0D) {
             throw new IllegalArgumentException("Base reaction activation yield must be finite and greater than zero");
+        }
+        if (processingTicks < 1) {
+            throw new IllegalArgumentException("Base reaction processing ticks must be at least one");
         }
 
         Map<Identifier, Double> sorted = new LinkedHashMap<>();
