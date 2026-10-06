@@ -16,10 +16,10 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 ## M0 — Prerequisites and Vanilla safety
 
 - [ ] M0-T00 Repair `feature/all-mushrooms-starter` CI without dropping `#c:mushrooms` starter support. (separate PR #29)
-- [ ] M0-T01 Add explicit vanilla Brewing Stand regression coverage for Water + Nether Wart.
-- [ ] M0-T02 Add explicit vanilla Brewing Stand regression coverage for Awkward + Sugar.
-- [ ] M0-T03 Add regression coverage for Redstone/Glowstone vanilla modifiers.
-- [ ] M0-T04 Add regression coverage for Gunpowder/Dragon Breath delivery conversion.
+- [x] M0-T01 Add explicit vanilla Brewing Stand regression coverage for Water + Nether Wart.
+- [x] M0-T02 Add explicit vanilla Brewing Stand regression coverage for Awkward + Sugar.
+- [x] M0-T03 Add regression coverage for Redstone/Glowstone vanilla modifiers.
+- [x] M0-T04 Add regression coverage for Gunpowder/Dragon Breath delivery conversion.
 - [ ] M0-T05 Add regression coverage that vanilla recipes do not randomly fail when Totem packs are inactive.
 - [ ] M0-T06 Add one aggregate OFF/OFF vanilla-safety GameTest.
 
