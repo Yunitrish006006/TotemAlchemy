@@ -2,8 +2,10 @@ package dev.totem.alchemy.reaction;
 
 import net.minecraft.resources.Identifier;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /** Immutable data model for a base + ingredient alchemy reaction. */
 public record IngredientReaction(
@@ -34,5 +36,14 @@ public record IngredientReaction(
             throw new IllegalArgumentException("Reaction max dose must be at least one");
         }
         outcomes = List.copyOf(Objects.requireNonNull(outcomes, "outcomes"));
+        Set<Identifier> uniqueOutcomeIds = new HashSet<>();
+        for (ReactionOutcome outcome : outcomes) {
+            Objects.requireNonNull(outcome, "outcome");
+            if (!uniqueOutcomeIds.add(outcome.resultPotionId())) {
+                throw new IllegalArgumentException(
+                        "Duplicate reaction outcome potion: " + outcome.resultPotionId()
+                );
+            }
+        }
     }
 }

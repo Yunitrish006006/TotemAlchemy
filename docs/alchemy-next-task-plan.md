@@ -44,7 +44,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M2-T06 Add schema validation and useful reload errors.
 - [x] M2-T07 Read processing time from material/reaction data.
 - [x] M2-T08 Read reaction success chance from reaction data.
-- [ ] M2-T09 Read outcome chance from reaction data.
+- [x] M2-T09 Read outcome chance from reaction data.
 - [ ] M2-T10 Convert `MultiOutcomeBrewing` to registry-backed outcomes.
 - [ ] M2-T11 Remove Java hard-coded outcome pools.
 - [ ] M2-T12 Convert `VanillaBrewingChance` to resolver-backed chance data.
