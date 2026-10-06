@@ -30,7 +30,7 @@ public final class AlchemyContentPackState {
 
                     @Override
                     public void onResourceManagerReload(ResourceManager resourceManager) {
-                        reload(resourceManager);
+                        AlchemyContentPackState.reload(resourceManager);
                     }
                 });
     }
