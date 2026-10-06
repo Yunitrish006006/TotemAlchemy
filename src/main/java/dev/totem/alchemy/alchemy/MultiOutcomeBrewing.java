@@ -122,11 +122,11 @@ public final class MultiOutcomeBrewing {
         }
         return BrewingReactionContext.resolveFirst(inputs, ingredient)
                 .map(BrewingReactionContext::reaction)
-                .map(MultiOutcomeBrewing::canonicalRegistryOutcome)
+                .map(MultiOutcomeBrewing::canonicalOutcome)
                 .orElse(null);
     }
 
-    private static Outcome canonicalRegistryOutcome(IngredientReaction reaction) {
+    public static Outcome canonicalOutcome(IngredientReaction reaction) {
         ReactionOutcome configured = reaction.outcomes().stream()
                 .max(Comparator
                         .comparingDouble(ReactionOutcome::chance)
