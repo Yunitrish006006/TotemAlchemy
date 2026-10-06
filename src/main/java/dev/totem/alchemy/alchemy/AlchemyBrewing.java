@@ -1,7 +1,6 @@
 package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
-import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -29,8 +28,7 @@ public final class AlchemyBrewing {
     }
 
     /**
-     * OFF/OFF is the vanilla-safety baseline: native Minecraft brewing recipes must not be
-     * subjected to TotemAlchemy's stochastic processing-failure roll.
+     * Native Minecraft Brewing Stand recipes are deterministic regardless of optional Alchemy pack state.
      *
      * <p>A batch remains stochastic if any participating slot is custom-only or resolves to a
      * non-Minecraft fixed brewing recipe. Empty or unrelated slots are ignored.</p>
@@ -40,11 +38,6 @@ public final class AlchemyBrewing {
             ItemStack ingredient,
             Iterable<ItemStack> potionInputs
     ) {
-        if (AlchemyContentPackState.totemAlchemyEnabled()
-                || AlchemyContentPackState.minecraftAlchemyEnabled()) {
-            return false;
-        }
-
         boolean foundVanillaRecipe = false;
         for (ItemStack input : potionInputs) {
             if (input == null || input.isEmpty()) {

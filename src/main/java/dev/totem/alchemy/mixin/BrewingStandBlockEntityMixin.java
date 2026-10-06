@@ -7,7 +7,7 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import dev.totem.alchemy.alchemy.VanillaBrewingChance;
+import dev.totem.alchemy.alchemy.BrewingStationPolicy;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
@@ -129,14 +129,10 @@ public abstract class BrewingStandBlockEntityMixin {
         ProcessingTimer processing = currentProcessing(level, pos, ingredient);
         int processingTicks = processing == null ? -1 : processing.elapsedTicks() + 1;
         UUID researcherId = processing == null ? null : processing.researcherId();
-        boolean guaranteedVanillaSuccess =
-                AlchemyBrewing.shouldGuaranteeVanillaSuccess(level, ingredient, potionInputs);
-        double successChance = guaranteedVanillaSuccess
-                ? 1.0D
-                : VanillaBrewingChance.chanceFor(ingredient, potionInputs);
-        int chancePercent = (int) Math.round(successChance * 100.0D);
-        if (guaranteedVanillaSuccess
-                || VanillaBrewingChance.isSuccessful(ingredient, potionInputs, level.getRandom().nextFloat())) {
+        BrewingStationPolicy.Decision stationDecision =
+                BrewingStationPolicy.evaluate(level, ingredient, potionInputs);
+        int chancePercent = (int) Math.round(stationDecision.effectiveChance() * 100.0D);
+        if (BrewingStationPolicy.succeeds(stationDecision, () -> level.getRandom().nextFloat())) {
             MultiOutcomeBrewing.beginBatch(level.getRandom(), ingredient, potionInputs);
             SUCCESSFUL_BREW.set(new SuccessfulBrewContext(
                     ingredient.copy(),

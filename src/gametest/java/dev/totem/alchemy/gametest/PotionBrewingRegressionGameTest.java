@@ -65,22 +65,18 @@ public final class PotionBrewingRegressionGameTest {
     }
 
     @GameTest(maxTicks = 40)
-    public void vanillaStandDoesNotRandomlyFailWhenAlchemyPacksAreOff(GameTestHelper helper) {
-        AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
-        require(helper, !snapshot.totemAlchemyEnabled() && !snapshot.minecraftAlchemyEnabled(),
-                "Vanilla-safety fixture requires both optional Alchemy packs to be disabled");
-
+    public void nativeVanillaStandDoesNotRandomlyFailRegardlessOfAlchemyPackState(GameTestHelper helper) {
         ItemStack water = potion(Potions.WATER);
         ItemStack netherWart = new ItemStack(Items.NETHER_WART);
         require(helper, AlchemyBrewing.shouldGuaranteeVanillaSuccess(
                         helper.getLevel(), netherWart, List.of(water)),
-                "Native vanilla brew was not classified for guaranteed OFF/OFF success");
+                "Native vanilla brew was not classified for guaranteed success");
 
         BrewingStandBlockEntity stand =
                 completeNativeVanillaAtLegacyFailureRoll(helper, water, netherWart);
         for (int slot = 0; slot < 3; slot++) {
             assertPotion(helper, stand.getItem(slot), Potions.AWKWARD,
-                    "OFF/OFF vanilla brew failed under a roll that used to fail");
+                    "Native vanilla brew failed under a roll that used to fail");
         }
         require(helper, stand.getItem(3).isEmpty(),
                 "Guaranteed vanilla brew did not consume exactly one reagent");
