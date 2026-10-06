@@ -25,9 +25,9 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 ## M1 — Optional built-in datapack boundary
 
-- [ ] M1-T01 Register empty `Totem Alchemy` built-in datapack.
-- [ ] M1-T02 Register empty `Minecraft Alchemy` built-in datapack.
-- [ ] M1-T03 Add pack metadata and stable pack identifiers.
+- [x] M1-T01 Register empty `Totem Alchemy` built-in datapack.
+- [x] M1-T02 Register empty `Minecraft Alchemy` built-in datapack.
+- [x] M1-T03 Add pack metadata and stable pack identifiers.
 - [ ] M1-T04 Add enabled-pack detection/state exposed to server-side alchemy code.
 - [ ] M1-T05 Add reload lifecycle handling for pack-state changes.
 - [ ] M1-T06 Add OFF/OFF pack-state tests.
