@@ -129,9 +129,14 @@ public abstract class BrewingStandBlockEntityMixin {
         ProcessingTimer processing = currentProcessing(level, pos, ingredient);
         int processingTicks = processing == null ? -1 : processing.elapsedTicks() + 1;
         UUID researcherId = processing == null ? null : processing.researcherId();
-        double successChance = VanillaBrewingChance.chanceFor(ingredient, potionInputs);
+        boolean guaranteedVanillaSuccess =
+                AlchemyBrewing.shouldGuaranteeVanillaSuccess(level, ingredient, potionInputs);
+        double successChance = guaranteedVanillaSuccess
+                ? 1.0D
+                : VanillaBrewingChance.chanceFor(ingredient, potionInputs);
         int chancePercent = (int) Math.round(successChance * 100.0D);
-        if (VanillaBrewingChance.isSuccessful(ingredient, potionInputs, level.getRandom().nextFloat())) {
+        if (guaranteedVanillaSuccess
+                || VanillaBrewingChance.isSuccessful(ingredient, potionInputs, level.getRandom().nextFloat())) {
             MultiOutcomeBrewing.beginBatch(level.getRandom(), ingredient, potionInputs);
             SUCCESSFUL_BREW.set(new SuccessfulBrewContext(
                     ingredient.copy(),
