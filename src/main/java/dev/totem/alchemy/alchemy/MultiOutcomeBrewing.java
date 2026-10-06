@@ -115,6 +115,21 @@ public final class MultiOutcomeBrewing {
         return new OutcomePool(List.copyOf(outcomes), Map.copyOf(probabilities));
     }
 
+    static List<Outcome> chooseRegistryOutcomes(IngredientReaction reaction, float... rolls) {
+        OutcomePool pool = registryPool(reaction);
+        if (rolls == null || rolls.length < pool.outcomes().size()) {
+            throw new IllegalArgumentException(
+                    "Independent outcome selection requires " + pool.outcomes().size() + " rolls"
+            );
+        }
+        int[] cursor = {0};
+        return pool.rollAll(Items.AIR, () -> rolls[cursor[0]++]);
+    }
+
+    static double registryOutcomeProbability(IngredientReaction reaction, String potionId) {
+        return registryPool(reaction).probability(Items.AIR, potionId);
+    }
+
     private static String outcomeMessageKey(Identifier potionId) {
         String path = potionId.getPath();
         int slash = path.lastIndexOf('/');
