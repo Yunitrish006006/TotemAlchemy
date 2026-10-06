@@ -1,7 +1,7 @@
 package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
-import dev.totem.alchemy.reaction.AlchemyReactionResolver;
+import dev.totem.alchemy.reaction.BrewingReactionContext;
 import dev.totem.alchemy.reaction.IngredientReaction;
 import dev.totem.alchemy.reaction.ReactionOutcome;
 import net.minecraft.core.Holder;
@@ -20,8 +20,6 @@ import java.util.function.DoubleSupplier;
 
 /** Selects one shared independently rolled result set for every compatible bottle in a brewing-stand batch. */
 public final class MultiOutcomeBrewing {
-    private static final Identifier AWKWARD_BASE_ID =
-            Identifier.fromNamespaceAndPath("totem", "alchemy/awkward");
     private static final ThreadLocal<BatchOutcome> ACTIVE_BATCH = new ThreadLocal<>();
     private static final ThreadLocal<Integer> LEGACY_PROBABILITY_READS = ThreadLocal.withInitial(() -> 0);
 
@@ -31,9 +29,19 @@ public final class MultiOutcomeBrewing {
         if (ingredient == null || ingredient.isEmpty()) {
             return null;
         }
-        java.util.Optional<IngredientReaction> reaction =
-                AlchemyReactionResolver.resolveIngredientReaction(AWKWARD_BASE_ID, ingredient);
-        return reaction.map(MultiOutcomeBrewing::registryPool).orElse(null);
+        return BrewingReactionContext.resolveLegacyActivated(ingredient)
+                .map(MultiOutcomeBrewing::registryPool)
+                .orElse(null);
+    }
+
+    private static OutcomePool poolFor(ItemStack ingredient, Iterable<ItemStack> inputs) {
+        if (ingredient == null || ingredient.isEmpty()) {
+            return null;
+        }
+        return BrewingReactionContext.resolveFirst(inputs, ingredient)
+                .map(BrewingReactionContext::reaction)
+                .map(MultiOutcomeBrewing::registryPool)
+                .orElseGet(() -> poolFor(ingredient));
     }
 
     private static OutcomePool registryPool(IngredientReaction reaction) {
@@ -81,7 +89,7 @@ public final class MultiOutcomeBrewing {
     public static void beginBatch(RandomSource random, ItemStack ingredient, Iterable<ItemStack> inputs) {
         clearBatch();
         LEGACY_PROBABILITY_READS.set(0);
-        OutcomePool pool = poolFor(ingredient);
+        OutcomePool pool = poolFor(ingredient, inputs);
         if (pool == null || !canRollOutcomes(ingredient, inputs)) return;
         ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.rollAll(ingredient.getItem(), random::nextFloat)));
     }
