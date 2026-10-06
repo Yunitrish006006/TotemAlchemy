@@ -14,6 +14,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.DoubleSupplier;
@@ -87,11 +88,66 @@ public final class MultiOutcomeBrewing {
     }
 
     public static void beginBatch(RandomSource random, ItemStack ingredient, Iterable<ItemStack> inputs) {
+        beginBatch(random, ingredient, inputs, false);
+    }
+
+    public static void beginBatch(
+            RandomSource random,
+            ItemStack ingredient,
+            Iterable<ItemStack> inputs,
+            boolean deterministicCanonical
+    ) {
         clearBatch();
         LEGACY_PROBABILITY_READS.set(0);
         OutcomePool pool = poolFor(ingredient, inputs);
         if (pool == null || !canRollOutcomes(ingredient, inputs)) return;
-        ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.rollAll(ingredient.getItem(), random::nextFloat)));
+
+        if (deterministicCanonical) {
+            Outcome canonical = canonicalOutcome(ingredient, inputs);
+            if (canonical != null) {
+                ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), List.of(canonical)));
+            }
+            return;
+        }
+
+        ACTIVE_BATCH.set(new BatchOutcome(
+                ingredient.getItem(),
+                pool.rollAll(ingredient.getItem(), random::nextFloat)
+        ));
+    }
+
+    public static Outcome canonicalOutcome(ItemStack ingredient, Iterable<ItemStack> inputs) {
+        if (ingredient == null || ingredient.isEmpty()) {
+            return null;
+        }
+        return BrewingReactionContext.resolveFirst(inputs, ingredient)
+                .map(BrewingReactionContext::reaction)
+                .map(MultiOutcomeBrewing::canonicalRegistryOutcome)
+                .orElse(null);
+    }
+
+    private static Outcome canonicalRegistryOutcome(IngredientReaction reaction) {
+        ReactionOutcome configured = reaction.outcomes().stream()
+                .max(Comparator
+                        .comparingDouble(ReactionOutcome::chance)
+                        .thenComparingInt(ReactionOutcome::priority)
+                        .thenComparing(
+                                outcome -> outcome.resultPotionId().toString(),
+                                Comparator.reverseOrder()
+                        ))
+                .orElse(null);
+        if (configured == null) {
+            return null;
+        }
+
+        Holder<Potion> potion = AlchemyMixtureBottle.potionHolder(configured.resultPotionId().toString());
+        if (potion == null) {
+            throw new IllegalStateException(
+                    "Unknown canonical potion outcome " + configured.resultPotionId()
+                            + " in reaction " + reaction.id()
+            );
+        }
+        return outcome(potion, outcomeMessageKey(configured.resultPotionId()));
     }
 
     public static void beginBatch(ItemStack ingredient, Iterable<ItemStack> inputs, float... rolls) {
