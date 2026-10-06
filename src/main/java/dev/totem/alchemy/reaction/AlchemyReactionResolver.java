@@ -6,6 +6,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.Predicate;
@@ -53,6 +54,59 @@ public final class AlchemyReactionResolver {
                         && !ingredient.isEmpty()
                         && ingredient.is(TagKey.create(Registries.ITEM, tagId))
         );
+    }
+
+    public static List<ReactionOutcome> outcomes(
+            Identifier baseId,
+            ItemStack ingredient
+    ) {
+        Optional<IngredientReaction> reaction = resolveIngredientReaction(baseId, ingredient);
+        return reaction.map(IngredientReaction::outcomes).orElseGet(List::of);
+    }
+
+    public static OptionalDouble outcomeChance(
+            Identifier baseId,
+            ItemStack ingredient,
+            Identifier resultPotionId
+    ) {
+        if (resultPotionId == null) {
+            return OptionalDouble.empty();
+        }
+        for (ReactionOutcome outcome : outcomes(baseId, ingredient)) {
+            if (outcome.resultPotionId().equals(resultPotionId)) {
+                return OptionalDouble.of(outcome.chance());
+            }
+        }
+        return OptionalDouble.empty();
+    }
+
+    static List<ReactionOutcome> outcomes(
+            AlchemyReactionIndex index,
+            Identifier baseId,
+            Identifier ingredientItemId,
+            Predicate<Identifier> matchesTag
+    ) {
+        return resolveIngredientReaction(index, baseId, ingredientItemId, matchesTag)
+                .map(IngredientReaction::outcomes)
+                .orElseGet(List::of);
+    }
+
+    static OptionalDouble outcomeChance(
+            AlchemyReactionIndex index,
+            Identifier baseId,
+            Identifier ingredientItemId,
+            Predicate<Identifier> matchesTag,
+            Identifier resultPotionId
+    ) {
+        if (resultPotionId == null) {
+            return OptionalDouble.empty();
+        }
+        for (ReactionOutcome outcome : outcomes(index, baseId, ingredientItemId, matchesTag)) {
+            if (outcome.resultPotionId().equals(resultPotionId)) {
+                return OptionalDouble.of(outcome.chance());
+            }
+        }
+        return OptionalDouble.empty();
     }
 
     static OptionalDouble successChance(
