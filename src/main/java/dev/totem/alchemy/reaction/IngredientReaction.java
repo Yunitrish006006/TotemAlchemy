@@ -12,6 +12,7 @@ public record IngredientReaction(
         ReactionIngredient ingredient,
         double successChance,
         double effectYield,
+        int processingTicks,
         int maxDose,
         boolean brewingStandCompatible,
         List<ReactionOutcome> outcomes
@@ -25,6 +26,9 @@ public record IngredientReaction(
         }
         if (!Double.isFinite(effectYield) || effectYield <= 0.0D) {
             throw new IllegalArgumentException("Reaction effect yield must be finite and greater than zero");
+        }
+        if (processingTicks < 1) {
+            throw new IllegalArgumentException("Reaction processing ticks must be at least one");
         }
         if (maxDose < 1) {
             throw new IllegalArgumentException("Reaction max dose must be at least one");
