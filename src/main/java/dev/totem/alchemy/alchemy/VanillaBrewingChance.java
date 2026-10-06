@@ -1,5 +1,6 @@
 package dev.totem.alchemy.alchemy;
 
+import dev.totem.alchemy.reaction.BrewingReactionContext;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
@@ -56,9 +57,26 @@ public final class VanillaBrewingChance {
     }
 
     public static double chanceFor(ItemStack ingredient, Iterable<ItemStack> potionInputs) {
-        double chance = chanceFor(ingredient);
+        java.util.List<ItemStack> inputs = new java.util.ArrayList<>();
+        if (potionInputs != null) {
+            potionInputs.forEach(inputs::add);
+        }
+
+        double chance = BrewingReactionContext.resolveFirst(inputs, ingredient)
+                .map(context -> context.reaction().successChance())
+                .orElseGet(() -> chanceFor(ingredient));
+        return applyInputPenalty(chance, inputs);
+    }
+
+    static double applyInputPenalty(double baseChance, Iterable<ItemStack> potionInputs) {
+        double chance = Math.max(0.0D, Math.min(1.0D, baseChance));
+        if (potionInputs == null) {
+            return chance;
+        }
         for (ItemStack potionInput : potionInputs) {
-            if (hasUnstableMushroomBase(potionInput)) return Math.max(0.0D, chance - UNSTABLE_BASE_PENALTY);
+            if (hasUnstableMushroomBase(potionInput)) {
+                return Math.max(0.0D, chance - UNSTABLE_BASE_PENALTY);
+            }
         }
         return chance;
     }
