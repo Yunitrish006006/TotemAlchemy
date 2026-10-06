@@ -73,6 +73,7 @@ jobs:
           ./gradlew -PtotemCoreJar="$core_jar" runGameTest --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
       - name: Bind validated release artifact to this Build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -euo pipefail
@@ -90,6 +91,7 @@ jobs:
           jq -n --arg repository "$GITHUB_REPOSITORY" --arg source "$GITHUB_SHA" --arg run "$GITHUB_RUN_ID" --arg attempt "$GITHUB_RUN_ATTEMPT" --arg version "$version" --arg artifact "$artifact" --arg sha "$sha" --arg core_source "$core_source" --arg core_sha "$core_sha" '{repository:$repository,source_commit:$source,run_id:$run,run_attempt:$attempt,version:$version,artifact:$artifact,sha512:$sha,core_version:"0.7.23",core_source_commit:$core_source,core_artifact_sha512:$core_sha}' > build/release-artifact/build-provenance.json
 
       - name: Upload immutable validated release artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ github.sha }}-${{ github.run_attempt }}
