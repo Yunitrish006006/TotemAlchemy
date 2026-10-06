@@ -40,8 +40,33 @@ public final class AlchemyBrewing {
             ItemStack ingredient,
             Iterable<ItemStack> potionInputs
     ) {
-        if (AlchemyContentPackState.totemAlchemyEnabled()
-                || AlchemyContentPackState.minecraftAlchemyEnabled()) {
+        return shouldGuaranteeVanillaSuccess(
+                level,
+                ingredient,
+                potionInputs,
+                AlchemyContentPackState.totemAlchemyEnabled(),
+                AlchemyContentPackState.minecraftAlchemyEnabled()
+        );
+    }
+
+    public static boolean shouldGuaranteeVanillaSuccess(
+            ServerLevel level,
+            ItemStack ingredient,
+            Iterable<ItemStack> potionInputs,
+            boolean totemAlchemyEnabled,
+            boolean minecraftAlchemyEnabled
+    ) {
+        return !totemAlchemyEnabled
+                && !minecraftAlchemyEnabled
+                && isVanillaOnlyBatch(level, ingredient, potionInputs);
+    }
+
+    public static boolean isVanillaOnlyBatch(
+            ServerLevel level,
+            ItemStack ingredient,
+            Iterable<ItemStack> potionInputs
+    ) {
+        if (level == null || ingredient == null || ingredient.isEmpty() || potionInputs == null) {
             return false;
         }
 
