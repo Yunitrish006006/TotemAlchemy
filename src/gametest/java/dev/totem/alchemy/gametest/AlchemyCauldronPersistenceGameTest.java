@@ -251,8 +251,9 @@ public final class AlchemyCauldronPersistenceGameTest {
                 "Cherry swiftness potion could not be extended");
         require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), baseCherry, new ItemStack(Items.GLOWSTONE_DUST)),
                 "Cherry swiftness potion could not be strengthened");
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(cherryLeaves) - 0.80D) < 0.000_001D,
-                "Cherry leaves did not use the designed 80% brewing chance");
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(cherryLeaves)
+                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < 0.000_001D,
+                "Unmigrated cherry fixed recipe retained a hidden Java chance");
         helper.succeed();
     }
 
@@ -268,8 +269,9 @@ public final class AlchemyCauldronPersistenceGameTest {
                 "Firefly strength potion could not be extended");
         require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), baseFirefly, new ItemStack(Items.GLOWSTONE_DUST)),
                 "Firefly strength potion could not be strengthened");
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(fireflyBush) - 0.82D) < 0.000_001D,
-                "Firefly bush did not use the designed 82% brewing chance");
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(fireflyBush)
+                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < 0.000_001D,
+                "Unmigrated firefly fixed recipe retained a hidden Java chance");
         helper.succeed();
     }
 
@@ -289,8 +291,9 @@ public final class AlchemyCauldronPersistenceGameTest {
                 "Red mushroom replacement did not turn water into an awkward potion");
         require(helper, VanillaBrewingChance.hasUnstableMushroomBase(result),
                 "Red mushroom awkward potion did not retain its unstable-base marker");
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(redMushroom) - 0.65D) < 0.000_001D,
-                "Red mushroom did not use its designed 65% success chance");
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(redMushroom)
+                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < 0.000_001D,
+                "Unresolved starter route did not use the generic fallback chance");
         ItemStack sugar = new ItemStack(Items.SUGAR);
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(sugar, List.of(result)) - 0.70D) < 0.000_001D,
                 "Unstable mushroom base did not subtract 20 points from later brewing steps");
@@ -300,28 +303,30 @@ public final class AlchemyCauldronPersistenceGameTest {
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(
                         new ItemStack(Items.REDSTONE),
                         List.of(swiftness)
-                ) - 0.72D) < 0.000_001D,
-                "Unstable mushroom penalty did not remain on later modifier steps");
+                ) - 0.60D) < 0.000_001D,
+                "Unstable mushroom penalty did not remain on unresolved modifier fallback");
         helper.succeed();
     }
 
     @GameTest(maxTicks = 40)
-    public void vanillaBrewingChanceChangesWithEachIngredient(GameTestHelper helper) {
+    public void unresolvedBrewingRoutesUseGenericFallbackChance(GameTestHelper helper) {
         ItemStack netherWart = new ItemStack(Items.NETHER_WART);
         ItemStack glowstone = new ItemStack(Items.GLOWSTONE_DUST);
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(netherWart) - 0.88D) < 0.000_001D,
-                "Nether wart did not use its 88% brewing chance");
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(glowstone) - 0.75D) < 0.000_001D,
-                "Glowstone dust did not use its 75% brewing chance");
-        require(helper, VanillaBrewingChance.isSuccessful(netherWart, 0.87F),
-                "Nether wart should accept a roll below its own chance");
-        require(helper, !VanillaBrewingChance.isSuccessful(glowstone, 0.75F),
-                "Glowstone dust should reject a roll at its own chance");
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(netherWart)
+                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < 0.000_001D,
+                "Nether wart retained an ingredient-specific Java chance");
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(glowstone)
+                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < 0.000_001D,
+                "Glowstone retained an ingredient-specific Java chance");
+        require(helper, VanillaBrewingChance.isSuccessful(netherWart, 0.79F),
+                "Generic fallback rejected a roll below its threshold");
+        require(helper, !VanillaBrewingChance.isSuccessful(glowstone, 0.80F),
+                "Generic fallback accepted a roll at its threshold");
         helper.succeed();
     }
 
     @GameTest(maxTicks = 40)
-    public void everyVanillaBrewingIngredientHasADistinctDesignedChance(GameTestHelper helper) {
+    public void bareIngredientChanceLookupHasNoHiddenPerIngredientTable(GameTestHelper helper) {
         List<ItemStack> ingredients = List.of(
                 new ItemStack(Items.REDSTONE),
                 new ItemStack(Items.SUGAR),
@@ -331,13 +336,6 @@ public final class AlchemyCauldronPersistenceGameTest {
                 new ItemStack(Items.SPIDER_EYE),
                 new ItemStack(Items.MAGMA_CREAM),
                 new ItemStack(Items.GLISTERING_MELON_SLICE),
-                new ItemStack(Items.BLAZE_POWDER),
-                new ItemStack(Items.SLIME_BLOCK),
-                new ItemStack(Items.PUFFERFISH),
-                new ItemStack(Items.RABBIT_FOOT),
-                new ItemStack(Items.GHAST_TEAR),
-                new ItemStack(Items.FERMENTED_SPIDER_EYE),
-                new ItemStack(Items.PHANTOM_MEMBRANE),
                 new ItemStack(Items.GLOWSTONE_DUST),
                 new ItemStack(Items.GUNPOWDER),
                 new ItemStack(Items.COBWEB),
@@ -346,17 +344,11 @@ public final class AlchemyCauldronPersistenceGameTest {
                 new ItemStack(Items.DRAGON_BREATH),
                 new ItemStack(Items.RED_MUSHROOM)
         );
-        Set<Double> distinctChances = new HashSet<>();
         for (ItemStack ingredient : ingredients) {
-            require(helper, VanillaBrewingChance.hasDesignedChance(ingredient),
-                    "A vanilla brewing ingredient fell back to the generic modded chance: " + ingredient);
-            double chance = VanillaBrewingChance.chanceFor(ingredient);
-            require(helper, chance >= 0.65D && chance <= 0.92D,
-                    "A vanilla brewing ingredient chance fell outside the designed range: " + ingredient);
-            distinctChances.add(chance);
+            require(helper, Math.abs(VanillaBrewingChance.chanceFor(ingredient)
+                            - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < 0.000_001D,
+                    "Bare ingredient lookup retained a hidden Java chance: " + ingredient);
         }
-        require(helper, distinctChances.size() == ingredients.size(),
-                "Vanilla brewing ingredients did not all receive distinct success rates");
         helper.succeed();
     }
 

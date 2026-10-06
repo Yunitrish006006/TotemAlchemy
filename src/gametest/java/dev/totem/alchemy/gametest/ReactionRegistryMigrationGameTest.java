@@ -40,6 +40,10 @@ public final class ReactionRegistryMigrationGameTest {
                         new ItemStack(Items.SUGAR), List.of(awkward)) - sugar.successChance()) < EPSILON,
                 "Brewing Stand success chance did not resolve from reaction data");
 
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(new ItemStack(Items.SUGAR))
+                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < EPSILON,
+                "Bare ingredient lookup retained a hidden hard-coded sugar chance");
+
         VanillaBrewingChance.markUnstableMushroomBase(awkward);
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(
                         new ItemStack(Items.SUGAR), List.of(awkward)) - 0.70D) < EPSILON,
