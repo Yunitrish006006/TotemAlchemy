@@ -2,6 +2,8 @@ package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.alchemy.AlchemyBrewing;
 import dev.totem.alchemy.alchemy.AlchemyPotions;
+import dev.totem.alchemy.alchemy.BrewingModifierPolicy;
+import dev.totem.alchemy.alchemy.BrewingStationPolicy;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.mixin.BrewingStandBlockEntityAccessor;
 import dev.totem.alchemy.resource.AlchemyContentPackState;
@@ -46,6 +48,29 @@ public final class PotionBrewingRegressionGameTest {
                 "Redstone stopped extending swiftness");
         assertMix(helper, Potions.SWIFTNESS, new ItemStack(Items.GLOWSTONE_DUST), Potions.STRONG_SWIFTNESS,
                 "Glowstone stopped amplifying swiftness");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void vanillaModifierPolicyIsDeterministicAndGuaranteed(GameTestHelper helper) {
+        ItemStack swiftness = potion(Potions.SWIFTNESS);
+        ItemStack redstone = new ItemStack(Items.REDSTONE);
+
+        require(helper, BrewingModifierPolicy.isModifierIngredient(redstone),
+                "Redstone was not classified as a Brewing Stand modifier");
+        BrewingStationPolicy.Decision decision =
+                BrewingStationPolicy.evaluate(helper.getLevel(), redstone, List.of(swiftness));
+        require(helper, decision.deterministicModifier(),
+                "Vanilla redstone modifier was not classified as deterministic");
+        require(helper, Math.abs(decision.effectiveChance() - 1.0D) < 0.000_001D,
+                "Vanilla redstone modifier did not reach 100% success");
+
+        BrewingStandBlockEntity stand =
+                completeNativeVanillaAtLegacyFailureRoll(helper, swiftness, redstone);
+        for (int slot = 0; slot < 3; slot++) {
+            assertPotion(helper, stand.getItem(slot), Potions.LONG_SWIFTNESS,
+                    "Deterministic redstone modifier failed under a legacy failure roll");
+        }
         helper.succeed();
     }
 
