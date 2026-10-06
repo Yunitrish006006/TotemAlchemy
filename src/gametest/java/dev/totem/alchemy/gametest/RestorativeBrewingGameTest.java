@@ -49,10 +49,13 @@ public final class RestorativeBrewingGameTest {
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:enchanted_golden_apple", "minecraft:healing") - 0.80D) < EPSILON,
                 "Enchanted golden apple healing chance was not 80%");
-        require(helper, VanillaBrewingChance.chanceFor(new ItemStack(Items.GOLDEN_APPLE)) == 0.94D,
-                "Golden apple processing success was not 94%");
-        require(helper, VanillaBrewingChance.chanceFor(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE)) == 0.99D,
-                "Enchanted golden apple processing success was not 99%");
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        require(helper, VanillaBrewingChance.chanceFor(
+                        new ItemStack(Items.GOLDEN_APPLE), List.of(awkward)) == 0.94D,
+                "Golden apple processing success did not come from reaction data");
+        require(helper, VanillaBrewingChance.chanceFor(
+                        new ItemStack(Items.ENCHANTED_GOLDEN_APPLE), List.of(awkward)) == 0.99D,
+                "Enchanted golden apple processing success did not come from reaction data");
         helper.succeed();
     }
 
