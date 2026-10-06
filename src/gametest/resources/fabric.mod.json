@@ -14,7 +14,8 @@
       "dev.totem.alchemy.gametest.FlintFromBowlRecipeGameTest",
       "dev.totem.alchemy.gametest.PigManureLayerGameTest",
       "dev.totem.alchemy.gametest.FlaskEnchantmentsGameTest",
-      "dev.totem.alchemy.gametest.PortableMixtureGameTest"
+      "dev.totem.alchemy.gametest.PortableMixtureGameTest",
+      "dev.totem.alchemy.alchemy.MultiOutcomeRegistryGameTest"
     ],
     "fabric-client-gametest": [
       "dev.totem.alchemy.client.AlchemyCreativeTabVisualGameTest",
