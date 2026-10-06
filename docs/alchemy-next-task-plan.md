@@ -95,7 +95,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 ## M6 — EffectDose and concentration
 
 - [x] M6-T01 Make canonical EffectDose quantity explicit.
-- [ ] M6-T02 Define standard dose lookup.
+- [x] M6-T02 Define standard dose lookup.
 - [ ] M6-T03 Derive effect concentration from EffectDose + volume.
 - [ ] M6-T04 Implement sustained-effect potency/duration split.
 - [ ] M6-T05 Add configurable bias, default 0.5.

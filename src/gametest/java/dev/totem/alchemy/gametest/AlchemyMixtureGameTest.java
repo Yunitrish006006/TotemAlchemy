@@ -3,6 +3,7 @@ package dev.totem.alchemy.gametest;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.EffectDoseStandards;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
@@ -33,6 +34,33 @@ public final class AlchemyMixtureGameTest {
                 "Canonical quantity did not round-trip to the original one-volume duration");
         requireNear(helper, levelTwo.scale(0.5D).quantity(), 200.0D,
                 "Scaling EffectDose did not scale canonical quantity");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void standardDoseLookupUsesOneRegisteredPotionBottle(GameTestHelper helper) {
+        AlchemyMixtureState.EffectDose swiftness =
+                EffectDoseStandards.forEffect(Potions.SWIFTNESS, "minecraft:speed");
+        require(helper, swiftness != null,
+                "Standard dose lookup did not expose swiftness");
+        requireNear(helper, swiftness.quantity(),
+                AlchemyMixtureState.EffectDose.quantityForDuration(20 * 180, 0),
+                "Standard swiftness dose did not match its registered one-bottle effect");
+        require(helper, swiftness.amplifierCap() == 0,
+                "Standard swiftness dose changed its registered amplifier");
+
+        AlchemyMixtureState.EffectDose strongSwiftness =
+                EffectDoseStandards.forEffect(Potions.STRONG_SWIFTNESS, "minecraft:speed");
+        require(helper, strongSwiftness != null,
+                "Standard dose lookup did not expose strong swiftness");
+        requireNear(helper, strongSwiftness.quantity(),
+                AlchemyMixtureState.EffectDose.quantityForDuration(20 * 90, 1),
+                "Strong swiftness did not use canonical registered quantity");
+        require(helper, strongSwiftness.amplifierCap() == 1,
+                "Strong swiftness standard dose lost its registered amplifier");
+
+        require(helper, EffectDoseStandards.forPotion(Potions.AWKWARD).isEmpty(),
+                "Effectless awkward potion unexpectedly produced a standard EffectDose");
         helper.succeed();
     }
 
