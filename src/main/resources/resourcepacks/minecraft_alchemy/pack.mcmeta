@@ -1,0 +1,8 @@
+{
+  "pack": {
+    "description": "TotemAlchemy — optional Minecraft potion chemistry for the Alchemy Cauldron",
+    "pack_format": 121,
+    "min_format": [97, 1],
+    "max_format": 121
+  }
+}
