@@ -133,7 +133,12 @@ public abstract class BrewingStandBlockEntityMixin {
                 BrewingStationPolicy.evaluate(level, ingredient, potionInputs);
         int chancePercent = (int) Math.round(stationDecision.effectiveChance() * 100.0D);
         if (BrewingStationPolicy.succeeds(stationDecision, () -> level.getRandom().nextFloat())) {
-            MultiOutcomeBrewing.beginBatch(level.getRandom(), ingredient, potionInputs);
+            MultiOutcomeBrewing.beginBatch(
+                    level.getRandom(),
+                    ingredient,
+                    potionInputs,
+                    stationDecision.nativeVanillaRecipe()
+            );
             SUCCESSFUL_BREW.set(new SuccessfulBrewContext(
                     ingredient.copy(),
                     potionInputs.stream().map(ItemStack::copy).toList(),
