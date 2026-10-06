@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import dev.totem.alchemy.TotemAlchemy;
+import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.resources.Identifier;
@@ -167,6 +168,7 @@ public final class AlchemyReactionDataLoader {
                 requiredId(requiredString(json, "result_base"), "result_base"),
                 optionalDouble(json, "success_chance", 1.0D),
                 optionalDouble(json, "activation_yield", 1.0D),
+                optionalInt(json, "processing_ticks", BrewingMaterialSettings.DEFAULT_PROCESSING_TICKS),
                 optionalBoolean(json, "brewing_stand", false),
                 optionalInt(json, "priority", 0)
         );
@@ -207,6 +209,7 @@ public final class AlchemyReactionDataLoader {
                 parseIngredient(required(json, "ingredient"), "ingredient"),
                 optionalDouble(json, "success_chance", 1.0D),
                 optionalDouble(json, "effect_yield", 1.0D),
+                optionalInt(json, "processing_ticks", BrewingMaterialSettings.DEFAULT_PROCESSING_TICKS),
                 optionalInt(json, "max_dose", 1),
                 optionalBoolean(json, "brewing_stand", false),
                 outcomes
