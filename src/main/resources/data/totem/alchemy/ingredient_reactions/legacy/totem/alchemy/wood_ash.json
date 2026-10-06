@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "totem:alchemy/wood_ash",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 380,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:fire_resistance",
+      "chance": 0.75,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:weakness",
+      "chance": 0.1,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:harming",
+      "chance": 0.05,
+      "priority": 1
+    }
+  ]
+}

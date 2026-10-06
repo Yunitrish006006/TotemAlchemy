@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:magma_cream",
+  "success_chance": 0.84,
+  "effect_yield": 1,
+  "processing_ticks": 460,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:fire_resistance",
+      "chance": 0.94,
+      "priority": 3
+    },
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.04,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:strength",
+      "chance": 0.02,
+      "priority": 1
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:slime_ball",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 340,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:oozing",
+      "chance": 0.86,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:leaping",
+      "chance": 0.08,
+      "priority": 1
+    }
+  ]
+}

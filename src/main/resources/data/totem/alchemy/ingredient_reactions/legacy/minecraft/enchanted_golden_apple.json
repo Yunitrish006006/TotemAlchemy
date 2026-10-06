@@ -1,0 +1,31 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:enchanted_golden_apple",
+  "success_chance": 0.99,
+  "effect_yield": 1,
+  "processing_ticks": 700,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:healing",
+      "chance": 0.8,
+      "priority": 4
+    },
+    {
+      "potion": "minecraft:regeneration",
+      "chance": 0.7,
+      "priority": 3
+    },
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.5,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:fire_resistance",
+      "chance": 0.35,
+      "priority": 1
+    }
+  ]
+}

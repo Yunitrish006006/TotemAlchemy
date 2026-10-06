@@ -1,0 +1,21 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:glow_berries",
+  "success_chance": 0.85,
+  "effect_yield": 1,
+  "processing_ticks": 320,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:night_vision",
+      "chance": 0.94,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:regeneration",
+      "chance": 0.06,
+      "priority": 1
+    }
+  ]
+}

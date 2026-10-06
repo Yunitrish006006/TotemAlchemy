@@ -1,0 +1,21 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:spider_eye",
+  "success_chance": 0.85,
+  "effect_yield": 1,
+  "processing_ticks": 380,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:poison",
+      "chance": 0.92,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:weakness",
+      "chance": 0.05,
+      "priority": 1
+    }
+  ]
+}

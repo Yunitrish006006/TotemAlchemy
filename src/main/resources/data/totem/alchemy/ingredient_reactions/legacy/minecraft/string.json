@@ -1,0 +1,21 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:string",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 320,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:weaving",
+      "chance": 0.86,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:slowness",
+      "chance": 0.08,
+      "priority": 1
+    }
+  ]
+}

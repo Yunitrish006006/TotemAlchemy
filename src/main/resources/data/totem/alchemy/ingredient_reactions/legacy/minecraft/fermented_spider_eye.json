@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:fermented_spider_eye",
+  "success_chance": 0.77,
+  "effect_yield": 1,
+  "processing_ticks": 420,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:weakness",
+      "chance": 0.92,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:harming",
+      "chance": 0.05,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:invisibility",
+      "chance": 0.03,
+      "priority": 1
+    }
+  ]
+}

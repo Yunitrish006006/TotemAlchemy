@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:stone",
+  "success_chance": 0.87,
+  "effect_yield": 1,
+  "processing_ticks": 520,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:infested",
+      "chance": 0.92,
+      "priority": 3
+    },
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.06,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:slowness",
+      "chance": 0.02,
+      "priority": 1
+    }
+  ]
+}

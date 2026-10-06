@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:turtle_helmet",
+  "success_chance": 0.71,
+  "effect_yield": 1,
+  "processing_ticks": 500,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:turtle_master",
+      "chance": 0.94,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:water_breathing",
+      "chance": 0.05,
+      "priority": 2
+    },
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.03,
+      "priority": 1
+    }
+  ]
+}

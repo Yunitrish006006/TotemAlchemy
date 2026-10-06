@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:pufferfish",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 440,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:water_breathing",
+      "chance": 0.96,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:poison",
+      "chance": 0.45,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:weakness",
+      "chance": 0.08,
+      "priority": 1
+    }
+  ]
+}

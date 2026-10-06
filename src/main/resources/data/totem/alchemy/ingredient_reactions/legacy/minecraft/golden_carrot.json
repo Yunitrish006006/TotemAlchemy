@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:golden_carrot",
+  "success_chance": 0.86,
+  "effect_yield": 1,
+  "processing_ticks": 420,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:night_vision",
+      "chance": 0.95,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:invisibility",
+      "chance": 0.04,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:healing",
+      "chance": 0.01,
+      "priority": 1
+    }
+  ]
+}

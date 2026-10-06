@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:chorus_fruit",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 400,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:slow_falling",
+      "chance": 0.78,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:invisibility",
+      "chance": 0.1,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:swiftness",
+      "chance": 0.05,
+      "priority": 1
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:phantom_membrane",
+  "success_chance": 0.76,
+  "effect_yield": 1,
+  "processing_ticks": 420,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:slow_falling",
+      "chance": 0.96,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:invisibility",
+      "chance": 0.03,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:night_vision",
+      "chance": 0.01,
+      "priority": 1
+    }
+  ]
+}

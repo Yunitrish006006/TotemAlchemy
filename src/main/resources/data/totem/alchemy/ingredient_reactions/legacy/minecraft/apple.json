@@ -1,0 +1,21 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:apple",
+  "success_chance": 0.9,
+  "effect_yield": 1,
+  "processing_ticks": 300,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.97,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:healing",
+      "chance": 0.03,
+      "priority": 1
+    }
+  ]
+}

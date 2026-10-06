@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:blaze_powder",
+  "success_chance": 0.82,
+  "effect_yield": 1,
+  "processing_ticks": 360,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:strength",
+      "chance": 0.95,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:fire_resistance",
+      "chance": 0.04,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:harming",
+      "chance": 0.01,
+      "priority": 1
+    }
+  ]
+}

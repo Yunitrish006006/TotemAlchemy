@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:rabbit_hide",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 360,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:leaping",
+      "chance": 0.8,
+      "priority": 3
+    },
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.08,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:slow_falling",
+      "chance": 0.05,
+      "priority": 1
+    }
+  ]
+}

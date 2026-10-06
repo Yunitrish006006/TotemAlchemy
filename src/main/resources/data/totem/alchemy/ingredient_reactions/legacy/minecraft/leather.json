@@ -1,0 +1,21 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:leather",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 380,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.82,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:regeneration",
+      "chance": 0.06,
+      "priority": 1
+    }
+  ]
+}

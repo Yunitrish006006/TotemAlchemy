@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:ghast_tear",
+  "success_chance": 0.78,
+  "effect_yield": 1,
+  "processing_ticks": 480,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:regeneration",
+      "chance": 0.95,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:healing",
+      "chance": 0.04,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:weakness",
+      "chance": 0.01,
+      "priority": 1
+    }
+  ]
+}

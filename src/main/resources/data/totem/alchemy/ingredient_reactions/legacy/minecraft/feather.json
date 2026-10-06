@@ -1,0 +1,21 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:feather",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 300,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:slow_falling",
+      "chance": 0.88,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:leaping",
+      "chance": 0.06,
+      "priority": 1
+    }
+  ]
+}

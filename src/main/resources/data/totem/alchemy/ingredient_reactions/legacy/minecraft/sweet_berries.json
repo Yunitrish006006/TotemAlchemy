@@ -1,0 +1,21 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:sweet_berries",
+  "success_chance": 0.88,
+  "effect_yield": 1,
+  "processing_ticks": 280,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:swiftness",
+      "chance": 0.96,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:regeneration",
+      "chance": 0.04,
+      "priority": 1
+    }
+  ]
+}

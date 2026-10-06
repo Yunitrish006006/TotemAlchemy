@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:breeze_rod",
+  "success_chance": 0.72,
+  "effect_yield": 1,
+  "processing_ticks": 380,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:wind_charged",
+      "chance": 0.96,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:slow_falling",
+      "chance": 0.03,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:leaping",
+      "chance": 0.02,
+      "priority": 1
+    }
+  ]
+}

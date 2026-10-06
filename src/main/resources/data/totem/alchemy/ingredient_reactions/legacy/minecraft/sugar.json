@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:sugar",
+  "success_chance": 0.9,
+  "effect_yield": 1,
+  "processing_ticks": 300,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:swiftness",
+      "chance": 0.94,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:slowness",
+      "chance": 0.03,
+      "priority": 2
+    },
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.03,
+      "priority": 1
+    }
+  ]
+}

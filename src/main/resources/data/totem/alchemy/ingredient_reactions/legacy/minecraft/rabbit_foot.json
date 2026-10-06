@@ -1,0 +1,26 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:rabbit_foot",
+  "success_chance": 0.79,
+  "effect_yield": 1,
+  "processing_ticks": 440,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:leaping",
+      "chance": 0.92,
+      "priority": 3
+    },
+    {
+      "potion": "minecraft:slow_falling",
+      "chance": 0.06,
+      "priority": 2
+    },
+    {
+      "potion": "minecraft:swiftness",
+      "chance": 0.02,
+      "priority": 1
+    }
+  ]
+}
