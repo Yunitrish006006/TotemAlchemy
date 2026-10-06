@@ -898,3 +898,185 @@ public final class AlchemyMixtureState {
                     .append(entry.getValue().amplifierCap());
         });
         return out.toString();
+    }
+
+    private static Map<String, EffectDose> decodeEffects(String raw) {
+        Map<String, EffectDose> result = new LinkedHashMap<>();
+        if (raw == null || raw.isBlank()) {
+            return result;
+        }
+        for (String value : raw.split(";")) {
+            String[] part = value.split(",", -1);
+            if (part.length != 3) {
+                continue;
+            }
+            try {
+                result.put(dec(part[0]), new EffectDose(Double.parseDouble(part[1]), Integer.parseInt(part[2])));
+            } catch (RuntimeException ignored) {
+                // Ignore corrupt effect rows.
+            }
+        }
+        return result;
+    }
+
+    private static String enc(String value) {
+        return B64.encodeToString(nullToBlank(value).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String dec(String value) {
+        return new String(B64D.decode(value), StandardCharsets.UTF_8);
+    }
+
+    private static int clampVolume(int volume) {
+        return Math.max(0, Math.min(MAX_VOLUME_UNITS, volume));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private static String nullToBlank(String value) {
+        return value == null ? "" : value;
+    }
+
+    public enum DeliveryForm {
+        DRINKABLE,
+        SPLASH,
+        LINGERING;
+
+        public static DeliveryForm parse(String value) {
+            if (value == null || value.isBlank()) {
+                return DRINKABLE;
+            }
+            try {
+                return DeliveryForm.valueOf(value);
+            } catch (IllegalArgumentException ignored) {
+                return DRINKABLE;
+            }
+        }
+    }
+
+    public record EffectDose(double potencyTicks, int amplifierCap) {
+        public EffectDose {
+            potencyTicks = Math.max(0.0D, potencyTicks);
+            amplifierCap = Math.max(0, amplifierCap);
+        }
+
+        public static EffectDose fromDuration(int durationTicks, int amplifier) {
+            return new EffectDose((double) Math.max(0, durationTicks) * (Math.max(0, amplifier) + 1), amplifier);
+        }
+
+        public EffectDose merge(EffectDose other) {
+            return new EffectDose(potencyTicks + other.potencyTicks, Math.max(amplifierCap, other.amplifierCap));
+        }
+
+        public EffectDose scale(double factor) {
+            return new EffectDose(potencyTicks * Math.max(0.0D, factor), amplifierCap);
+        }
+
+        public int durationForVolume(int volume) {
+            int safeVolume = Math.max(1, volume);
+            return Math.max(1, (int) Math.round(potencyTicks / safeVolume / (amplifierCap + 1.0D)));
+        }
+    }
+
+    public record CompletedStage(
+            String id,
+            String ingredientId,
+            int overcookTicks,
+            int perfectWindowTicks
+    ) {
+        public CompletedStage {
+            id = nullToBlank(id);
+            ingredientId = nullToBlank(ingredientId);
+            overcookTicks = Math.max(0, overcookTicks);
+            perfectWindowTicks = Math.max(0, perfectWindowTicks);
+        }
+
+        public int damagingTicks() {
+            return Math.max(0, overcookTicks - perfectWindowTicks);
+        }
+
+        public CompletedStage advance(int ticks) {
+            return new CompletedStage(id, ingredientId, overcookTicks + Math.max(0, ticks), perfectWindowTicks);
+        }
+
+        private static CompletedStage mergeSameStage(CompletedStage left, CompletedStage right) {
+            return new CompletedStage(
+                    left.id,
+                    left.ingredientId.isBlank() ? right.ingredientId : left.ingredientId,
+                    Math.max(left.overcookTicks, right.overcookTicks),
+                    Math.max(left.perfectWindowTicks, right.perfectWindowTicks)
+            );
+        }
+    }
+
+    public record Reaction(
+            String id,
+            String ingredientId,
+            int elapsedTicks,
+            int requiredTicks,
+            int volumeUnits,
+            String sourcePotionId,
+            String targetPotionId,
+            Map<String, EffectDose> sourceEffects,
+            Map<String, EffectDose> targetEffects
+    ) {
+        public Reaction {
+            id = nullToBlank(id);
+            ingredientId = nullToBlank(ingredientId);
+            elapsedTicks = Math.max(0, elapsedTicks);
+            requiredTicks = Math.max(1, requiredTicks);
+            volumeUnits = Math.max(1, Math.min(MAX_FLASK_VOLUME_UNITS, volumeUnits));
+            sourceEffects = Map.copyOf(sourceEffects == null ? Map.of() : sourceEffects);
+            targetEffects = Map.copyOf(targetEffects == null ? Map.of() : targetEffects);
+        }
+
+        public boolean complete() {
+            return elapsedTicks >= requiredTicks;
+        }
+
+        public int remainingTicks() {
+            return Math.max(0, requiredTicks - elapsedTicks);
+        }
+
+        public double progress() {
+            return Math.min(1.0D, (double) elapsedTicks / requiredTicks);
+        }
+
+        public Reaction advance(int ticks) {
+            return new Reaction(id, ingredientId, Math.min(requiredTicks, elapsedTicks + Math.max(0, ticks)),
+                    requiredTicks, volumeUnits, sourcePotionId, targetPotionId, sourceEffects, targetEffects);
+        }
+
+        public Reaction scale(double factor, int newVolume) {
+            Map<String, EffectDose> source = new LinkedHashMap<>();
+            sourceEffects.forEach((id, dose) -> source.put(id, dose.scale(factor)));
+            Map<String, EffectDose> target = new LinkedHashMap<>();
+            targetEffects.forEach((id, dose) -> target.put(id, dose.scale(factor)));
+            return new Reaction(id, ingredientId, elapsedTicks, requiredTicks, newVolume,
+                    sourcePotionId, targetPotionId, source, target);
+        }
+
+        private Reaction mergeWeighted(Reaction other, int currentWeight, int otherWeight) {
+            int total = Math.max(1, currentWeight + otherWeight);
+            int elapsed = (elapsedTicks * currentWeight + other.elapsedTicks * otherWeight) / total;
+            Map<String, EffectDose> source = mergeMaps(sourceEffects, other.sourceEffects);
+            Map<String, EffectDose> target = mergeMaps(targetEffects, other.targetEffects);
+            String sourcePotion = java.util.Objects.equals(sourcePotionId, other.sourcePotionId) ? sourcePotionId : null;
+            String targetPotion = java.util.Objects.equals(targetPotionId, other.targetPotionId) ? targetPotionId : null;
+            return new Reaction(id, ingredientId, elapsed, Math.max(requiredTicks, other.requiredTicks),
+                    Math.min(MAX_FLASK_VOLUME_UNITS, volumeUnits + other.volumeUnits), sourcePotion, targetPotion, source, target);
+        }
+
+        private static Reaction mergeSameReaction(Reaction left, Reaction right) {
+            return left.mergeWeighted(right, left.volumeUnits, right.volumeUnits);
+        }
+
+        private static Map<String, EffectDose> mergeMaps(Map<String, EffectDose> first, Map<String, EffectDose> second) {
+            Map<String, EffectDose> result = new LinkedHashMap<>(first);
+            second.forEach((id, dose) -> result.merge(id, dose, EffectDose::merge));
+            return result;
+        }
+    }
+}
