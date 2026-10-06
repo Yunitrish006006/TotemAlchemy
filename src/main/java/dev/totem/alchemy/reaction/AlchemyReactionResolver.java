@@ -42,7 +42,27 @@ public final class AlchemyReactionResolver {
             Identifier baseId,
             ItemStack ingredient
     ) {
-        Optional<IngredientReaction> reaction = resolveIngredientReaction(baseId, ingredient);
+        Identifier ingredientItemId = ingredient == null || ingredient.isEmpty()
+                ? null
+                : BuiltInRegistries.ITEM.getKey(ingredient.getItem());
+        return successChance(
+                AlchemyReactionDataLoader.index(),
+                baseId,
+                ingredientItemId,
+                tagId -> ingredient != null
+                        && !ingredient.isEmpty()
+                        && ingredient.is(TagKey.create(Registries.ITEM, tagId))
+        );
+    }
+
+    static OptionalDouble successChance(
+            AlchemyReactionIndex index,
+            Identifier baseId,
+            Identifier ingredientItemId,
+            Predicate<Identifier> matchesTag
+    ) {
+        Optional<IngredientReaction> reaction =
+                resolveIngredientReaction(index, baseId, ingredientItemId, matchesTag);
         return reaction.isPresent()
                 ? OptionalDouble.of(reaction.get().successChance())
                 : OptionalDouble.empty();
