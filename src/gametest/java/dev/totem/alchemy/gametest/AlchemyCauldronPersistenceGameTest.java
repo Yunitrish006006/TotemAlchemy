@@ -251,10 +251,9 @@ public final class AlchemyCauldronPersistenceGameTest {
                 "Cherry swiftness potion could not be extended");
         require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), baseCherry, new ItemStack(Items.GLOWSTONE_DUST)),
                 "Cherry swiftness potion could not be strengthened");
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(
-                        cherryLeaves, List.of(PotionContents.createItemStack(Items.POTION, Potions.AWKWARD))
-                ) - 0.80D) < 0.000_001D,
-                "Cherry leaves did not resolve its 80% brewing chance from reaction data");
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(cherryLeaves)
+                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < 0.000_001D,
+                "Unmigrated cherry fixed recipe retained a hidden Java chance");
         helper.succeed();
     }
 
@@ -270,10 +269,9 @@ public final class AlchemyCauldronPersistenceGameTest {
                 "Firefly strength potion could not be extended");
         require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), baseFirefly, new ItemStack(Items.GLOWSTONE_DUST)),
                 "Firefly strength potion could not be strengthened");
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(
-                        fireflyBush, List.of(PotionContents.createItemStack(Items.POTION, Potions.AWKWARD))
-                ) - 0.82D) < 0.000_001D,
-                "Firefly bush did not resolve its 82% brewing chance from reaction data");
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(fireflyBush)
+                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < 0.000_001D,
+                "Unmigrated firefly fixed recipe retained a hidden Java chance");
         helper.succeed();
     }
 
