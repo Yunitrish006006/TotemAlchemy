@@ -6,6 +6,8 @@ import dev.totem.alchemy.alchemy.BrewingModifierPolicy;
 import dev.totem.alchemy.alchemy.BrewingStationPolicy;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.mixin.BrewingStandBlockEntityAccessor;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
@@ -71,6 +73,25 @@ public final class PotionBrewingRegressionGameTest {
             assertPotion(helper, stand.getItem(slot), Potions.LONG_SWIFTNESS,
                     "Deterministic redstone modifier failed under a legacy failure roll");
         }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void storedMixtureModifierPreservesMixtureState(GameTestHelper helper) {
+        ItemStack input = potion(Potions.SWIFTNESS);
+        AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(input);
+        state.addProvenance("test:stored-mixture");
+        AlchemyMixtureBottle.writeState(input, state);
+
+        ItemStack output = AlchemyBrewing.mix(
+                helper.getLevel(), new ItemStack(Items.REDSTONE), input);
+        require(helper, AlchemyMixtureBottle.hasStoredMixture(output),
+                "Deterministic redstone modifier dropped stored mixture state");
+        AlchemyMixtureState modified = AlchemyMixtureBottle.fromPotion(output);
+        require(helper, modified.hasProvenance("test:stored-mixture"),
+                "Modifier transform discarded existing mixture provenance");
+        require(helper, modified.hasProvenance("modifier:minecraft:redstone"),
+                "Modifier transform did not record redstone provenance");
         helper.succeed();
     }
 
