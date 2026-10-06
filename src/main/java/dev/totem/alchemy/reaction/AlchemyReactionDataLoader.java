@@ -1,6 +1,5 @@
 package dev.totem.alchemy.reaction;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -32,8 +31,6 @@ import java.util.Map;
 public final class AlchemyReactionDataLoader {
     static final String BASE_REACTION_DIRECTORY = "alchemy/base_reactions";
     static final String INGREDIENT_REACTION_DIRECTORY = "alchemy/ingredient_reactions";
-
-    private static final Gson GSON = new Gson();
 
     private static volatile List<BaseReaction> baseReactions = List.of();
     private static volatile List<IngredientReaction> ingredientReactions = List.of();
