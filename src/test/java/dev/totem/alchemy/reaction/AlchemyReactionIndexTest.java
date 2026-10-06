@@ -95,6 +95,7 @@ class AlchemyReactionIndexTest {
                 ingredient,
                 0.9D,
                 1.0D,
+                240,
                 3,
                 true,
                 List.of(new ReactionOutcome(id("minecraft", "swiftness"), 0.94D, 10))
@@ -109,6 +110,7 @@ class AlchemyReactionIndexTest {
                 id("totem", "alchemy/awkward"),
                 1.0D,
                 1.0D,
+                400,
                 true,
                 priority
         );
