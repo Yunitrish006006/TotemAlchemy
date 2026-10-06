@@ -17,6 +17,26 @@ public final class AlchemyMixtureGameTest {
     private static final double EPSILON = 0.0001D;
 
     @GameTest(maxTicks = 40)
+    public void effectDoseUsesCanonicalLevelOneEquivalentTickQuantity(GameTestHelper helper) {
+        AlchemyMixtureState.EffectDose levelOne =
+                AlchemyMixtureState.EffectDose.fromDuration(200, 0);
+        AlchemyMixtureState.EffectDose levelTwo =
+                AlchemyMixtureState.EffectDose.fromDuration(200, 1);
+
+        requireNear(helper, levelOne.quantity(), 200.0D,
+                "Level I EffectDose did not use duration ticks as canonical quantity");
+        requireNear(helper, levelTwo.quantity(), 400.0D,
+                "Level II EffectDose did not scale canonical quantity by amplifier + 1");
+        requireNear(helper, levelTwo.potencyTicks(), levelTwo.quantity(),
+                "Legacy potencyTicks accessor diverged from canonical EffectDose quantity");
+        require(helper, levelTwo.durationForVolume(1) == 200,
+                "Canonical quantity did not round-trip to the original one-volume duration");
+        requireNear(helper, levelTwo.scale(0.5D).quantity(), 200.0D,
+                "Scaling EffectDose did not scale canonical quantity");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void opposingSpeedEffectsNeutralizeByEffectQuantity(GameTestHelper helper) {
         AlchemyMixtureState state = new AlchemyMixtureState(1);
         state.putEffect("minecraft:speed", 2_000.0D, 0);
