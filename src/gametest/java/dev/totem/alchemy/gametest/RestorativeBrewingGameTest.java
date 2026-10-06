@@ -28,10 +28,10 @@ public final class RestorativeBrewingGameTest {
                 sugar, awkward, 0.999F, 0.999F, 0.999F);
         require(helper, outcomes.isEmpty(), "All-miss sugar rolls unexpectedly forced an effect");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                        "minecraft:sugar", "minecraft:swiftness") - 0.50D) < EPSILON,
-                "Swiftness truth was not the configured independent 50% chance");
-        require(helper, Math.abs(MultiOutcomeBrewing.noEffectProbability("minecraft:sugar") - 0.28D) < EPSILON,
-                "Sugar no-effect truth was not 28% from independent 50/30/20 rolls");
+                        "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
+                "Swiftness truth was not the configured independent 94% chance");
+        require(helper, Math.abs(MultiOutcomeBrewing.noEffectProbability("minecraft:sugar") - 0.056454D) < EPSILON,
+                "Sugar no-effect truth was not 5.6454% from independent 94/3/3 rolls");
         helper.succeed();
     }
 
@@ -41,14 +41,14 @@ public final class RestorativeBrewingGameTest {
                         "minecraft:apple", "minecraft:healing") - 0.03D) < EPSILON,
                 "Apple healing chance was not 3%");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                        "minecraft:honey_bottle", "minecraft:healing") - 0.08D) < EPSILON,
-                "Honey healing chance was not 8%");
+                        "minecraft:honey_bottle", "minecraft:healing") - 0.07D) < EPSILON,
+                "Honey healing chance was not 7%");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                        "minecraft:golden_apple", "minecraft:healing") - 0.40D) < EPSILON,
-                "Golden apple healing chance was not 40%");
+                        "minecraft:golden_apple", "minecraft:healing") - 0.70D) < EPSILON,
+                "Golden apple healing chance was not 70%");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                        "minecraft:enchanted_golden_apple", "minecraft:healing") - 0.65D) < EPSILON,
-                "Enchanted golden apple healing chance was not 65%");
+                        "minecraft:enchanted_golden_apple", "minecraft:healing") - 0.80D) < EPSILON,
+                "Enchanted golden apple healing chance was not 80%");
         require(helper, VanillaBrewingChance.chanceFor(new ItemStack(Items.GOLDEN_APPLE)) == 0.94D,
                 "Golden apple processing success was not 94%");
         require(helper, VanillaBrewingChance.chanceFor(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE)) == 0.99D,
