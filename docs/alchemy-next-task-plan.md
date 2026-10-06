@@ -20,8 +20,8 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M0-T02 Add explicit vanilla Brewing Stand regression coverage for Awkward + Sugar.
 - [x] M0-T03 Add regression coverage for Redstone/Glowstone vanilla modifiers.
 - [x] M0-T04 Add regression coverage for Gunpowder/Dragon Breath delivery conversion.
-- [ ] M0-T05 Add regression coverage that vanilla recipes do not randomly fail when Totem packs are inactive.
-- [ ] M0-T06 Add one aggregate OFF/OFF vanilla-safety GameTest.
+- [x] M0-T05 Add regression coverage that vanilla recipes do not randomly fail when Totem packs are inactive.
+- [x] M0-T06 Add one aggregate OFF/OFF vanilla-safety GameTest.
 
 ## M1 — Optional built-in datapack boundary
 

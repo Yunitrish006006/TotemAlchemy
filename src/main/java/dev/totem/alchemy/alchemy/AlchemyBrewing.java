@@ -1,6 +1,7 @@
 package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -25,6 +26,70 @@ public final class AlchemyBrewing {
     public static boolean hasMix(ServerLevel level, ItemStack input, ItemStack ingredient) {
         return AlchemyMixtureBrewing.canApplyBrewingStandIngredient(input, ingredient)
                 || recipe(level, input, ingredient).isPresent();
+    }
+
+    /**
+     * OFF/OFF is the vanilla-safety baseline: native Minecraft brewing recipes must not be
+     * subjected to TotemAlchemy's stochastic processing-failure roll.
+     *
+     * <p>A batch remains stochastic if any participating slot is custom-only or resolves to a
+     * non-Minecraft fixed brewing recipe. Empty or unrelated slots are ignored.</p>
+     */
+    public static boolean shouldGuaranteeVanillaSuccess(
+            ServerLevel level,
+            ItemStack ingredient,
+            Iterable<ItemStack> potionInputs
+    ) {
+        return shouldGuaranteeVanillaSuccess(
+                level,
+                ingredient,
+                potionInputs,
+                AlchemyContentPackState.totemAlchemyEnabled(),
+                AlchemyContentPackState.minecraftAlchemyEnabled()
+        );
+    }
+
+    public static boolean shouldGuaranteeVanillaSuccess(
+            ServerLevel level,
+            ItemStack ingredient,
+            Iterable<ItemStack> potionInputs,
+            boolean totemAlchemyEnabled,
+            boolean minecraftAlchemyEnabled
+    ) {
+        return !totemAlchemyEnabled
+                && !minecraftAlchemyEnabled
+                && isVanillaOnlyBatch(level, ingredient, potionInputs);
+    }
+
+    public static boolean isVanillaOnlyBatch(
+            ServerLevel level,
+            ItemStack ingredient,
+            Iterable<ItemStack> potionInputs
+    ) {
+        if (level == null || ingredient == null || ingredient.isEmpty() || potionInputs == null) {
+            return false;
+        }
+
+        boolean foundVanillaRecipe = false;
+        for (ItemStack input : potionInputs) {
+            if (input == null || input.isEmpty()) {
+                continue;
+            }
+
+            Optional<RecipeHolder<BrewingRecipe>> fixedRecipe = recipe(level, input, ingredient);
+            if (fixedRecipe.isPresent()) {
+                if (!fixedRecipe.get().id().identifier().getNamespace().equals("minecraft")) {
+                    return false;
+                }
+                foundVanillaRecipe = true;
+                continue;
+            }
+
+            if (AlchemyMixtureBrewing.canApplyBrewingStandIngredient(input, ingredient)) {
+                return false;
+            }
+        }
+        return foundVanillaRecipe;
     }
 
     public static ItemStack mix(ServerLevel level, ItemStack ingredient, ItemStack input) {
