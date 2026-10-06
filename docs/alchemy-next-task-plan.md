@@ -40,7 +40,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M2-T02 Define `IngredientReaction` data model.
 - [x] M2-T03 Define `ReactionOutcome` with chance and priority.
 - [x] M2-T04 Add JSON loaders and resource IDs.
-- [ ] M2-T05 Build indexed lookup by base + ingredient.
+- [x] M2-T05 Build indexed lookup by base + ingredient.
 - [ ] M2-T06 Add schema validation and useful reload errors.
 - [ ] M2-T07 Read processing time from material/reaction data.
 - [ ] M2-T08 Read reaction success chance from reaction data.
