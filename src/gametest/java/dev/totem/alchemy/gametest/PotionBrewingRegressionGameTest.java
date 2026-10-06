@@ -90,8 +90,8 @@ public final class PotionBrewingRegressionGameTest {
         AlchemyMixtureState modified = AlchemyMixtureBottle.fromPotion(output);
         require(helper, modified.hasProvenance("test:stored-mixture"),
                 "Modifier transform discarded existing mixture provenance");
-        require(helper, modified.hasProvenance("modifier:minecraft:redstone"),
-                "Modifier transform did not record redstone provenance");
+        require(helper, modified.canonicalPotionId() == null,
+                "Stored-mixture redstone transform did not leave canonical fixed-potion state");
         helper.succeed();
     }
 
