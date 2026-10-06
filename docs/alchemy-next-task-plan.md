@@ -32,14 +32,14 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M1-T05 Add reload lifecycle handling for pack-state changes.
 - [x] M1-T06 Add OFF/OFF pack-state tests.
 - [ ] M1-T07 Add ON/OFF, OFF/ON and ON/ON pack-state tests.
-- [ ] M1-T08 Move no gameplay data yet; verify registration is behavior-neutral.
+- [x] M1-T08 Move no gameplay data yet; verify registration is behavior-neutral.
 
 ## M2 — Reaction data as single authority
 
 - [x] M2-T01 Define `BaseReaction` data model.
 - [x] M2-T02 Define `IngredientReaction` data model.
 - [x] M2-T03 Define `ReactionOutcome` with chance and priority.
-- [ ] M2-T04 Add JSON loaders and resource IDs.
+- [x] M2-T04 Add JSON loaders and resource IDs.
 - [ ] M2-T05 Build indexed lookup by base + ingredient.
 - [ ] M2-T06 Add schema validation and useful reload errors.
 - [ ] M2-T07 Read processing time from material/reaction data.
