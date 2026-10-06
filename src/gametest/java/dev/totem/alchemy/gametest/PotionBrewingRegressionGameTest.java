@@ -24,6 +24,37 @@ public final class PotionBrewingRegressionGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void vanillaAwkwardToSwiftnessStillWorks(GameTestHelper helper) {
+        assertMix(helper, Potions.AWKWARD, new ItemStack(Items.SUGAR), Potions.SWIFTNESS,
+                "Sugar stopped brewing awkward potion into swiftness");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void vanillaSwiftnessModifiersStillWork(GameTestHelper helper) {
+        assertMix(helper, Potions.SWIFTNESS, new ItemStack(Items.REDSTONE), Potions.LONG_SWIFTNESS,
+                "Redstone stopped extending swiftness");
+        assertMix(helper, Potions.SWIFTNESS, new ItemStack(Items.GLOWSTONE_DUST), Potions.STRONG_SWIFTNESS,
+                "Glowstone stopped amplifying swiftness");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void vanillaDeliveryModifiersStillWork(GameTestHelper helper) {
+        ItemStack drinkable = potion(Potions.SWIFTNESS);
+        ItemStack splash = dev.totem.alchemy.alchemy.AlchemyBrewing.mix(
+                helper.getLevel(), new ItemStack(Items.GUNPOWDER), drinkable);
+        assertPotionContainer(helper, splash, Items.SPLASH_POTION, Potions.SWIFTNESS,
+                "Gunpowder stopped converting drinkable swiftness into a splash potion");
+
+        ItemStack lingering = dev.totem.alchemy.alchemy.AlchemyBrewing.mix(
+                helper.getLevel(), new ItemStack(Items.DRAGON_BREATH), splash);
+        assertPotionContainer(helper, lingering, Items.LINGERING_POTION, Potions.SWIFTNESS,
+                "Dragon breath stopped converting splash swiftness into a lingering potion");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void fireflyStrengthAllInputTiersProduceMatchingVariants(GameTestHelper helper) {
         ItemStack fireflyBush = new ItemStack(Items.FIREFLY_BUSH);
         assertMix(helper, Potions.STRENGTH, fireflyBush, AlchemyPotions.FIREFLY_STRENGTH,
@@ -83,6 +114,17 @@ public final class PotionBrewingRegressionGameTest {
     ) {
         require(helper, stack.is(Items.POTION), message + " (container changed)");
         require(helper, stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(expected), message);
+    }
+
+    private static void assertPotionContainer(
+            GameTestHelper helper,
+            ItemStack stack,
+            Item expectedItem,
+            net.minecraft.core.Holder<net.minecraft.world.item.alchemy.Potion> expectedPotion,
+            String message
+    ) {
+        require(helper, stack.is(expectedItem), message + " (container mismatch)");
+        require(helper, stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(expectedPotion), message);
     }
 
     private static void require(GameTestHelper helper, boolean condition, String message) {

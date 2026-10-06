@@ -21,6 +21,8 @@ import dev.totem.alchemy.registry.AlchemyCriteria;
 import dev.totem.alchemy.registry.AlchemyGameRules;
 import dev.totem.alchemy.registry.AlchemyItemGroups;
 import dev.totem.alchemy.registry.AlchemyItems;
+import dev.totem.alchemy.resource.AlchemyBuiltinPacks;
+import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,8 @@ public final class TotemAlchemy implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        AlchemyBuiltinPacks.register();
+        AlchemyContentPackState.register();
         LegacyAlchemyNbtMigration.register();
         AlchemyBlocks.register();
         AlchemyBlockEntities.register();

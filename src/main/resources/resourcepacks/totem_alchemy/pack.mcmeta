@@ -1,0 +1,8 @@
+{
+  "pack": {
+    "description": "TotemAlchemy — optional Totem alchemy gameplay content",
+    "pack_format": 121,
+    "min_format": [97, 1],
+    "max_format": 121
+  }
+}
