@@ -1,9 +1,13 @@
 package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.reaction.AlchemyReactionResolver;
+import dev.totem.alchemy.reaction.IngredientReaction;
+import dev.totem.alchemy.reaction.ReactionOutcome;
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -18,6 +22,8 @@ import java.util.function.DoubleSupplier;
 
 /** Selects one shared independently rolled result set for every compatible bottle in a brewing-stand batch. */
 public final class MultiOutcomeBrewing {
+    private static final Identifier AWKWARD_BASE_ID =
+            Identifier.fromNamespaceAndPath("totem", "alchemy/awkward");
     private static final ThreadLocal<BatchOutcome> ACTIVE_BATCH = new ThreadLocal<>();
     private static final ThreadLocal<Integer> LEGACY_PROBABILITY_READS = ThreadLocal.withInitial(() -> 0);
     private static final Map<Item, OutcomePool> AWKWARD_POOLS = Map.ofEntries(
@@ -79,7 +85,40 @@ public final class MultiOutcomeBrewing {
     private MultiOutcomeBrewing() {}
 
     private static OutcomePool pool(Outcome... outcomes) {
-        return new OutcomePool(List.of(outcomes));
+        return new OutcomePool(List.of(outcomes), Map.of());
+    }
+
+    private static OutcomePool poolFor(ItemStack ingredient) {
+        if (ingredient == null || ingredient.isEmpty()) {
+            return null;
+        }
+        java.util.Optional<IngredientReaction> reaction =
+                AlchemyReactionResolver.resolveIngredientReaction(AWKWARD_BASE_ID, ingredient);
+        return reaction.map(MultiOutcomeBrewing::registryPool)
+                .orElseGet(() -> AWKWARD_POOLS.get(ingredient.getItem()));
+    }
+
+    private static OutcomePool registryPool(IngredientReaction reaction) {
+        List<Outcome> outcomes = new java.util.ArrayList<>();
+        Map<String, Double> probabilities = new java.util.LinkedHashMap<>();
+        for (ReactionOutcome configured : reaction.outcomes()) {
+            Holder<Potion> potion = AlchemyMixtureBottle.potionHolder(configured.resultPotionId().toString());
+            if (potion == null) {
+                throw new IllegalStateException(
+                        "Unknown potion outcome " + configured.resultPotionId()
+                                + " in reaction " + reaction.id()
+                );
+            }
+            outcomes.add(outcome(potion, outcomeMessageKey(configured.resultPotionId())));
+            probabilities.put(configured.resultPotionId().toString(), configured.chance());
+        }
+        return new OutcomePool(List.copyOf(outcomes), Map.copyOf(probabilities));
+    }
+
+    private static String outcomeMessageKey(Identifier potionId) {
+        String path = potionId.getPath();
+        int slash = path.lastIndexOf('/');
+        return slash >= 0 ? path.substring(slash + 1) : path;
     }
 
     private static Outcome outcome(Holder<Potion> potion, String key) {
@@ -89,7 +128,7 @@ public final class MultiOutcomeBrewing {
     public static void beginBatch(RandomSource random, ItemStack ingredient, Iterable<ItemStack> inputs) {
         clearBatch();
         LEGACY_PROBABILITY_READS.set(0);
-        OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
+        OutcomePool pool = poolFor(ingredient);
         if (pool == null || !canRollOutcomes(ingredient, inputs)) return;
         ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), pool.rollAll(ingredient.getItem(), random::nextFloat)));
     }
@@ -125,7 +164,7 @@ public final class MultiOutcomeBrewing {
     }
 
     public static Outcome chooseOutcome(ItemStack ingredient, float roll) {
-        OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
+        OutcomePool pool = poolFor(ingredient);
         return pool == null ? null : pool.chooseWeighted(ingredient.getItem(), roll);
     }
 
@@ -138,7 +177,7 @@ public final class MultiOutcomeBrewing {
      * weighted fallback so existing validation scripts stay compatible; gameplay RandomSource rolls never do.
      */
     public static List<Outcome> chooseOutcomes(ItemStack ingredient, float... rolls) {
-        OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
+        OutcomePool pool = poolFor(ingredient);
         if (pool == null) return List.of();
         int required = pool.outcomes().size();
         if (rolls == null || rolls.length < required) {
@@ -156,17 +195,17 @@ public final class MultiOutcomeBrewing {
 
     public static List<Outcome> chooseOutcomes(ItemStack ingredient, RandomSource random) {
         LEGACY_PROBABILITY_READS.set(0);
-        OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
+        OutcomePool pool = poolFor(ingredient);
         return pool == null ? List.of() : pool.rollAll(ingredient.getItem(), random::nextFloat);
     }
 
     public static boolean isOutcomeIngredient(ItemStack ingredient) {
-        return ingredient != null && !ingredient.isEmpty() && AWKWARD_POOLS.containsKey(ingredient.getItem());
+        return poolFor(ingredient) != null;
     }
 
     public static int outcomeCount(ItemStack ingredient, ItemStack input) {
         if (!isPotionContainer(input)) return 0;
-        OutcomePool pool = AWKWARD_POOLS.get(ingredient.getItem());
+        OutcomePool pool = poolFor(ingredient);
         return pool == null ? 0 : pool.outcomes().size();
     }
 
@@ -175,7 +214,7 @@ public final class MultiOutcomeBrewing {
     }
 
     public static List<Outcome> outcomesForIngredient(ItemStack ingredient) {
-        OutcomePool pool = ingredient == null || ingredient.isEmpty() ? null : AWKWARD_POOLS.get(ingredient.getItem());
+        OutcomePool pool = poolFor(ingredient);
         return pool == null ? List.of() : pool.outcomes();
     }
 
