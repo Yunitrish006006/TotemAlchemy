@@ -32,6 +32,7 @@ public final class AlchemyReactionDataLoader {
 
     private static volatile List<BaseReaction> baseReactions = List.of();
     private static volatile List<IngredientReaction> ingredientReactions = List.of();
+    private static volatile AlchemyReactionIndex index = AlchemyReactionIndex.empty();
     private static volatile long revision;
 
     private AlchemyReactionDataLoader() {
@@ -60,6 +61,10 @@ public final class AlchemyReactionDataLoader {
         return ingredientReactions;
     }
 
+    public static AlchemyReactionIndex index() {
+        return index;
+    }
+
     public static long revision() {
         return revision;
     }
@@ -68,8 +73,11 @@ public final class AlchemyReactionDataLoader {
         List<BaseReaction> loadedBases = loadBaseReactions(resourceManager);
         List<IngredientReaction> loadedIngredients = loadIngredientReactions(resourceManager);
 
+        AlchemyReactionIndex nextIndex = AlchemyReactionIndex.build(loadedBases, loadedIngredients);
+
         baseReactions = List.copyOf(loadedBases);
         ingredientReactions = List.copyOf(loadedIngredients);
+        index = nextIndex;
         revision++;
 
         TotemAlchemy.LOGGER.info(
