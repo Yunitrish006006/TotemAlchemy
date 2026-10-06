@@ -71,9 +71,14 @@ public final class AlchemyBrewing {
         if (input.isEmpty() || vanillaOutput.isEmpty()) return vanillaOutput;
         boolean layeredRule = AlchemyMixtureBrewing.canApplyBrewingStandIngredient(input, ingredient);
         if (!layeredRule && ItemStack.matches(input, vanillaOutput)) return vanillaOutput;
-        ItemStack selectedOutput = MultiOutcomeBrewing.applyBatchOutcome(ingredient, input, vanillaOutput);
-        ItemStack output = AlchemyMixtureBrewing.applyBrewingStandOutcomes(
-                ingredient, input, selectedOutput, MultiOutcomeBrewing.activeOutcomes());
+        ItemStack output;
+        if (BrewingModifierPolicy.isModifierIngredient(ingredient)) {
+            output = BrewingModifierPolicy.apply(ingredient, input, vanillaOutput);
+        } else {
+            ItemStack selectedOutput = MultiOutcomeBrewing.applyBatchOutcome(ingredient, input, vanillaOutput);
+            output = AlchemyMixtureBrewing.applyBrewingStandOutcomes(
+                    ingredient, input, selectedOutput, MultiOutcomeBrewing.activeOutcomes());
+        }
         if (output.isEmpty()) return input.copy();
         if (ingredient.is(Items.RED_MUSHROOM)
                 && input.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER)
