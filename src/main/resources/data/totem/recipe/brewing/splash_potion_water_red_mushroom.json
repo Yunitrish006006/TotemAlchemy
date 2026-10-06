@@ -7,7 +7,7 @@
     }
   },
   "reagent": {
-    "tag": "c:mushrooms"
+    "item": "minecraft:red_mushroom"
   },
   "output": {
     "id": "minecraft:splash_potion",
