@@ -1,6 +1,7 @@
 package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.reaction.AlchemyReactionDataLoader;
 import dev.totem.alchemy.reaction.AlchemyReactionResolver;
 import dev.totem.alchemy.reaction.IngredientReaction;
@@ -9,6 +10,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
+
+import java.util.List;
 
 public final class ReactionRegistryMigrationGameTest {
     private static final double EPSILON = 0.000_001D;
@@ -29,6 +34,16 @@ public final class ReactionRegistryMigrationGameTest {
                 "Sugar processing time was not migrated");
         require(helper, Math.abs(sugar.successChance() - 0.90D) < EPSILON,
                 "Sugar processing success chance was not migrated");
+
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(
+                        new ItemStack(Items.SUGAR), List.of(awkward)) - sugar.successChance()) < EPSILON,
+                "Brewing Stand success chance did not resolve from reaction data");
+
+        VanillaBrewingChance.markUnstableMushroomBase(awkward);
+        require(helper, Math.abs(VanillaBrewingChance.chanceFor(
+                        new ItemStack(Items.SUGAR), List.of(awkward)) - 0.70D) < EPSILON,
+                "Resolver-backed Brewing Stand chance did not preserve unstable-base penalty");
         require(helper, sugar.outcomes().size() == 3,
                 "Sugar outcome set was not migrated");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
