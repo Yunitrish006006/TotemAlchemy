@@ -28,9 +28,9 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M1-T01 Register empty `Totem Alchemy` built-in datapack.
 - [x] M1-T02 Register empty `Minecraft Alchemy` built-in datapack.
 - [x] M1-T03 Add pack metadata and stable pack identifiers.
-- [ ] M1-T04 Add enabled-pack detection/state exposed to server-side alchemy code.
-- [ ] M1-T05 Add reload lifecycle handling for pack-state changes.
-- [ ] M1-T06 Add OFF/OFF pack-state tests.
+- [x] M1-T04 Add enabled-pack detection/state exposed to server-side alchemy code.
+- [x] M1-T05 Add reload lifecycle handling for pack-state changes.
+- [x] M1-T06 Add OFF/OFF pack-state tests.
 - [ ] M1-T07 Add ON/OFF, OFF/ON and ON/ON pack-state tests.
 - [ ] M1-T08 Move no gameplay data yet; verify registration is behavior-neutral.
 
