@@ -44,6 +44,24 @@ class ReactionModelTest {
     }
 
     @Test
+    void ingredientReactionRejectsDuplicateOutcomePotionIds() {
+        assertThrows(IllegalArgumentException.class, () -> new IngredientReaction(
+                id("totem", "alchemy/reaction/duplicate_outcome"),
+                id("totem", "alchemy/awkward"),
+                ReactionIngredient.item(id("minecraft", "sugar")),
+                1.0D,
+                1.0D,
+                240,
+                1,
+                true,
+                List.of(
+                        new ReactionOutcome(id("minecraft", "swiftness"), 0.60D, 10),
+                        new ReactionOutcome(id("minecraft", "swiftness"), 0.20D, 0)
+                )
+        ));
+    }
+
+    @Test
     void baseReactionSortsAndFreezesLiquidRequirements() {
         Map<Identifier, Double> requirements = new LinkedHashMap<>();
         requirements.put(id("totem", "alchemy/milk"), 0.25D);
