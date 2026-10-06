@@ -47,7 +47,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M2-T09 Read outcome chance from reaction data.
 - [x] M2-T10 Convert `MultiOutcomeBrewing` to registry-backed outcomes.
 - [x] M2-T11 Remove Java hard-coded outcome pools.
-- [ ] M2-T12 Convert `VanillaBrewingChance` to resolver-backed chance data.
+- [x] M2-T12 Convert `VanillaBrewingChance` to resolver-backed chance data.
 - [ ] M2-T13 Remove Java hard-coded ingredient chance table.
 - [ ] M2-T14 Add reaction-extension merge semantics for Totem-on-Minecraft additions.
 - [ ] M2-T15 Adapt Manual/Discovery readers without changing UI.
