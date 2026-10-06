@@ -97,6 +97,20 @@ public final class ReactionRegistryMigrationGameTest {
             MultiOutcomeBrewing.clearBatch();
         }
 
+        MultiOutcomeBrewing.beginBatch(
+                new ItemStack(Items.BROWN_MUSHROOM),
+                List.of(awkward),
+                0.0F,
+                0.0F,
+                0.999F
+        );
+        try {
+            require(helper, MultiOutcomeBrewing.activeOutcomes().size() == 2,
+                    "Probabilistic Alchemy outcome path no longer permits multiple selected outcomes");
+        } finally {
+            MultiOutcomeBrewing.clearBatch();
+        }
+
         IngredientReaction priorityTie = new IngredientReaction(
                 id("totem", "test/priority_tie"),
                 AWKWARD,
