@@ -83,8 +83,10 @@ public final class BrewingModifierPolicy {
             return fixedRecipeOutput;
         }
 
-        // A fixed BrewingRecipe is already the authoritative deterministic transformation.
-        if (!ItemStack.matches(input, fixedRecipeOutput)) {
+        // Plain potions should preserve the fixed BrewingRecipe output exactly. Stored mixtures must keep
+        // their serialized composition/effect state and therefore use the deterministic mixture transform.
+        if (!AlchemyMixtureBottle.hasStoredMixture(input)
+                && !ItemStack.matches(input, fixedRecipeOutput)) {
             return fixedRecipeOutput;
         }
 
