@@ -26,21 +26,31 @@ public final class BrewingStationPolicy {
             Iterable<ItemStack> potionInputs
     ) {
         List<ItemStack> inputs = copyInputs(potionInputs);
-        boolean nativeVanillaRecipe =
-                AlchemyBrewing.shouldGuaranteeVanillaSuccess(level, ingredient, inputs);
+        boolean deterministicModifier =
+                BrewingModifierPolicy.isDeterministicBatch(level, ingredient, inputs);
+        boolean nativeVanillaRecipe = !deterministicModifier
+                && AlchemyBrewing.shouldGuaranteeVanillaSuccess(level, ingredient, inputs);
         double baseChance = VanillaBrewingChance.chanceFor(ingredient, inputs);
-        double stationBonus = nativeVanillaRecipe ? 0.0D : DEFAULT_STATION_BONUS;
-        double effectiveChance = nativeVanillaRecipe
+        double stationBonus = nativeVanillaRecipe || deterministicModifier
+                ? 0.0D
+                : DEFAULT_STATION_BONUS;
+        double effectiveChance = nativeVanillaRecipe || deterministicModifier
                 ? 1.0D
                 : clamp(baseChance + stationBonus);
-        return new Decision(nativeVanillaRecipe, baseChance, stationBonus, effectiveChance);
+        return new Decision(
+                nativeVanillaRecipe,
+                deterministicModifier,
+                baseChance,
+                stationBonus,
+                effectiveChance
+        );
     }
 
     public static boolean succeeds(Decision decision, DoubleSupplier randomRoll) {
         if (decision == null) {
             return false;
         }
-        if (decision.nativeVanillaRecipe()) {
+        if (decision.nativeVanillaRecipe() || decision.deterministicModifier()) {
             return true;
         }
         if (randomRoll == null) {
@@ -70,6 +80,7 @@ public final class BrewingStationPolicy {
 
     public record Decision(
             boolean nativeVanillaRecipe,
+            boolean deterministicModifier,
             double baseChance,
             double stationBonus,
             double effectiveChance
