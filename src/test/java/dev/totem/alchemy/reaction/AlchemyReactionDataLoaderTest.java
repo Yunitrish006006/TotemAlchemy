@@ -8,6 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AlchemyReactionDataLoaderTest {
     @Test
@@ -71,6 +72,83 @@ class AlchemyReactionDataLoaderTest {
                 id("minecraft", "swiftness"),
                 id("minecraft", "slowness")
         ), reaction.outcomes().stream().map(ReactionOutcome::resultPotionId).toList());
+    }
+
+    @Test
+    void rejectsStringEncodedNumericFields() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                AlchemyReactionDataLoader.parseIngredientReaction(
+                        id("totem", "bad_chance"),
+                        JsonParser.parseString("""
+                                {
+                                  "base": "totem:alchemy/awkward",
+                                  "ingredient": "minecraft:sugar",
+                                  "success_chance": "0.9"
+                                }
+                                """).getAsJsonObject()
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("success_chance must be a number"));
+    }
+
+    @Test
+    void rejectsFractionalIntegerFieldsInsteadOfTruncatingThem() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                AlchemyReactionDataLoader.parseIngredientReaction(
+                        id("totem", "bad_dose"),
+                        JsonParser.parseString("""
+                                {
+                                  "base": "totem:alchemy/awkward",
+                                  "ingredient": "minecraft:sugar",
+                                  "max_dose": 1.5
+                                }
+                                """).getAsJsonObject()
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("max_dose must be an integer"));
+    }
+
+    @Test
+    void outcomeErrorsIdentifyTheirArrayIndex() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                AlchemyReactionDataLoader.parseIngredientReaction(
+                        id("totem", "bad_outcome"),
+                        JsonParser.parseString("""
+                                {
+                                  "base": "totem:alchemy/awkward",
+                                  "ingredient": "minecraft:sugar",
+                                  "outcomes": ["minecraft:swiftness"]
+                                }
+                                """).getAsJsonObject()
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("outcomes[0] must be an object"));
+    }
+
+    @Test
+    void reloadErrorSummaryNamesEveryInvalidResourceDeterministically() {
+        String message = AlchemyReactionDataLoader.formatReloadErrors(List.of(
+                new AlchemyReactionDataLoader.LoadError(
+                        "ingredient reaction",
+                        id("totem", "alchemy/ingredient_reactions/z_bad.json"),
+                        "success_chance must be a number"
+                ),
+                new AlchemyReactionDataLoader.LoadError(
+                        "base reaction",
+                        id("example", "alchemy/base_reactions/a_bad.json"),
+                        "starter must contain exactly one of item or tag"
+                )
+        ));
+
+        int first = message.indexOf("example:alchemy/base_reactions/a_bad.json");
+        int second = message.indexOf("totem:alchemy/ingredient_reactions/z_bad.json");
+        assertTrue(message.startsWith("Alchemy reaction reload rejected because 2 resources are invalid:"));
+        assertTrue(first >= 0 && second > first, "Reload errors were not sorted by resource id");
+        assertTrue(message.contains("[base reaction]: starter must contain exactly one of item or tag"));
+        assertTrue(message.contains("[ingredient reaction]: success_chance must be a number"));
     }
 
     @Test

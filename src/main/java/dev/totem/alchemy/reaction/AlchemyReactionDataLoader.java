@@ -1,17 +1,18 @@
 package dev.totem.alchemy.reaction;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import dev.totem.alchemy.TotemAlchemy;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.BufferedReader;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -23,12 +24,13 @@ import java.util.Map;
  *
  * <p>This loader intentionally targets new resource directories so the migration can be staged while
  * existing brewing data remains authoritative until the resolver tasks are complete.</p>
+ *
+ * <p>Reloads are atomic. A malformed reaction rejects the complete next-generation reaction reload
+ * instead of silently dropping only the invalid resource and leaving a partial registry active.</p>
  */
 public final class AlchemyReactionDataLoader {
     static final String BASE_REACTION_DIRECTORY = "alchemy/base_reactions";
     static final String INGREDIENT_REACTION_DIRECTORY = "alchemy/ingredient_reactions";
-
-    private static final Gson GSON = new Gson();
 
     private static volatile List<BaseReaction> baseReactions = List.of();
     private static volatile List<IngredientReaction> ingredientReactions = List.of();
@@ -70,8 +72,13 @@ public final class AlchemyReactionDataLoader {
     }
 
     private static void reload(ResourceManager resourceManager) {
-        List<BaseReaction> loadedBases = loadBaseReactions(resourceManager);
-        List<IngredientReaction> loadedIngredients = loadIngredientReactions(resourceManager);
+        List<LoadError> errors = new ArrayList<>();
+        List<BaseReaction> loadedBases = loadBaseReactions(resourceManager, errors);
+        List<IngredientReaction> loadedIngredients = loadIngredientReactions(resourceManager, errors);
+
+        if (!errors.isEmpty()) {
+            throw new IllegalStateException(formatReloadErrors(errors));
+        }
 
         AlchemyReactionIndex nextIndex = AlchemyReactionIndex.build(loadedBases, loadedIngredients);
 
@@ -87,47 +94,58 @@ public final class AlchemyReactionDataLoader {
         );
     }
 
-    private static List<BaseReaction> loadBaseReactions(ResourceManager resourceManager) {
+    private static List<BaseReaction> loadBaseReactions(ResourceManager resourceManager, List<LoadError> errors) {
         List<BaseReaction> loaded = new ArrayList<>();
         resourceManager.listResources(BASE_REACTION_DIRECTORY, AlchemyReactionDataLoader::isJson)
                 .entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(Identifier::toString)))
                 .forEach(entry -> {
                     try (BufferedReader reader = entry.getValue().openAsReader()) {
-                        JsonObject json = GSON.fromJson(reader, JsonObject.class);
+                        JsonObject json = readRootObject(reader, "base reaction");
                         loaded.add(parseBaseReaction(reactionId(entry.getKey(), BASE_REACTION_DIRECTORY), json));
                     } catch (Exception exception) {
-                        TotemAlchemy.LOGGER.warn(
-                                "Unable to load base reaction from {}: {}",
+                        errors.add(new LoadError(
+                                "base reaction",
                                 entry.getKey(),
-                                exception.getMessage()
-                        );
+                                usefulMessage(exception)
+                        ));
                     }
                 });
         return loaded;
     }
 
-    private static List<IngredientReaction> loadIngredientReactions(ResourceManager resourceManager) {
+    private static List<IngredientReaction> loadIngredientReactions(
+            ResourceManager resourceManager,
+            List<LoadError> errors
+    ) {
         List<IngredientReaction> loaded = new ArrayList<>();
         resourceManager.listResources(INGREDIENT_REACTION_DIRECTORY, AlchemyReactionDataLoader::isJson)
                 .entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(Identifier::toString)))
                 .forEach(entry -> {
                     try (BufferedReader reader = entry.getValue().openAsReader()) {
-                        JsonObject json = GSON.fromJson(reader, JsonObject.class);
+                        JsonObject json = readRootObject(reader, "ingredient reaction");
                         loaded.add(parseIngredientReaction(
                                 reactionId(entry.getKey(), INGREDIENT_REACTION_DIRECTORY),
                                 json
                         ));
                     } catch (Exception exception) {
-                        TotemAlchemy.LOGGER.warn(
-                                "Unable to load ingredient reaction from {}: {}",
+                        errors.add(new LoadError(
+                                "ingredient reaction",
                                 entry.getKey(),
-                                exception.getMessage()
-                        );
+                                usefulMessage(exception)
+                        ));
                     }
                 });
         return loaded;
+    }
+
+    private static JsonObject readRootObject(BufferedReader reader, String description) {
+        JsonElement root = JsonParser.parseReader(reader);
+        if (root == null || root.isJsonNull() || !root.isJsonObject()) {
+            throw new IllegalArgumentException(description + " root must be a JSON object");
+        }
+        return root.getAsJsonObject();
     }
 
     static BaseReaction parseBaseReaction(Identifier id, JsonObject json) {
@@ -136,7 +154,10 @@ public final class AlchemyReactionDataLoader {
         Map<Identifier, Double> liquids = new LinkedHashMap<>();
         JsonObject liquidJson = requiredObject(json, "liquids");
         for (Map.Entry<String, JsonElement> entry : liquidJson.entrySet()) {
-            liquids.put(requiredId(entry.getKey(), "liquid"), entry.getValue().getAsDouble());
+            liquids.put(
+                    requiredId(entry.getKey(), "liquid"),
+                    requiredDouble(entry.getValue(), "liquids." + entry.getKey())
+            );
         }
 
         return new BaseReaction(
@@ -156,16 +177,27 @@ public final class AlchemyReactionDataLoader {
 
         List<ReactionOutcome> outcomes = new ArrayList<>();
         if (json.has("outcomes")) {
-            if (!json.get("outcomes").isJsonArray()) {
+            JsonElement outcomesElement = nonNull(json.get("outcomes"), "outcomes");
+            if (!outcomesElement.isJsonArray()) {
                 throw new IllegalArgumentException("outcomes must be an array");
             }
-            for (JsonElement element : json.getAsJsonArray("outcomes")) {
+            int index = 0;
+            for (JsonElement element : outcomesElement.getAsJsonArray()) {
+                String prefix = "outcomes[" + index + "]";
+                if (element == null || element.isJsonNull() || !element.isJsonObject()) {
+                    throw new IllegalArgumentException(prefix + " must be an object");
+                }
                 JsonObject outcome = element.getAsJsonObject();
-                outcomes.add(new ReactionOutcome(
-                        requiredId(requiredString(outcome, "potion"), "outcome potion"),
-                        optionalDouble(outcome, "chance", 1.0D),
-                        optionalInt(outcome, "priority", 0)
-                ));
+                try {
+                    outcomes.add(new ReactionOutcome(
+                            requiredId(requiredString(outcome, "potion"), prefix + ".potion"),
+                            optionalDouble(outcome, "chance", 1.0D),
+                            optionalInt(outcome, "priority", 0)
+                    ));
+                } catch (IllegalArgumentException exception) {
+                    throw new IllegalArgumentException(prefix + ": " + exception.getMessage(), exception);
+                }
+                index++;
             }
         }
 
@@ -195,9 +227,7 @@ public final class AlchemyReactionDataLoader {
     }
 
     static ReactionIngredient parseIngredient(JsonElement element, String fieldName) {
-        if (element == null) {
-            throw new IllegalArgumentException("Missing " + fieldName);
-        }
+        nonNull(element, fieldName);
         if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
             return ReactionIngredient.item(requiredId(element.getAsString(), fieldName));
         }
@@ -212,8 +242,38 @@ public final class AlchemyReactionDataLoader {
             throw new IllegalArgumentException(fieldName + " must contain exactly one of item or tag");
         }
         return hasItem
-                ? ReactionIngredient.item(requiredId(object.get("item").getAsString(), fieldName + ".item"))
-                : ReactionIngredient.tag(requiredId(object.get("tag").getAsString(), fieldName + ".tag"));
+                ? ReactionIngredient.item(requiredId(requiredString(object, "item"), fieldName + ".item"))
+                : ReactionIngredient.tag(requiredId(requiredString(object, "tag"), fieldName + ".tag"));
+    }
+
+    static String formatReloadErrors(List<LoadError> errors) {
+        StringBuilder message = new StringBuilder(
+                "Alchemy reaction reload rejected because "
+                        + errors.size()
+                        + " resource"
+                        + (errors.size() == 1 ? " is" : "s are")
+                        + " invalid:"
+        );
+        errors.stream()
+                .sorted(Comparator
+                        .comparing((LoadError error) -> error.resourceId().toString())
+                        .thenComparing(LoadError::reactionType))
+                .forEach(error -> message
+                        .append("\n - ")
+                        .append(error.resourceId())
+                        .append(" [")
+                        .append(error.reactionType())
+                        .append("]: ")
+                        .append(error.reason()));
+        return message.toString();
+    }
+
+    private static String usefulMessage(Exception exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            return exception.getClass().getSimpleName();
+        }
+        return message;
     }
 
     private static boolean isJson(Identifier id) {
@@ -230,7 +290,14 @@ public final class AlchemyReactionDataLoader {
         if (!object.has(field)) {
             throw new IllegalArgumentException("Missing required field " + field);
         }
-        return object.get(field);
+        return nonNull(object.get(field), field);
+    }
+
+    private static JsonElement nonNull(JsonElement element, String field) {
+        if (element == null || element.isJsonNull()) {
+            throw new IllegalArgumentException(field + " cannot be null");
+        }
+        return element;
     }
 
     private static JsonObject requiredObject(JsonObject object, String field) {
@@ -246,7 +313,11 @@ public final class AlchemyReactionDataLoader {
         if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
             throw new IllegalArgumentException(field + " must be a string");
         }
-        return element.getAsString();
+        String value = element.getAsString();
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " cannot be blank");
+        }
+        return value;
     }
 
     private static Identifier requiredId(String value, String field) {
@@ -257,15 +328,50 @@ public final class AlchemyReactionDataLoader {
         return id;
     }
 
+    private static double requiredDouble(JsonElement element, String field) {
+        nonNull(element, field);
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            throw new IllegalArgumentException(field + " must be a number");
+        }
+        double value = element.getAsDouble();
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(field + " must be finite");
+        }
+        return value;
+    }
+
     private static double optionalDouble(JsonObject object, String field, double fallback) {
-        return object.has(field) ? object.get(field).getAsDouble() : fallback;
+        return object.has(field) ? requiredDouble(object.get(field), field) : fallback;
     }
 
     private static int optionalInt(JsonObject object, String field, int fallback) {
-        return object.has(field) ? object.get(field).getAsInt() : fallback;
+        if (!object.has(field)) {
+            return fallback;
+        }
+        JsonElement element = nonNull(object.get(field), field);
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            throw new IllegalArgumentException(field + " must be an integer");
+        }
+        JsonPrimitive primitive = element.getAsJsonPrimitive();
+        try {
+            BigDecimal value = primitive.getAsBigDecimal();
+            return value.intValueExact();
+        } catch (ArithmeticException | NumberFormatException exception) {
+            throw new IllegalArgumentException(field + " must be an integer", exception);
+        }
     }
 
     private static boolean optionalBoolean(JsonObject object, String field, boolean fallback) {
-        return object.has(field) ? object.get(field).getAsBoolean() : fallback;
+        if (!object.has(field)) {
+            return fallback;
+        }
+        JsonElement element = nonNull(object.get(field), field);
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isBoolean()) {
+            throw new IllegalArgumentException(field + " must be a boolean");
+        }
+        return element.getAsBoolean();
+    }
+
+    record LoadError(String reactionType, Identifier resourceId, String reason) {
     }
 }
