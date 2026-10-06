@@ -1,6 +1,7 @@
 package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.alchemy.BrewingStationPolicy;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.reaction.AlchemyReactionDataLoader;
 import dev.totem.alchemy.reaction.AlchemyReactionResolver;
@@ -39,6 +40,22 @@ public final class ReactionRegistryMigrationGameTest {
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(
                         new ItemStack(Items.SUGAR), List.of(awkward)) - sugar.successChance()) < EPSILON,
                 "Brewing Stand success chance did not resolve from reaction data");
+
+        BrewingStationPolicy.Decision vanillaDecision = BrewingStationPolicy.evaluate(
+                helper.getLevel(), new ItemStack(Items.SUGAR), List.of(awkward));
+        require(helper, vanillaDecision.nativeVanillaRecipe(),
+                "Awkward + sugar was not classified as a native Minecraft Brewing Stand recipe");
+        require(helper, Math.abs(vanillaDecision.baseChance() - 0.90D) < EPSILON,
+                "Station policy lost the reaction-backed sugar base chance");
+        require(helper, Math.abs(vanillaDecision.effectiveChance() - 1.0D) < EPSILON,
+                "Native Minecraft Brewing Stand recipe did not reach 100% success");
+
+        BrewingStationPolicy.Decision customDecision = BrewingStationPolicy.evaluate(
+                helper.getLevel(), new ItemStack(Items.BROWN_MUSHROOM), List.of(awkward));
+        require(helper, !customDecision.nativeVanillaRecipe(),
+                "Custom-only brown mushroom chemistry was misclassified as native vanilla");
+        require(helper, Math.abs(customDecision.effectiveChance() - 0.80D) < EPSILON,
+                "Custom Brewing Stand chemistry did not preserve reaction success chance");
 
         require(helper, Math.abs(VanillaBrewingChance.chanceFor(new ItemStack(Items.SUGAR))
                         - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < EPSILON,
