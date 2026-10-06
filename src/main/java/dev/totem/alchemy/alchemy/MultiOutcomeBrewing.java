@@ -4,7 +4,6 @@ import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.reaction.AlchemyReactionResolver;
 import dev.totem.alchemy.reaction.IngredientReaction;
 import dev.totem.alchemy.reaction.ReactionOutcome;
-import dev.totem.alchemy.registry.AlchemyItems;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -14,7 +13,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
-import net.minecraft.world.item.alchemy.Potions;
 
 import java.util.List;
 import java.util.Map;
@@ -26,67 +24,8 @@ public final class MultiOutcomeBrewing {
             Identifier.fromNamespaceAndPath("totem", "alchemy/awkward");
     private static final ThreadLocal<BatchOutcome> ACTIVE_BATCH = new ThreadLocal<>();
     private static final ThreadLocal<Integer> LEGACY_PROBABILITY_READS = ThreadLocal.withInitial(() -> 0);
-    private static final Map<Item, OutcomePool> AWKWARD_POOLS = Map.ofEntries(
-            Map.entry(Items.SPIDER_EYE, pool(outcome(Potions.POISON, "poison"), outcome(Potions.WEAKNESS, "weakness"))),
-            Map.entry(Items.RED_MUSHROOM, pool(outcome(Potions.POISON, "poison"), outcome(AlchemyPotions.SATURATION, "saturation"))),
-            Map.entry(Items.BROWN_MUSHROOM, pool(outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.REGENERATION, "regeneration"), outcome(Potions.POISON, "poison"))),
-            Map.entry(Items.GLISTERING_MELON_SLICE, pool(outcome(Potions.HEALING, "healing"), outcome(AlchemyPotions.RESISTANCE, "resistance"))),
-            Map.entry(Items.SUGAR, pool(outcome(Potions.SWIFTNESS, "swiftness"), outcome(Potions.SLOWNESS, "slowness"), outcome(AlchemyPotions.SATURATION, "saturation"))),
-            Map.entry(Items.RABBIT_FOOT, pool(outcome(Potions.LEAPING, "leaping"), outcome(Potions.SLOW_FALLING, "slow_falling"), outcome(Potions.SWIFTNESS, "swiftness"))),
-            Map.entry(Items.MAGMA_CREAM, pool(outcome(Potions.FIRE_RESISTANCE, "fire_resistance"), outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.STRENGTH, "strength"))),
-            Map.entry(Items.GOLDEN_CARROT, pool(outcome(Potions.NIGHT_VISION, "night_vision"), outcome(Potions.INVISIBILITY, "invisibility"), outcome(Potions.HEALING, "healing"))),
-            Map.entry(Items.BLAZE_POWDER, pool(outcome(Potions.STRENGTH, "strength"), outcome(Potions.FIRE_RESISTANCE, "fire_resistance"), outcome(Potions.HARMING, "harming"))),
-            Map.entry(Items.BLAZE_ROD, pool(outcome(Potions.STRENGTH, "strength"), outcome(Potions.FIRE_RESISTANCE, "fire_resistance"))),
-            Map.entry(Items.GHAST_TEAR, pool(outcome(Potions.REGENERATION, "regeneration"), outcome(Potions.HEALING, "healing"), outcome(Potions.WEAKNESS, "weakness"))),
-            Map.entry(Items.PUFFERFISH, pool(outcome(Potions.WATER_BREATHING, "water_breathing"), outcome(Potions.POISON, "poison"), outcome(Potions.WEAKNESS, "weakness"))),
-            Map.entry(Items.TURTLE_HELMET, pool(outcome(Potions.TURTLE_MASTER, "turtle_master"), outcome(Potions.WATER_BREATHING, "water_breathing"), outcome(AlchemyPotions.RESISTANCE, "resistance"))),
-            Map.entry(Items.PHANTOM_MEMBRANE, pool(outcome(Potions.SLOW_FALLING, "slow_falling"), outcome(Potions.INVISIBILITY, "invisibility"), outcome(Potions.NIGHT_VISION, "night_vision"))),
-            Map.entry(Items.BREEZE_ROD, pool(outcome(Potions.WIND_CHARGED, "wind_charged"), outcome(Potions.SLOW_FALLING, "slow_falling"), outcome(Potions.LEAPING, "leaping"))),
-            Map.entry(Items.SLIME_BLOCK, pool(outcome(Potions.OOZING, "oozing"), outcome(Potions.LEAPING, "leaping"), outcome(Potions.SLOWNESS, "slowness"))),
-            Map.entry(Items.SLIME_BALL, pool(outcome(Potions.OOZING, "oozing"), outcome(Potions.LEAPING, "leaping"))),
-            Map.entry(Items.STONE, pool(outcome(Potions.INFESTED, "infested"), outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.SLOWNESS, "slowness"))),
-            Map.entry(Items.COBWEB, pool(outcome(Potions.WEAVING, "weaving"), outcome(Potions.SLOWNESS, "slowness"), outcome(Potions.WEAKNESS, "weakness"))),
-            Map.entry(Items.STRING, pool(outcome(Potions.WEAVING, "weaving"), outcome(Potions.SLOWNESS, "slowness"))),
-            Map.entry(Items.FEATHER, pool(outcome(Potions.SLOW_FALLING, "slow_falling"), outcome(Potions.LEAPING, "leaping"))),
-            Map.entry(Items.LEATHER, pool(outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.REGENERATION, "regeneration"))),
-            Map.entry(Items.RABBIT_HIDE, pool(outcome(Potions.LEAPING, "leaping"), outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.SLOW_FALLING, "slow_falling"))),
-            Map.entry(Items.SHULKER_SHELL, pool(outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.SLOW_FALLING, "slow_falling"))),
-            Map.entry(Items.INK_SAC, pool(outcome(Potions.INVISIBILITY, "invisibility"), outcome(Potions.NIGHT_VISION, "night_vision"))),
-            Map.entry(Items.GLOW_INK_SAC, pool(outcome(Potions.NIGHT_VISION, "night_vision"), outcome(Potions.REGENERATION, "regeneration"))),
-            Map.entry(Items.NAUTILUS_SHELL, pool(outcome(Potions.WATER_BREATHING, "water_breathing"), outcome(AlchemyPotions.RESISTANCE, "resistance"))),
-            Map.entry(Items.ENDER_PEARL, pool(outcome(Potions.INVISIBILITY, "invisibility"), outcome(Potions.SLOW_FALLING, "slow_falling"), outcome(Potions.NIGHT_VISION, "night_vision"))),
-            Map.entry(Items.CHORUS_FRUIT, pool(outcome(Potions.SLOW_FALLING, "slow_falling"), outcome(Potions.INVISIBILITY, "invisibility"), outcome(Potions.SWIFTNESS, "swiftness"))),
-            Map.entry(Items.ROTTEN_FLESH, pool(outcome(Potions.POISON, "poison"), outcome(Potions.WEAKNESS, "weakness"), outcome(Potions.INFESTED, "infested"))),
-            Map.entry(Items.EGG, pool(outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.REGENERATION, "regeneration"), outcome(Potions.HEALING, "healing"))),
-            Map.entry(Items.BONE_MEAL, pool(outcome(Potions.REGENERATION, "regeneration"), outcome(Potions.INFESTED, "infested"), outcome(Potions.HEALING, "healing"))),
-            Map.entry(Items.CHARCOAL, pool(outcome(Potions.FIRE_RESISTANCE, "fire_resistance"), outcome(Potions.HARMING, "harming"), outcome(Potions.WEAKNESS, "weakness"))),
-            Map.entry(Items.RESIN_CLUMP, pool(outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.SLOWNESS, "slowness"), outcome(Potions.FIRE_RESISTANCE, "fire_resistance"))),
-            Map.entry(Items.HONEY_BLOCK, pool(outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.SLOWNESS, "slowness"), outcome(Potions.REGENERATION, "regeneration"))),
-            Map.entry(Items.HONEYCOMB, pool(outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.REGENERATION, "regeneration"), outcome(Potions.FIRE_RESISTANCE, "fire_resistance"))),
-            Map.entry(Items.FERMENTED_SPIDER_EYE, pool(outcome(Potions.WEAKNESS, "weakness"), outcome(Potions.HARMING, "harming"), outcome(Potions.INVISIBILITY, "invisibility"))),
-            Map.entry(Items.MELON_SLICE, pool(outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.HEALING, "healing"))),
-            Map.entry(Items.APPLE, pool(outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.HEALING, "healing"))),
-            Map.entry(Items.SWEET_BERRIES, pool(outcome(Potions.SWIFTNESS, "swiftness"), outcome(Potions.REGENERATION, "regeneration"))),
-            Map.entry(Items.GLOW_BERRIES, pool(outcome(Potions.NIGHT_VISION, "night_vision"), outcome(Potions.REGENERATION, "regeneration"))),
-            Map.entry(Items.HONEY_BOTTLE, pool(outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.HEALING, "healing"), outcome(Potions.REGENERATION, "regeneration"))),
-            Map.entry(Items.GOLDEN_APPLE, pool(outcome(Potions.HEALING, "healing"), outcome(Potions.REGENERATION, "regeneration"), outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(AlchemyPotions.SATURATION, "saturation"))),
-            Map.entry(Items.ENCHANTED_GOLDEN_APPLE, pool(outcome(Potions.HEALING, "healing"), outcome(Potions.REGENERATION, "regeneration"), outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.FIRE_RESISTANCE, "fire_resistance"))),
-            Map.entry(Items.WHEAT, pool(outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.REGENERATION, "regeneration"))),
-            Map.entry(Items.KELP, pool(outcome(Potions.WATER_BREATHING, "water_breathing"), outcome(AlchemyPotions.SATURATION, "saturation"))),
-            Map.entry(Items.SUGAR_CANE, pool(outcome(Potions.SWIFTNESS, "swiftness"), outcome(AlchemyPotions.SATURATION, "saturation"))),
-            Map.entry(Items.CACTUS, pool(outcome(Potions.HARMING, "harming"), outcome(AlchemyPotions.RESISTANCE, "resistance"), outcome(Potions.POISON, "poison"))),
-            Map.entry(Items.BAMBOO, pool(outcome(Potions.LEAPING, "leaping"), outcome(Potions.SWIFTNESS, "swiftness"))),
-            Map.entry(Items.COCOA_BEANS, pool(outcome(Potions.SWIFTNESS, "swiftness"), outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.REGENERATION, "regeneration"))),
-            Map.entry(AlchemyItems.PIG_MANURE, pool(outcome(Potions.POISON, "poison"), outcome(Potions.INFESTED, "infested"), outcome(Potions.OOZING, "oozing"))),
-            Map.entry(AlchemyItems.WOOD_ASH, pool(outcome(Potions.FIRE_RESISTANCE, "fire_resistance"), outcome(Potions.WEAKNESS, "weakness"), outcome(Potions.HARMING, "harming"))),
-            Map.entry(AlchemyItems.COCOA_POWDER, pool(outcome(Potions.SWIFTNESS, "swiftness"), outcome(AlchemyPotions.SATURATION, "saturation"), outcome(Potions.REGENERATION, "regeneration")))
-    );
 
     private MultiOutcomeBrewing() {}
-
-    private static OutcomePool pool(Outcome... outcomes) {
-        return new OutcomePool(List.of(outcomes), Map.of());
-    }
 
     private static OutcomePool poolFor(ItemStack ingredient) {
         if (ingredient == null || ingredient.isEmpty()) {
@@ -94,8 +33,7 @@ public final class MultiOutcomeBrewing {
         }
         java.util.Optional<IngredientReaction> reaction =
                 AlchemyReactionResolver.resolveIngredientReaction(AWKWARD_BASE_ID, ingredient);
-        return reaction.map(MultiOutcomeBrewing::registryPool)
-                .orElseGet(() -> AWKWARD_POOLS.get(ingredient.getItem()));
+        return reaction.map(MultiOutcomeBrewing::registryPool).orElse(null);
     }
 
     private static OutcomePool registryPool(IngredientReaction reaction) {
@@ -342,19 +280,12 @@ public final class MultiOutcomeBrewing {
 
         private double outcomeWeight(Item ingredient, Outcome outcome) {
             String potionId = BuiltInRegistries.POTION.getKey(outcome.potion().value()).toString();
-            Double configured = probabilities.get(potionId);
-            if (configured != null) return configured * 100.0D;
-            return BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D);
+            return probabilities.getOrDefault(potionId, 0.0D) * 100.0D;
         }
 
         private double configuredProbability(Item ingredient, Outcome outcome) {
             String potionId = BuiltInRegistries.POTION.getKey(outcome.potion().value()).toString();
-            Double configured = probabilities.get(potionId);
-            if (configured != null) return clampProbability(configured);
-
-            double percent = BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D);
-            if (!Double.isFinite(percent)) return 0.0D;
-            return clampProbability(percent / 100.0D);
+            return clampProbability(probabilities.getOrDefault(potionId, 0.0D));
         }
 
         private static double clampProbability(double probability) {
