@@ -5,6 +5,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.DoubleSupplier;
 
 /**
  * Central success policy for reactions executed by a vanilla Brewing Stand.
@@ -35,14 +36,22 @@ public final class BrewingStationPolicy {
         return new Decision(nativeVanillaRecipe, baseChance, stationBonus, effectiveChance);
     }
 
-    public static boolean succeeds(Decision decision, float randomRoll) {
+    public static boolean succeeds(Decision decision, DoubleSupplier randomRoll) {
         if (decision == null) {
             return false;
         }
         if (decision.nativeVanillaRecipe()) {
             return true;
         }
-        return randomRoll >= 0.0F && randomRoll < decision.effectiveChance();
+        if (randomRoll == null) {
+            return false;
+        }
+        double roll = randomRoll.getAsDouble();
+        return roll >= 0.0D && roll < decision.effectiveChance();
+    }
+
+    public static boolean succeeds(Decision decision, float randomRoll) {
+        return succeeds(decision, () -> randomRoll);
     }
 
     private static List<ItemStack> copyInputs(Iterable<ItemStack> potionInputs) {
