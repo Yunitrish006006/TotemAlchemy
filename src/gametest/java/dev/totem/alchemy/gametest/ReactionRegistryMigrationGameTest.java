@@ -6,6 +6,8 @@ import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.reaction.AlchemyReactionDataLoader;
 import dev.totem.alchemy.reaction.AlchemyReactionResolver;
 import dev.totem.alchemy.reaction.IngredientReaction;
+import dev.totem.alchemy.reaction.ReactionIngredient;
+import dev.totem.alchemy.reaction.ReactionOutcome;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -76,6 +78,72 @@ public final class ReactionRegistryMigrationGameTest {
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:sugar", "totem:alchemy/saturation") - 0.03D) < EPSILON,
                 "Sugar saturation probability did not come from migrated reaction data");
+
+        MultiOutcomeBrewing.Outcome canonicalSugar = MultiOutcomeBrewing.canonicalOutcome(sugar);
+        require(helper, canonicalSugar != null && canonicalSugar.potion().is(Potions.SWIFTNESS),
+                "Deterministic Brewing Stand selection did not choose sugar's highest-chance swiftness outcome");
+
+        MultiOutcomeBrewing.beginBatch(
+                helper.getLevel().getRandom(),
+                new ItemStack(Items.SUGAR),
+                List.of(awkward),
+                true
+        );
+        try {
+            require(helper, MultiOutcomeBrewing.activeOutcomes().size() == 1
+                            && MultiOutcomeBrewing.activeOutcome().potion().is(Potions.SWIFTNESS),
+                    "Native Brewing Stand batch did not collapse sugar to one canonical swiftness outcome");
+        } finally {
+            MultiOutcomeBrewing.clearBatch();
+        }
+
+        MultiOutcomeBrewing.beginBatch(
+                new ItemStack(Items.BROWN_MUSHROOM),
+                List.of(awkward),
+                0.0F,
+                0.0F,
+                0.999F
+        );
+        try {
+            require(helper, MultiOutcomeBrewing.activeOutcomes().size() == 2,
+                    "Probabilistic Alchemy outcome path no longer permits multiple selected outcomes");
+        } finally {
+            MultiOutcomeBrewing.clearBatch();
+        }
+
+        IngredientReaction priorityTie = new IngredientReaction(
+                id("totem", "test/priority_tie"),
+                AWKWARD,
+                ReactionIngredient.item(id("minecraft", "sugar")),
+                0.9D,
+                1.0D,
+                300,
+                1,
+                true,
+                List.of(
+                        new ReactionOutcome(id("minecraft", "slowness"), 0.5D, 1),
+                        new ReactionOutcome(id("minecraft", "swiftness"), 0.5D, 2)
+                )
+        );
+        require(helper, MultiOutcomeBrewing.canonicalOutcome(priorityTie).potion().is(Potions.SWIFTNESS),
+                "Deterministic outcome tie-break did not prefer higher priority");
+
+        IngredientReaction idTie = new IngredientReaction(
+                id("totem", "test/id_tie"),
+                AWKWARD,
+                ReactionIngredient.item(id("minecraft", "sugar")),
+                0.9D,
+                1.0D,
+                300,
+                1,
+                true,
+                List.of(
+                        new ReactionOutcome(id("minecraft", "swiftness"), 0.5D, 2),
+                        new ReactionOutcome(id("minecraft", "leaping"), 0.5D, 2)
+                )
+        );
+        require(helper, MultiOutcomeBrewing.canonicalOutcome(idTie).potion().is(Potions.LEAPING),
+                "Deterministic outcome tie-break did not prefer lexicographically smaller potion id");
         helper.succeed();
     }
 

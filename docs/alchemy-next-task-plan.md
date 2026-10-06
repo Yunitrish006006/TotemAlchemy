@@ -111,8 +111,8 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M7-T02 Centralize final success-chance calculation.
 - [ ] M7-T03 Add Brewing Stand station success bonus. (Policy hook exists; current bonus remains 0 until balance is chosen.)
 - [x] M7-T04 Guarantee native vanilla Brewing Stand recipes reach 100%.
-- [ ] M7-T05 Brewing Stand selects deterministic highest-chance outcome.
-- [ ] M7-T06 Implement chance/priority/resource-ID tie break.
+- [x] M7-T05 Brewing Stand selects deterministic highest-chance outcome.
+- [x] M7-T06 Implement chance/priority/resource-ID tie break.
 - [ ] M7-T07 Cauldron keeps full probabilistic outcome resolution.
 - [ ] M7-T08 Brewing Stand emits standard dose/concentration.
 - [ ] M7-T09 Cross-station parity test for standard primary outcomes.
