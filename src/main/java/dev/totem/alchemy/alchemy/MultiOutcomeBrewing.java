@@ -219,26 +219,32 @@ public final class MultiOutcomeBrewing {
     }
 
     public static double outcomeProbability(String ingredientId, String potionId) {
-        for (Map.Entry<Item, OutcomePool> entry : AWKWARD_POOLS.entrySet()) {
-            if (BuiltInRegistries.ITEM.getKey(entry.getKey()).toString().equals(ingredientId)) {
-                int legacyReads = LEGACY_PROBABILITY_READS.get();
-                if (legacyReads > 0) {
-                    LEGACY_PROBABILITY_READS.set(legacyReads - 1);
-                    return entry.getValue().legacyFallbackProbability(entry.getKey(), potionId);
-                }
-                return entry.getValue().probability(entry.getKey(), potionId);
-            }
+        Item ingredient = itemById(ingredientId);
+        if (ingredient == null) return -1.0D;
+        OutcomePool pool = poolFor(new ItemStack(ingredient));
+        if (pool == null) return -1.0D;
+
+        int legacyReads = LEGACY_PROBABILITY_READS.get();
+        if (legacyReads > 0) {
+            LEGACY_PROBABILITY_READS.set(legacyReads - 1);
+            return pool.legacyFallbackProbability(ingredient, potionId);
         }
-        return -1.0D;
+        return pool.probability(ingredient, potionId);
     }
 
     public static double noEffectProbability(String ingredientId) {
-        for (Map.Entry<Item, OutcomePool> entry : AWKWARD_POOLS.entrySet()) {
-            if (BuiltInRegistries.ITEM.getKey(entry.getKey()).toString().equals(ingredientId)) {
-                return entry.getValue().noEffectProbability(entry.getKey());
-            }
-        }
-        return -1.0D;
+        Item ingredient = itemById(ingredientId);
+        if (ingredient == null) return -1.0D;
+        OutcomePool pool = poolFor(new ItemStack(ingredient));
+        return pool == null ? -1.0D : pool.noEffectProbability(ingredient);
+    }
+
+    private static Item itemById(String ingredientId) {
+        Identifier id = Identifier.tryParse(ingredientId);
+        if (id == null) return null;
+        Item item = BuiltInRegistries.ITEM.getValue(id);
+        if (item == null || !BuiltInRegistries.ITEM.getKey(item).equals(id)) return null;
+        return item;
     }
 
     private static boolean canRollOutcomes(ItemStack ingredient, Iterable<ItemStack> inputs) {
@@ -258,7 +264,12 @@ public final class MultiOutcomeBrewing {
 
     public record Outcome(Holder<Potion> potion, String messageKey) {}
 
-    private record OutcomePool(List<Outcome> outcomes) {
+    private record OutcomePool(List<Outcome> outcomes, Map<String, Double> probabilities) {
+        private OutcomePool {
+            outcomes = List.copyOf(outcomes);
+            probabilities = Map.copyOf(probabilities);
+        }
+
         private List<Outcome> rollAll(Item ingredient, DoubleSupplier rolls) {
             List<Outcome> selected = new java.util.ArrayList<>();
             for (Outcome outcome : outcomes) {
@@ -268,12 +279,13 @@ public final class MultiOutcomeBrewing {
         }
 
         private Outcome chooseWeighted(Item ingredient, float roll) {
+            if (outcomes.isEmpty()) return null;
             double total = totalWeight(ingredient);
             if (total <= 0.0D) return outcomes.getFirst();
             double target = normalizedRoll(roll) * total;
             double cumulative = 0.0D;
             for (Outcome outcome : outcomes) {
-                cumulative += BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D);
+                cumulative += outcomeWeight(ingredient, outcome);
                 if (target < cumulative) return outcome;
             }
             return outcomes.getLast();
@@ -296,7 +308,7 @@ public final class MultiOutcomeBrewing {
             double fallbackShare = 0.0D;
             for (Outcome outcome : outcomes) {
                 if (BuiltInRegistries.POTION.getKey(outcome.potion().value()).toString().equals(potionId)) {
-                    fallbackShare = BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D) / total;
+                    fallbackShare = outcomeWeight(ingredient, outcome) / total;
                     break;
                 }
             }
@@ -310,13 +322,29 @@ public final class MultiOutcomeBrewing {
         }
 
         private double totalWeight(Item ingredient) {
-            return outcomes.stream().mapToDouble(outcome -> BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D)).sum();
+            return outcomes.stream().mapToDouble(outcome -> outcomeWeight(ingredient, outcome)).sum();
         }
 
-        private static double configuredProbability(Item ingredient, Outcome outcome) {
+        private double outcomeWeight(Item ingredient, Outcome outcome) {
+            String potionId = BuiltInRegistries.POTION.getKey(outcome.potion().value()).toString();
+            Double configured = probabilities.get(potionId);
+            if (configured != null) return configured * 100.0D;
+            return BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D);
+        }
+
+        private double configuredProbability(Item ingredient, Outcome outcome) {
+            String potionId = BuiltInRegistries.POTION.getKey(outcome.potion().value()).toString();
+            Double configured = probabilities.get(potionId);
+            if (configured != null) return clampProbability(configured);
+
             double percent = BrewingOutcomeWeights.weight(ingredient, outcome.potion(), 1.0D);
             if (!Double.isFinite(percent)) return 0.0D;
-            return Math.max(0.0D, Math.min(1.0D, percent / 100.0D));
+            return clampProbability(percent / 100.0D);
+        }
+
+        private static double clampProbability(double probability) {
+            if (!Double.isFinite(probability)) return 0.0D;
+            return Math.max(0.0D, Math.min(1.0D, probability));
         }
 
         private static double normalizedRoll(double roll) {
