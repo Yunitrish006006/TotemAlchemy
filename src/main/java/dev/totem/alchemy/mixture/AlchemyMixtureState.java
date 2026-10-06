@@ -18,9 +18,11 @@ import java.util.Set;
 /**
  * Server-authoritative liquid chemistry state shared by Alchemy Cauldrons and portable containers.
  *
- * <p>Effect amount is stored as potency-ticks rather than only a duration. A level II effect therefore
- * carries twice the amount of an equal-duration level I effect. This lets volume dilution, modifiers and
- * multi-effect brewing conserve effect quantity instead of creating power when liquids are mixed.</p>
+ * <p>Effect amount is stored as a canonical {@link EffectDose#quantity()} measured in level-I-equivalent
+ * effect ticks: {@code durationTicks * (amplifier + 1)}. A level II effect therefore carries twice the
+ * quantity of an equal-duration level I effect. This lets volume dilution, modifiers and multi-effect brewing
+ * conserve effect quantity instead of creating power when liquids are mixed. The legacy
+ * {@link EffectDose#potencyTicks()} accessor remains as a compatibility alias for the same quantity.</p>
  */
 public final class AlchemyMixtureState {
     public static final int MAX_VOLUME_UNITS = 3;
@@ -956,27 +958,47 @@ public final class AlchemyMixtureState {
         }
     }
 
-    public record EffectDose(double potencyTicks, int amplifierCap) {
+    /**
+     * Conserved effect quantity plus the highest intended amplifier.
+     *
+     * <p>{@code quantity} is the canonical amount unit for sustained effects and is measured in
+     * level-I-equivalent effect ticks: {@code durationTicks * (amplifier + 1)}. Quantity is independent of
+     * container volume; concentration and the final duration presentation are derived later from this value.</p>
+     */
+    public record EffectDose(double quantity, int amplifierCap) {
         public EffectDose {
-            potencyTicks = Math.max(0.0D, potencyTicks);
+            quantity = Math.max(0.0D, quantity);
             amplifierCap = Math.max(0, amplifierCap);
         }
 
+        /** Canonical sustained-effect quantity for one vanilla-style duration/amplifier pair. */
+        public static double quantityForDuration(int durationTicks, int amplifier) {
+            return (double) Math.max(0, durationTicks) * (Math.max(0, amplifier) + 1);
+        }
+
         public static EffectDose fromDuration(int durationTicks, int amplifier) {
-            return new EffectDose((double) Math.max(0, durationTicks) * (Math.max(0, amplifier) + 1), amplifier);
+            return new EffectDose(quantityForDuration(durationTicks, amplifier), amplifier);
+        }
+
+        /**
+         * Compatibility alias retained while existing mixture code migrates from the old potency-ticks name.
+         * It is exactly the same conserved value as {@link #quantity()}.
+         */
+        public double potencyTicks() {
+            return quantity;
         }
 
         public EffectDose merge(EffectDose other) {
-            return new EffectDose(potencyTicks + other.potencyTicks, Math.max(amplifierCap, other.amplifierCap));
+            return new EffectDose(quantity + other.quantity, Math.max(amplifierCap, other.amplifierCap));
         }
 
         public EffectDose scale(double factor) {
-            return new EffectDose(potencyTicks * Math.max(0.0D, factor), amplifierCap);
+            return new EffectDose(quantity * Math.max(0.0D, factor), amplifierCap);
         }
 
         public int durationForVolume(int volume) {
             int safeVolume = Math.max(1, volume);
-            return Math.max(1, (int) Math.round(potencyTicks / safeVolume / (amplifierCap + 1.0D)));
+            return Math.max(1, (int) Math.round(quantity / safeVolume / (amplifierCap + 1.0D)));
         }
     }
 
