@@ -788,9 +788,13 @@ public final class AlchemyMixtureState {
     public String encode() {
         StringBuilder out = new StringBuilder();
         out.append("V|").append(volumeUnits).append('\n');
-        liquidComposition.components().forEach((liquidId, fraction) ->
-                out.append("L|").append(enc(liquidId.toString())).append('|')
-                        .append(fraction).append('\n'));
+        if (liquidComposition.isEmpty()) {
+            out.append("L|").append('\n');
+        } else {
+            liquidComposition.components().forEach((liquidId, fraction) ->
+                    out.append("L|").append(enc(liquidId.toString())).append('|')
+                            .append(fraction).append('\n'));
+        }
         out.append("S|").append(stability).append('\n');
         out.append("B|").append(baseActivated ? 1 : 0).append('\n');
         out.append("H|").append(heatLockedAfterBottling ? 1 : 0).append('\n');
@@ -844,15 +848,17 @@ public final class AlchemyMixtureState {
                     case "V" -> state.volumeUnits = Math.max(0, Math.min(state.capacity, Integer.parseInt(part[1])));
                     case "L" -> {
                         sawLiquidMarker = true;
-                        Identifier liquidId = Identifier.tryParse(dec(part[1]));
-                        if (liquidId == null) {
-                            throw new IllegalArgumentException("Invalid liquid identifier");
+                        if (part.length >= 3 && !part[1].isBlank()) {
+                            Identifier liquidId = Identifier.tryParse(dec(part[1]));
+                            if (liquidId == null) {
+                                throw new IllegalArgumentException("Invalid liquid identifier");
+                            }
+                            double fraction = Double.parseDouble(part[2]);
+                            if (!Double.isFinite(fraction) || fraction < 0.0D) {
+                                throw new IllegalArgumentException("Invalid liquid fraction");
+                            }
+                            decodedLiquids.merge(liquidId, fraction, Double::sum);
                         }
-                        double fraction = Double.parseDouble(part[2]);
-                        if (!Double.isFinite(fraction) || fraction < 0.0D) {
-                            throw new IllegalArgumentException("Invalid liquid fraction");
-                        }
-                        decodedLiquids.merge(liquidId, fraction, Double::sum);
                     }
                     case "S" -> state.stability = Math.max(0, Math.min(STABILITY_MAX, Integer.parseInt(part[1])));
                     case "B" -> {
