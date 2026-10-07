@@ -112,7 +112,11 @@ public final class AlchemyMixtureBrewing {
             // An empty independent roll is a valid no-effect reaction: consume/process the material but add nothing.
             target = chosenOutcomes.isEmpty()
                     ? Map.of()
-                    : scaleEffects(effectsForOutcomes(chosenOutcomes), state.volumeUnits());
+                    : capNormalRecipeAdditions(
+                            state.effects(),
+                            effectsForOutcomes(chosenOutcomes),
+                            state.volumeUnits()
+                    );
         } else {
             ItemStack input = canonicalInput(state);
             if (input.isEmpty()) return ScheduleResult.NOT_SCHEDULED;
@@ -206,7 +210,11 @@ public final class AlchemyMixtureBrewing {
                     ? (AlchemyMixtureBottle.isPotionContainer(vanillaOutput)
                         ? AlchemyMixtureBottle.fromPotion(vanillaOutput).effects() : Map.of())
                     : effectsForOutcomes(chosenOutcomes);
-            state.addEffects(scaleEffects(additions, state.volumeUnits()));
+            state.addEffects(capNormalRecipeAdditions(
+                    state.effects(),
+                    additions,
+                    state.volumeUnits()
+            ));
             state.setCanonicalPotionId(null);
             state.addProvenance(chosenOutcomes != null && chosenOutcomes.isEmpty()
                     ? "reaction:no_effect:" + ingredientId : "reaction:" + ingredientId);
@@ -254,6 +262,43 @@ public final class AlchemyMixtureBrewing {
                                                                             int factor) {
         Map<String, AlchemyMixtureState.EffectDose> result = new LinkedHashMap<>();
         effects.forEach((id, dose) -> result.put(id, dose.scale(Math.max(1, factor))));
+        return result;
+    }
+
+    /**
+     * Caps only the quantity produced by a normal recipe so the resulting effect does not exceed the
+     * registered standard concentration for the current bottle-equivalent volume.
+     *
+     * <p>Existing mixture quantity is never reduced. If an effect is already at or above the normal-recipe cap,
+     * the recipe contributes zero additional quantity for that effect. Modifiers and special recipes may apply
+     * their own rules separately.</p>
+     */
+    private static Map<String, AlchemyMixtureState.EffectDose> capNormalRecipeAdditions(
+            Map<String, AlchemyMixtureState.EffectDose> existing,
+            Map<String, AlchemyMixtureState.EffectDose> standardEffects,
+            int volumeUnits
+    ) {
+        if (standardEffects == null || standardEffects.isEmpty()) {
+            return Map.of();
+        }
+        int safeVolume = Math.max(1, volumeUnits);
+        Map<String, AlchemyMixtureState.EffectDose> result = new LinkedHashMap<>();
+        standardEffects.forEach((id, standardDose) -> {
+            if (id == null || id.isBlank() || standardDose == null || standardDose.quantity() <= 0.0001D) {
+                return;
+            }
+            AlchemyMixtureState.EffectDose existingDose =
+                    existing == null ? null : existing.get(id);
+            double existingQuantity = existingDose == null ? 0.0D : existingDose.quantity();
+            double capQuantity = standardDose.quantity() * safeVolume;
+            double allowedAddition = Math.max(0.0D, capQuantity - existingQuantity);
+            if (allowedAddition > 0.0001D) {
+                result.put(id, new AlchemyMixtureState.EffectDose(
+                        Math.min(capQuantity, allowedAddition),
+                        standardDose.amplifierCap()
+                ));
+            }
+        });
         return result;
     }
 

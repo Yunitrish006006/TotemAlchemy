@@ -1,5 +1,6 @@
 package dev.totem.alchemy.gametest;
 
+import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
@@ -231,6 +232,50 @@ public final class AlchemyMixtureGameTest {
                 "Second water dilution created or destroyed EffectDose quantity");
         requireNear(helper, twiceDiluted.concentrationForVolume(state.volumeUnits()), concentration / 3.0D,
                 "Second water dilution did not reduce concentration to one third");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void normalRecipeAdditionsRespectStandardConcentrationCap(GameTestHelper helper) {
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forEffect(Potions.STRENGTH, "minecraft:strength");
+        require(helper, standard != null,
+                "Normal-recipe cap fixture could not resolve standard strength dose");
+
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        MultiOutcomeBrewing.Outcome strength =
+                new MultiOutcomeBrewing.Outcome(Potions.STRENGTH, "message.totem.alchemy.outcome.strength");
+
+        ItemStack first = AlchemyMixtureBrewing.applyBrewingStandIngredient(
+                new ItemStack(Items.BLAZE_POWDER),
+                awkward,
+                PotionContents.createItemStack(Items.POTION, Potions.STRENGTH),
+                strength
+        );
+        ItemStack second = AlchemyMixtureBrewing.applyBrewingStandIngredient(
+                new ItemStack(Items.BLAZE_POWDER),
+                first,
+                PotionContents.createItemStack(Items.POTION, Potions.STRENGTH),
+                strength
+        );
+        AlchemyMixtureState capped = AlchemyMixtureBottle.fromPotion(second);
+        requireNear(helper, capped.effects().get("minecraft:strength").quantity(), standard.quantity(),
+                "Repeated normal recipe additions exceeded standard one-volume concentration");
+
+        AlchemyMixtureState alreadyConcentrated = new AlchemyMixtureState(1);
+        alreadyConcentrated.setBaseActivated(true);
+        alreadyConcentrated.putEffect("minecraft:strength", standard.quantity() * 2.0D, 0);
+        ItemStack concentratedInput = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        AlchemyMixtureBottle.writeState(concentratedInput, alreadyConcentrated);
+        ItemStack unchanged = AlchemyMixtureBrewing.applyBrewingStandIngredient(
+                new ItemStack(Items.BLAZE_POWDER),
+                concentratedInput,
+                PotionContents.createItemStack(Items.POTION, Potions.STRENGTH),
+                strength
+        );
+        AlchemyMixtureState preserved = AlchemyMixtureBottle.fromPotion(unchanged);
+        requireNear(helper, preserved.effects().get("minecraft:strength").quantity(), standard.quantity() * 2.0D,
+                "Normal recipe cap deleted pre-existing EffectDose above the recipe production limit");
         helper.succeed();
     }
 
