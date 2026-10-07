@@ -319,6 +319,58 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void extractingAndMergingPreservesPerEffectDoseAndConcentration(GameTestHelper helper) {
+        AlchemyMixtureState state = new AlchemyMixtureState(3);
+        state.putEffect("minecraft:night_vision", 9_000.0D, 0);
+        state.putEffect("minecraft:regeneration", 3_600.0D, 0);
+
+        Map<String, AlchemyMixtureState.EffectDose> original = state.effects();
+        double nightVisionConcentration =
+                original.get("minecraft:night_vision").concentrationForVolume(state.volumeUnits());
+        double regenerationConcentration =
+                original.get("minecraft:regeneration").concentrationForVolume(state.volumeUnits());
+
+        AlchemyMixtureState extracted = state.extractUnits(2);
+        require(helper, state.volumeUnits() == 1 && extracted.volumeUnits() == 2,
+                "Extracting two units did not leave one unit and return two units");
+
+        for (String effectId : original.keySet()) {
+            double originalQuantity = original.get(effectId).quantity();
+            double splitQuantity = state.effects().get(effectId).quantity()
+                    + extracted.effects().get(effectId).quantity();
+            requireNear(helper, splitQuantity, originalQuantity,
+                    "Extracting units created or destroyed EffectDose for " + effectId);
+        }
+
+        requireNear(helper,
+                state.effects().get("minecraft:night_vision").concentrationForVolume(state.volumeUnits()),
+                nightVisionConcentration,
+                "Remaining night-vision mixture changed concentration during extraction");
+        requireNear(helper,
+                extracted.effects().get("minecraft:night_vision").concentrationForVolume(extracted.volumeUnits()),
+                nightVisionConcentration,
+                "Extracted night-vision mixture changed concentration");
+        requireNear(helper,
+                state.effects().get("minecraft:regeneration").concentrationForVolume(state.volumeUnits()),
+                regenerationConcentration,
+                "Remaining regeneration mixture changed concentration during extraction");
+        requireNear(helper,
+                extracted.effects().get("minecraft:regeneration").concentrationForVolume(extracted.volumeUnits()),
+                regenerationConcentration,
+                "Extracted regeneration mixture changed concentration");
+
+        require(helper, state.mergeFrom(extracted),
+                "Extracted two-unit mixture could not be merged back");
+        require(helper, state.volumeUnits() == 3,
+                "Merging extracted units did not restore original volume");
+        for (String effectId : original.keySet()) {
+            requireNear(helper, state.effects().get(effectId).quantity(), original.get(effectId).quantity(),
+                    "Merging extracted units did not restore EffectDose for " + effectId);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void unfinishedReactionProgressSurvivesBottleRoundTrip(GameTestHelper helper) {
         AlchemyMixtureState state = AlchemyMixtureBrewing.waterState(3);
         require(helper, AlchemyMixtureBrewing.schedule(helper.getLevel(), state, new ItemStack(Items.NETHER_WART)),
