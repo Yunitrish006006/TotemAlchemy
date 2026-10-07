@@ -117,6 +117,14 @@ public final class AlchemyMixtureState {
                 : activatedBaseComposition;
     }
 
+    public double activatedBaseUnits() {
+        return activatedBaseComposition.totalUnits();
+    }
+
+    public double baseConcentration() {
+        return volumeUnits <= 0 ? 0.0D : activatedBaseUnits() / volumeUnits;
+    }
+
     public int stability() {
         return stability;
     }
