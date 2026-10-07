@@ -21,6 +21,8 @@ import java.util.Map;
 
 /** Builds delayed cauldron reactions and preserves layered mixtures through a vanilla Brewing Stand. */
 public final class AlchemyMixtureBrewing {
+    private static final int BREWING_STAND_BOTTLE_VOLUME_UNITS = 1;
+
     private AlchemyMixtureBrewing() {}
 
     public static boolean canReact(Level level, AlchemyMixtureState state, ItemStack ingredient) {
@@ -213,7 +215,7 @@ public final class AlchemyMixtureBrewing {
             state.addEffects(capNormalRecipeAdditions(
                     state.effects(),
                     additions,
-                    state.volumeUnits()
+                    BREWING_STAND_BOTTLE_VOLUME_UNITS
             ));
             state.setCanonicalPotionId(null);
             state.addProvenance(chosenOutcomes != null && chosenOutcomes.isEmpty()
@@ -246,8 +248,7 @@ public final class AlchemyMixtureBrewing {
     }
 
     private static Map<String, AlchemyMixtureState.EffectDose> effectsForPotion(Holder<Potion> potion) {
-        if (potion == null) return Map.of();
-        return AlchemyMixtureBottle.fromPotion(PotionContents.createItemStack(Items.POTION, potion)).effects();
+        return EffectDoseStandards.forPotion(potion);
     }
 
     private static Map<String, AlchemyMixtureState.EffectDose> effectsForOutcomes(List<MultiOutcomeBrewing.Outcome> outcomes) {
