@@ -77,6 +77,37 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void liquidCompositionMergeUsesVolumeWeightedFractions(GameTestHelper helper) {
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+        Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
+
+        AlchemyMixtureState oneWater = new AlchemyMixtureState(1);
+        oneWater.setLiquidComposition(LiquidComposition.single(water, 1.0D));
+        AlchemyMixtureState twoMilk = new AlchemyMixtureState(2);
+        twoMilk.setLiquidComposition(LiquidComposition.single(milk, 1.0D));
+
+        require(helper, oneWater.mergeFrom(twoMilk),
+                "One water unit could not merge with two milk units");
+        require(helper, oneWater.volumeUnits() == 3,
+                "Volume-weighted composition merge changed total volume");
+        requireNear(helper, oneWater.liquidComposition().amount(water), 1.0D / 3.0D,
+                "One water unit did not contribute one third of merged composition");
+        requireNear(helper, oneWater.liquidComposition().amount(milk), 2.0D / 3.0D,
+                "Two milk units did not contribute two thirds of merged composition");
+        requireNear(helper, oneWater.liquidComposition().totalAmount(), 1.0D,
+                "Merged liquid composition did not remain normalized");
+
+        AlchemyMixtureState known = new AlchemyMixtureState(1);
+        known.setLiquidComposition(LiquidComposition.single(water, 1.0D));
+        AlchemyMixtureState unknown = new AlchemyMixtureState(1);
+        require(helper, known.mergeFrom(unknown),
+                "Known composition could not merge with an unknown legacy composition");
+        require(helper, known.liquidComposition().isEmpty(),
+                "Unknown liquid volume was incorrectly inferred as the known composition");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void effectDoseUsesCanonicalLevelOneEquivalentTickQuantity(GameTestHelper helper) {
         AlchemyMixtureState.EffectDose levelOne =
                 AlchemyMixtureState.EffectDose.fromDuration(200, 0);
