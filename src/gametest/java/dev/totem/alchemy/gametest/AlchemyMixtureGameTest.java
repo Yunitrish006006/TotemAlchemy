@@ -48,6 +48,35 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void liquidCompositionSurvivesCopyAndClearsWhenStateResets(GameTestHelper helper) {
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+        Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
+
+        AlchemyMixtureState original = new AlchemyMixtureState(1);
+        original.setLiquidComposition(LiquidComposition.of(Map.of(
+                water, 3.0D,
+                milk, 1.0D
+        )));
+
+        AlchemyMixtureState copy = original.copy();
+        require(helper, copy.liquidComposition().equals(original.liquidComposition()),
+                "Mixture copy did not preserve liquid composition");
+        requireNear(helper, copy.liquidComposition().amount(water), 0.75D,
+                "Mixture copy changed water composition");
+        requireNear(helper, copy.liquidComposition().amount(milk), 0.25D,
+                "Mixture copy changed milk composition");
+
+        original.extractUnits(1);
+        require(helper, original.volumeUnits() == 0,
+                "Full extraction did not reset source volume");
+        require(helper, original.liquidComposition().isEmpty(),
+                "Reset-empty mixture retained stale liquid composition");
+        require(helper, !copy.liquidComposition().isEmpty(),
+                "Resetting the source also cleared the copied composition");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void effectDoseUsesCanonicalLevelOneEquivalentTickQuantity(GameTestHelper helper) {
         AlchemyMixtureState.EffectDose levelOne =
                 AlchemyMixtureState.EffectDose.fromDuration(200, 0);
