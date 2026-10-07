@@ -105,6 +105,47 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void activatedBaseMergeConservesAbsoluteUnits(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
+
+        AlchemyMixtureState left = new AlchemyMixtureState(1);
+        left.setActivatedBaseComposition(ActivatedBaseComposition.of(Map.of(
+                awkward, 0.75D,
+                mushroomBase, 0.25D
+        )));
+        AlchemyMixtureState right = new AlchemyMixtureState(2);
+        right.setActivatedBaseComposition(ActivatedBaseComposition.of(Map.of(
+                awkward, 0.50D,
+                mushroomBase, 1.00D
+        )));
+
+        double beforeUnits = left.activatedBaseUnits() + right.activatedBaseUnits();
+        require(helper, left.mergeFrom(right),
+                "Activated-base merge fixture could not merge");
+        requireNear(helper, left.activatedBaseComposition().units(awkward), 1.25D,
+                "Merge did not add overlapping awkward-base units");
+        requireNear(helper, left.activatedBaseComposition().units(mushroomBase), 1.25D,
+                "Merge did not add overlapping mushroom-base units");
+        requireNear(helper, left.activatedBaseUnits(), beforeUnits,
+                "Merge created or destroyed activated-base units");
+        requireNear(helper, left.baseConcentration(), beforeUnits / 3.0D,
+                "Merged activated-base concentration did not derive from conserved units and merged volume");
+
+        AlchemyMixtureState full = new AlchemyMixtureState(3);
+        full.setActivatedBaseComposition(ActivatedBaseComposition.single(awkward, 1.5D));
+        AlchemyMixtureState overflow = new AlchemyMixtureState(1);
+        overflow.setActivatedBaseComposition(ActivatedBaseComposition.single(mushroomBase, 1.0D));
+        require(helper, !full.mergeFrom(overflow),
+                "Over-capacity activated-base merge unexpectedly succeeded");
+        requireNear(helper, full.activatedBaseComposition().units(awkward), 1.5D,
+                "Rejected merge mutated existing activated-base units");
+        requireNear(helper, full.activatedBaseComposition().units(mushroomBase), 0.0D,
+                "Rejected merge leaked incoming activated-base units");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
         Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
         Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");

@@ -592,6 +592,8 @@ public final class AlchemyMixtureState {
                 other.liquidComposition,
                 incomingVolume
         );
+        ActivatedBaseComposition mergedActivatedBaseComposition =
+                mergeActivatedBaseComposition(activatedBaseComposition, other.activatedBaseComposition);
         boolean preserveOutcomeSet = other.preservesIndependentOutcomes()
                 && (oldVolume == 0 || preservesIndependentOutcomes() && effects.keySet().equals(other.effects.keySet()));
         if (preserveOutcomeSet) {
@@ -621,10 +623,28 @@ public final class AlchemyMixtureState {
         }
         volumeUnits = mergedVolume;
         liquidComposition = mergedLiquidComposition;
+        activatedBaseComposition = mergedActivatedBaseComposition;
         if (!preserveOutcomeSet) {
             neutralizeOpposites();
         }
         return true;
+    }
+
+    private static ActivatedBaseComposition mergeActivatedBaseComposition(
+            ActivatedBaseComposition current,
+            ActivatedBaseComposition incoming
+    ) {
+        if (current == null || current.isEmpty()) {
+            return incoming == null ? ActivatedBaseComposition.empty() : incoming;
+        }
+        if (incoming == null || incoming.isEmpty()) {
+            return current;
+        }
+
+        Map<Identifier, Double> merged = new LinkedHashMap<>(current.components());
+        incoming.components().forEach((baseId, units) ->
+                merged.merge(baseId, units, Double::sum));
+        return ActivatedBaseComposition.of(merged);
     }
 
     private static LiquidComposition mergeLiquidComposition(
