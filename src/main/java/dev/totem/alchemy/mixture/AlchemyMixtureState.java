@@ -35,6 +35,8 @@ public final class AlchemyMixtureState {
     public static final int STABILITY_MAX = 100;
     public static final double DEFAULT_SUSTAINED_EFFECT_BIAS = 0.5D;
     private static final String PRESERVE_INDEPENDENT_OUTCOMES = "state:independent_outcome_set";
+    private static final Identifier WATER_LIQUID_ID =
+            Identifier.fromNamespaceAndPath("minecraft", "water");
 
     private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder B64D = Base64.getUrlDecoder();
@@ -830,6 +832,8 @@ public final class AlchemyMixtureState {
         }
         AlchemyMixtureState state = new AlchemyMixtureState(0, capacity);
         boolean sawBaseMarker = false;
+        boolean sawLiquidMarker = false;
+        Map<Identifier, Double> decodedLiquids = new LinkedHashMap<>();
         for (String line : encoded.split("\\R")) {
             if (line.isBlank()) {
                 continue;
@@ -838,6 +842,18 @@ public final class AlchemyMixtureState {
             try {
                 switch (part[0]) {
                     case "V" -> state.volumeUnits = Math.max(0, Math.min(state.capacity, Integer.parseInt(part[1])));
+                    case "L" -> {
+                        sawLiquidMarker = true;
+                        Identifier liquidId = Identifier.tryParse(dec(part[1]));
+                        if (liquidId == null) {
+                            throw new IllegalArgumentException("Invalid liquid identifier");
+                        }
+                        double fraction = Double.parseDouble(part[2]);
+                        if (!Double.isFinite(fraction) || fraction < 0.0D) {
+                            throw new IllegalArgumentException("Invalid liquid fraction");
+                        }
+                        decodedLiquids.merge(liquidId, fraction, Double::sum);
+                    }
                     case "S" -> state.stability = Math.max(0, Math.min(STABILITY_MAX, Integer.parseInt(part[1])));
                     case "B" -> {
                         state.baseActivated = Integer.parseInt(part[1]) != 0;
@@ -862,6 +878,13 @@ public final class AlchemyMixtureState {
             } catch (RuntimeException ignored) {
                 // Corrupt individual entries are ignored so one bad field cannot brick a world or item stack.
             }
+        }
+        if (!decodedLiquids.isEmpty()) {
+            state.liquidComposition = LiquidComposition.of(decodedLiquids).normalized();
+        } else if (!sawLiquidMarker && state.volumeUnits > 0) {
+            state.liquidComposition = LiquidComposition.single(WATER_LIQUID_ID, 1.0D);
+        } else {
+            state.liquidComposition = LiquidComposition.empty();
         }
         if (!sawBaseMarker) {
             state.baseActivated = inferLegacyBase(state);
