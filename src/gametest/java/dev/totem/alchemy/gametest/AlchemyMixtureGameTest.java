@@ -51,6 +51,31 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void mixtureStateDerivesActivatedBaseUnitsAndConcentration(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
+
+        AlchemyMixtureState state = new AlchemyMixtureState(4, 8);
+        state.setActivatedBaseComposition(ActivatedBaseComposition.of(Map.of(
+                awkward, 1.0D,
+                mushroomBase, 2.0D
+        )));
+
+        requireNear(helper, state.activatedBaseUnits(), 3.0D,
+                "Mixture state did not derive total activated-base units");
+        requireNear(helper, state.baseConcentration(), 0.75D,
+                "Mixture state did not derive activated-base concentration from volume");
+
+        AlchemyMixtureState empty = new AlchemyMixtureState(0);
+        empty.setActivatedBaseComposition(ActivatedBaseComposition.single(awkward, 2.0D));
+        requireNear(helper, empty.activatedBaseUnits(), 2.0D,
+                "Zero-volume fixture changed stored activated-base units");
+        requireNear(helper, empty.baseConcentration(), 0.0D,
+                "Zero-volume mixture exposed non-zero activated-base concentration");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
         Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
         Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
