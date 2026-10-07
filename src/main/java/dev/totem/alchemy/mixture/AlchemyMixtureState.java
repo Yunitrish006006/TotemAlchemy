@@ -1044,6 +1044,27 @@ public final class AlchemyMixtureState {
             );
         }
 
+        /**
+         * Continuous potency level for an instantaneous effect relative to one registered standard dose.
+         *
+         * <p>Instant effects have no duration axis, so the entire relative concentration change maps to
+         * potency. A value of {@code 1.0} is level I-equivalent, {@code 2.0} is level II-equivalent, and
+         * fractional values remain representable for later discretization/application rules.</p>
+         */
+        public double instantPotencyLevel(EffectDose standardDose, int volumeUnits) {
+            if (standardDose == null || standardDose.quantity <= 0.0001D || volumeUnits <= 0) {
+                return 0.0D;
+            }
+            double concentration = concentrationForVolume(volumeUnits);
+            double standardConcentration = standardDose.concentrationForVolume(1);
+            if (concentration <= 0.0001D || standardConcentration <= 0.0001D) {
+                return 0.0D;
+            }
+            double relativeConcentration = concentration / standardConcentration;
+            double standardPotency = standardDose.amplifierCap + 1.0D;
+            return standardPotency * relativeConcentration;
+        }
+
         public int durationForVolume(int volume) {
             int safeVolume = Math.max(1, volume);
             return Math.max(1, (int) Math.round(quantity / safeVolume / (amplifierCap + 1.0D)));
