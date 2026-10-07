@@ -96,6 +96,53 @@ public final class BrewingMigrationGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void standardPrimaryOutcomeMatchesAcrossBrewingStandAndCauldron(GameTestHelper helper) {
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        ItemStack sugar = new ItemStack(Items.SUGAR);
+        MultiOutcomeBrewing.Outcome primary =
+                MultiOutcomeBrewing.canonicalOutcome(sugar, List.of(awkward));
+        require(helper, primary != null && primary.potion().is(Potions.SWIFTNESS),
+                "Sugar canonical primary outcome was not swiftness");
+
+        ItemStack standOutput = AlchemyMixtureBrewing.applyBrewingStandIngredient(
+                sugar,
+                awkward,
+                PotionContents.createItemStack(Items.POTION, Potions.SWIFTNESS),
+                primary
+        );
+        AlchemyMixtureState standState = AlchemyMixtureBottle.fromPotion(standOutput);
+
+        AlchemyMixtureState cauldronState = AlchemyMixtureBottle.fromPotion(awkward);
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(),
+                        cauldronState,
+                        sugar,
+                        List.of(primary)
+                ),
+                "Alchemy Cauldron rejected the canonical primary outcome");
+        cauldronState.tickReactions(Integer.MAX_VALUE);
+
+        require(helper, standState.volumeUnits() == 1 && cauldronState.volumeUnits() == 1,
+                "Station parity fixture changed one-bottle-equivalent volume");
+        require(helper, standState.effects().keySet().equals(cauldronState.effects().keySet()),
+                "Brewing Stand and Cauldron produced different primary effect sets");
+
+        for (String effectId : standState.effects().keySet()) {
+            AlchemyMixtureState.EffectDose standDose = standState.effects().get(effectId);
+            AlchemyMixtureState.EffectDose cauldronDose = cauldronState.effects().get(effectId);
+            requireNear(helper, standDose.quantity(), cauldronDose.quantity(),
+                    "Station parity changed EffectDose quantity for " + effectId);
+            require(helper, standDose.amplifierCap() == cauldronDose.amplifierCap(),
+                    "Station parity changed amplifier for " + effectId);
+            requireNear(helper,
+                    standDose.concentrationForVolume(standState.volumeUnits()),
+                    cauldronDose.concentrationForVolume(cauldronState.volumeUnits()),
+                    "Station parity changed concentration for " + effectId);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void noEffectRetainsLayersAndFailureRetainsExactBottles(GameTestHelper helper) {
         AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(
                 PotionContents.createItemStack(Items.POTION, Potions.SWIFTNESS));
