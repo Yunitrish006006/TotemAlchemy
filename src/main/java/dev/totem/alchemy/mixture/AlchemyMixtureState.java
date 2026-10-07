@@ -1006,9 +1006,54 @@ public final class AlchemyMixtureState {
             return volumeUnits <= 0 ? 0.0D : quantity / volumeUnits;
         }
 
+        /**
+         * Neutral sustained-effect presentation relative to one standard registered potion dose.
+         *
+         * <p>The current concentration ratio is split evenly between potency and duration. With the neutral
+         * 0.5/0.5 split, both scales are {@code sqrt(relativeConcentration)}, so their product still equals
+         * the concentration ratio and the underlying EffectDose remains conserved. Configurable bias is added
+         * separately by M6-T05.</p>
+         */
+        public SustainedEffectPresentation sustainedPresentation(EffectDose standardDose, int volumeUnits) {
+            if (standardDose == null || standardDose.quantity <= 0.0001D || volumeUnits <= 0) {
+                return SustainedEffectPresentation.EMPTY;
+            }
+            double concentration = concentrationForVolume(volumeUnits);
+            double standardConcentration = standardDose.concentrationForVolume(1);
+            if (concentration <= 0.0001D || standardConcentration <= 0.0001D) {
+                return SustainedEffectPresentation.EMPTY;
+            }
+            double relativeConcentration = concentration / standardConcentration;
+            double neutralScale = Math.sqrt(Math.max(0.0D, relativeConcentration));
+            double standardPotency = standardDose.amplifierCap + 1.0D;
+            double standardDuration = standardDose.quantity / standardPotency;
+            return new SustainedEffectPresentation(
+                    standardPotency * neutralScale,
+                    standardDuration * neutralScale
+            );
+        }
+
         public int durationForVolume(int volume) {
             int safeVolume = Math.max(1, volume);
             return Math.max(1, (int) Math.round(quantity / safeVolume / (amplifierCap + 1.0D)));
+        }
+    }
+
+    /**
+     * Continuous sustained-effect presentation. Potency level uses level-I-equivalent scale:
+     * 1.0 = vanilla amplifier 0, 2.0 = amplifier 1, and fractional values remain representable for UI
+     * and later discretization rules.
+     */
+    public record SustainedEffectPresentation(double potencyLevel, double durationTicks) {
+        private static final SustainedEffectPresentation EMPTY = new SustainedEffectPresentation(0.0D, 0.0D);
+
+        public SustainedEffectPresentation {
+            potencyLevel = Math.max(0.0D, potencyLevel);
+            durationTicks = Math.max(0.0D, durationTicks);
+        }
+
+        public double concentration() {
+            return potencyLevel * durationTicks;
         }
     }
 

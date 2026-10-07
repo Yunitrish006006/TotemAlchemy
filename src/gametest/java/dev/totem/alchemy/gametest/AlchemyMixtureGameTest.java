@@ -86,6 +86,46 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void sustainedEffectSplitConservesConcentrationAtNeutralBias(GameTestHelper helper) {
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forEffect(Potions.SWIFTNESS, "minecraft:speed");
+        require(helper, standard != null,
+                "Sustained split fixture could not resolve standard swiftness dose");
+
+        AlchemyMixtureState.SustainedEffectPresentation baseline =
+                standard.sustainedPresentation(standard, 1);
+        requireNear(helper, baseline.potencyLevel(), 1.0D,
+                "Standard level-I potion did not map to potency level 1");
+        requireNear(helper, baseline.durationTicks(), 20.0D * 180.0D,
+                "Standard level-I potion did not preserve its native duration");
+        requireNear(helper, baseline.concentration(), standard.concentrationForVolume(1),
+                "Baseline sustained split did not conserve concentration");
+
+        AlchemyMixtureState.EffectDose doubled = standard.merge(standard);
+        AlchemyMixtureState.SustainedEffectPresentation concentrated =
+                doubled.sustainedPresentation(standard, 1);
+        double rootTwo = Math.sqrt(2.0D);
+        requireNear(helper, concentrated.potencyLevel(), rootTwo,
+                "Neutral split did not assign sqrt(concentration ratio) to potency");
+        requireNear(helper, concentrated.durationTicks(), 20.0D * 180.0D * rootTwo,
+                "Neutral split did not assign sqrt(concentration ratio) to duration");
+        requireNear(helper, concentrated.concentration(), doubled.concentrationForVolume(1),
+                "Concentrated sustained split did not conserve effect concentration");
+
+        AlchemyMixtureState.EffectDose strongStandard =
+                EffectDoseStandards.forEffect(Potions.STRONG_SWIFTNESS, "minecraft:speed");
+        require(helper, strongStandard != null,
+                "Sustained split fixture could not resolve strong swiftness dose");
+        AlchemyMixtureState.SustainedEffectPresentation strong =
+                strongStandard.sustainedPresentation(strongStandard, 1);
+        requireNear(helper, strong.potencyLevel(), 2.0D,
+                "Strong standard potion did not map amplifier 1 to potency level 2");
+        requireNear(helper, strong.durationTicks(), 20.0D * 90.0D,
+                "Strong standard potion did not preserve its native duration");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void opposingSpeedEffectsNeutralizeByEffectQuantity(GameTestHelper helper) {
         AlchemyMixtureState state = new AlchemyMixtureState(1);
         state.putEffect("minecraft:speed", 2_000.0D, 0);
