@@ -174,8 +174,10 @@ public final class AlchemyMixtureGameTest {
                 "Deterministic L| ordering did not place minecraft:milk before minecraft:water");
 
         AlchemyMixtureState emptyComposition = new AlchemyMixtureState(1);
-        require(helper, emptyComposition.encode().lines().noneMatch(line -> line.startsWith("L|")),
-                "Empty liquid composition emitted an L| serialization entry");
+        require(helper, emptyComposition.encode().lines().anyMatch(line -> line.equals("L|")),
+                "Empty liquid composition did not emit the explicit modern L| sentinel");
+        require(helper, AlchemyMixtureState.decode(emptyComposition.encode()).liquidComposition().isEmpty(),
+                "Explicit modern empty composition was misclassified as legacy Water");
         helper.succeed();
     }
 
@@ -197,6 +199,11 @@ public final class AlchemyMixtureGameTest {
                 "L| decode changed serialized milk fraction");
         requireNear(helper, restored.liquidComposition().totalAmount(), 1.0D,
                 "Decoded liquid composition did not remain normalized");
+
+        AlchemyMixtureState modernUnknown = new AlchemyMixtureState(2);
+        AlchemyMixtureState restoredUnknown = AlchemyMixtureState.decode(modernUnknown.encode());
+        require(helper, restoredUnknown.liquidComposition().isEmpty(),
+                "Modern explicit unknown composition was migrated as legacy Water");
 
         AlchemyMixtureState legacy = AlchemyMixtureState.decode("V|2\nS|100\nB|0\n");
         requireNear(helper, legacy.liquidComposition().amount(water), 1.0D,
