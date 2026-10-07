@@ -202,6 +202,39 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void waterDilutionConservesEffectDoseAndLowersConcentration(GameTestHelper helper) {
+        AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(
+                PotionContents.createItemStack(Items.POTION, Potions.SWIFTNESS));
+        AlchemyMixtureState.EffectDose initial = state.effects().get("minecraft:speed");
+        require(helper, initial != null,
+                "Dilution fixture could not resolve swiftness EffectDose");
+
+        double quantity = initial.quantity();
+        double concentration = initial.concentrationForVolume(state.volumeUnits());
+
+        require(helper, state.mergeFrom(AlchemyMixtureBrewing.waterState(1)),
+                "One bottle-equivalent of water could not dilute the potion mixture");
+        AlchemyMixtureState.EffectDose onceDiluted = state.effects().get("minecraft:speed");
+        require(helper, state.volumeUnits() == 2,
+                "First water dilution did not increase mixture volume to two units");
+        requireNear(helper, onceDiluted.quantity(), quantity,
+                "First water dilution created or destroyed EffectDose quantity");
+        requireNear(helper, onceDiluted.concentrationForVolume(state.volumeUnits()), concentration / 2.0D,
+                "First water dilution did not halve effect concentration");
+
+        require(helper, state.mergeFrom(AlchemyMixtureBrewing.waterState(1)),
+                "Second bottle-equivalent of water could not dilute the potion mixture");
+        AlchemyMixtureState.EffectDose twiceDiluted = state.effects().get("minecraft:speed");
+        require(helper, state.volumeUnits() == 3,
+                "Second water dilution did not increase mixture volume to three units");
+        requireNear(helper, twiceDiluted.quantity(), quantity,
+                "Second water dilution created or destroyed EffectDose quantity");
+        requireNear(helper, twiceDiluted.concentrationForVolume(state.volumeUnits()), concentration / 3.0D,
+                "Second water dilution did not reduce concentration to one third");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void opposingSpeedEffectsNeutralizeByEffectQuantity(GameTestHelper helper) {
         AlchemyMixtureState state = new AlchemyMixtureState(1);
         state.putEffect("minecraft:speed", 2_000.0D, 0);
