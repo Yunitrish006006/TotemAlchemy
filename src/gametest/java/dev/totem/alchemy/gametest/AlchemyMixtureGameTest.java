@@ -179,6 +179,29 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void instantEffectPotencyTracksConcentrationWithoutDurationAxis(GameTestHelper helper) {
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forEffect(Potions.HEALING, "minecraft:instant_health");
+        require(helper, standard != null,
+                "Instant-effect fixture could not resolve standard healing dose");
+
+        double standardPotency = standard.amplifierCap() + 1.0D;
+        requireNear(helper, standard.instantPotencyLevel(standard, 1), standardPotency,
+                "Standard instant potion did not preserve its registered potency level");
+
+        AlchemyMixtureState.EffectDose doubled = standard.merge(standard);
+        requireNear(helper, doubled.instantPotencyLevel(standard, 1), standardPotency * 2.0D,
+                "Doubling instant EffectDose at fixed volume did not double potency");
+        requireNear(helper, doubled.instantPotencyLevel(standard, 2), standardPotency,
+                "Doubling instant EffectDose and volume together changed potency");
+        requireNear(helper, standard.instantPotencyLevel(standard, 2), standardPotency * 0.5D,
+                "Diluting an instant EffectDose across two volume units did not halve potency");
+        requireNear(helper, standard.instantPotencyLevel(standard, 0), 0.0D,
+                "Zero liquid volume exposed non-zero instant potency");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void opposingSpeedEffectsNeutralizeByEffectQuantity(GameTestHelper helper) {
         AlchemyMixtureState state = new AlchemyMixtureState(1);
         state.putEffect("minecraft:speed", 2_000.0D, 0);
