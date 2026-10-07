@@ -101,7 +101,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M6-T05 Add configurable bias, default 0.5.
 - [x] M6-T06 Implement instant-effect concentration rule.
 - [x] M6-T07 Verify dilution conserves total EffectDose.
-- [ ] M6-T08 Verify merge/extract conserve EffectDose.
+- [x] M6-T08 Verify merge/extract conserve EffectDose.
 - [ ] M6-T09 Add concentration cap behavior for normal recipes.
 - [ ] M6-T10 EffectDose regression pass.
 
