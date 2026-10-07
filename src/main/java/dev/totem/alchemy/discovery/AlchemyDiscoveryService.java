@@ -1,6 +1,6 @@
 package dev.totem.alchemy.discovery;
 
-import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.reaction.AlchemyReactionReader;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.network.AlchemyDiscoveriesPayload;
@@ -273,10 +273,10 @@ public final class AlchemyDiscoveryService {
             double truth;
             String type;
             if (NO_EFFECT_ID.equals(potionId)) {
-                truth = MultiOutcomeBrewing.noEffectProbability(ingredientId);
+                truth = AlchemyReactionReader.noEffectProbability(ingredientId);
                 type = "N|" + ingredientId;
             } else {
-                truth = MultiOutcomeBrewing.outcomeProbability(ingredientId, potionId);
+                truth = AlchemyReactionReader.outcomeProbability(ingredientId, potionId);
                 type = "O|" + key;
             }
             if (!Double.isFinite(truth) || truth < 0.0D) continue;
