@@ -189,6 +189,42 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void activatedBaseCompositionSerializationIsDeterministic(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
+
+        Map<Identifier, Double> firstOrder = new java.util.LinkedHashMap<>();
+        firstOrder.put(mushroomBase, 0.75D);
+        firstOrder.put(awkward, 1.25D);
+        Map<Identifier, Double> secondOrder = new java.util.LinkedHashMap<>();
+        secondOrder.put(awkward, 1.25D);
+        secondOrder.put(mushroomBase, 0.75D);
+
+        AlchemyMixtureState first = new AlchemyMixtureState(2);
+        first.setActivatedBaseComposition(ActivatedBaseComposition.of(firstOrder));
+        AlchemyMixtureState second = new AlchemyMixtureState(2);
+        second.setActivatedBaseComposition(ActivatedBaseComposition.of(secondOrder));
+
+        String firstEncoded = first.encode();
+        String secondEncoded = second.encode();
+
+        require(helper, firstEncoded.equals(secondEncoded),
+                "Activated-base serialization depended on caller insertion order");
+        List<String> baseLines = firstEncoded.lines()
+                .filter(line -> line.startsWith("A|"))
+                .toList();
+        require(helper, baseLines.size() == 2,
+                "Serialized mixture did not emit one A| line per activated-base component");
+        require(helper, baseLines.get(0).contains("bWluZWNyYWZ0OmF3a3dhcmQ"),
+                "Deterministic A| ordering did not place minecraft:awkward before totem base IDs");
+
+        AlchemyMixtureState emptyComposition = new AlchemyMixtureState(1);
+        require(helper, emptyComposition.encode().lines().noneMatch(line -> line.startsWith("A|")),
+                "Empty activated-base composition emitted an A| serialization entry");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
         Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
         Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
