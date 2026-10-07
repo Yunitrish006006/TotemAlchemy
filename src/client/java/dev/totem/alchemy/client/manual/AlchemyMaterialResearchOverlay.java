@@ -1,17 +1,20 @@
 package dev.totem.alchemy.client.manual;
 
-import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.reaction.AlchemyReactionReader;
+import dev.totem.alchemy.reaction.ReactionOutcome;
 import dev.totem.alchemy.manual.AlchemyMaterialCatalog;
 import dev.totem.core.api.v1.client.manual.TotemManualPageOverlayRegistry;
 import dev.totem.core.api.v1.client.manual.TotemManualPageRenderContext;
 import dev.totem.core.api.v1.manual.TotemManualPageFilterRegistry;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
-import net.minecraft.world.item.alchemy.Potions;
 
 import java.util.List;
 import java.util.Locale;
@@ -101,8 +104,8 @@ public final class AlchemyMaterialResearchOverlay {
                     CONTENT_LEFT, context.pageTop() + 73, CONTENT_WIDTH, MUTED);
         }
 
-        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
-        List<MultiOutcomeBrewing.Outcome> outcomes = MultiOutcomeBrewing.outcomesFor(new ItemStack(ingredient), awkward);
+        List<ReactionOutcome> outcomes =
+                AlchemyReactionReader.outcomesForActivatedBase(new ItemStack(ingredient));
         int y = context.pageTop() + 97;
         if (outcomes.isEmpty()) {
             String noteKey = MATERIAL_NOTES.get(ingredient);
@@ -112,7 +115,7 @@ public final class AlchemyMaterialResearchOverlay {
             return;
         }
 
-        for (MultiOutcomeBrewing.Outcome outcome : outcomes) {
+        for (ReactionOutcome outcome : outcomes) {
             renderOutcome(context, ingredient, outcome, y);
             y += OUTCOME_ROW_HEIGHT;
         }
@@ -125,17 +128,21 @@ public final class AlchemyMaterialResearchOverlay {
     private static void renderOutcome(
             TotemManualPageRenderContext context,
             Item ingredient,
-            MultiOutcomeBrewing.Outcome outcome,
+            ReactionOutcome outcome,
             int y
     ) {
-        boolean discovered = AlchemyDiscoveryClientCache.has(ingredient, outcome.potion());
+        Holder<Potion> potion = AlchemyMixtureBottle.potionHolder(outcome.resultPotionId().toString());
+        if (potion == null) {
+            return;
+        }
+        boolean discovered = AlchemyDiscoveryClientCache.has(ingredient, potion);
         if (discovered) {
-            stack(context, PotionContents.createItemStack(Items.POTION, outcome.potion()), CONTENT_LEFT, y);
-            text(context, Component.translatable(outcome.messageKey()), ITEM_TEXT_LEFT, y,
+            stack(context, PotionContents.createItemStack(Items.POTION, potion), CONTENT_LEFT, y);
+            text(context, Component.translatable(outcomeMessageKey(outcome.resultPotionId())), ITEM_TEXT_LEFT, y,
                     ITEM_TEXT_WIDTH, INK);
-            Component detail = Component.translatable(AlchemyResearchClientCache.frequencyKey(ingredient, outcome.potion()))
+            Component detail = Component.translatable(AlchemyResearchClientCache.frequencyKey(ingredient, potion))
                     .append(Component.literal(" · "))
-                    .append(Component.translatable(AlchemyResearchClientCache.tierKey(ingredient, outcome.potion())));
+                    .append(Component.translatable(AlchemyResearchClientCache.tierKey(ingredient, potion)));
             text(context, detail, ITEM_TEXT_LEFT, y + 8, ITEM_TEXT_WIDTH, MUTED);
             return;
         }
@@ -145,6 +152,13 @@ public final class AlchemyMaterialResearchOverlay {
                 context.pageLeft() + CONTENT_LEFT + 6, y + 4, WARN, false);
         text(context, Component.translatable("book.totem_alchemy.research.unknown_effect"),
                 ITEM_TEXT_LEFT, y + 4, ITEM_TEXT_WIDTH, WARN);
+    }
+
+    private static String outcomeMessageKey(Identifier potionId) {
+        String path = potionId.getPath();
+        int slash = path.lastIndexOf('/');
+        String key = slash >= 0 ? path.substring(slash + 1) : path;
+        return "message.totem.alchemy.outcome." + key;
     }
 
     private static void renderNoEffect(TotemManualPageRenderContext context, Item ingredient, int y) {
