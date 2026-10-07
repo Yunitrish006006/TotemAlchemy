@@ -73,7 +73,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M4-T03 Derive total activated units and base concentration.
 - [x] M4-T04 Preserve base units through copy/reset.
 - [x] M4-T05 Conserve base units through merge.
-- [ ] M4-T06 Split base units proportionally through extract.
+- [x] M4-T06 Split base units proportionally through extract.
 - [ ] M4-T07 Add deterministic `A|` serialization.
 - [ ] M4-T08 Migrate legacy `baseActivated` states.
 - [ ] M4-T09 Make `baseActivated` a compatibility-derived value.
