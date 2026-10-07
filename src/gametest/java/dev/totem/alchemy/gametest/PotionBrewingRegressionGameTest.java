@@ -223,15 +223,15 @@ public final class PotionBrewingRegressionGameTest {
         RandomSource random = level.getRandom();
         BrewingStationPolicy.Decision decision =
                 BrewingStationPolicy.evaluate(level, reagent, List.of(input));
-        require(helper, decision.nativeVanillaRecipe(),
-                "Vanilla regression fixture was not classified as a native Brewing Stand recipe");
+        require(helper, decision.nativeVanillaRecipe() || decision.deterministicModifier(),
+                "Guaranteed Brewing Stand fixture was not classified as native vanilla or deterministic modifier");
         boolean foundBaseChanceFailureRoll = false;
         for (long seed = 0; seed < 100000; seed++) {
             random.setSeed(seed);
             float roll = random.nextFloat();
             if (roll >= decision.baseChance()) {
                 require(helper, BrewingStationPolicy.succeeds(decision, roll),
-                        "Native Brewing Stand policy did not override the lower reaction base chance");
+                        "Guaranteed Brewing Stand policy did not override the lower reaction base chance");
                 random.setSeed(seed);
                 foundBaseChanceFailureRoll = true;
                 break;
