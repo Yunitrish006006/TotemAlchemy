@@ -69,7 +69,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 ## M4 — Activated base composition
 
 - [x] M4-T01 Add `ActivatedBaseComposition` value object.
-- [ ] M4-T02 Store base units in `AlchemyMixtureState`.
+- [x] M4-T02 Store base units in `AlchemyMixtureState`.
 - [ ] M4-T03 Derive total activated units and base concentration.
 - [ ] M4-T04 Preserve base units through copy/reset.
 - [ ] M4-T05 Conserve base units through merge.
