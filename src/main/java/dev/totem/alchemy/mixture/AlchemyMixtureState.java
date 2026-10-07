@@ -786,6 +786,9 @@ public final class AlchemyMixtureState {
     public String encode() {
         StringBuilder out = new StringBuilder();
         out.append("V|").append(volumeUnits).append('\n');
+        liquidComposition.components().forEach((liquidId, fraction) ->
+                out.append("L|").append(enc(liquidId.toString())).append('|')
+                        .append(fraction).append('\n'));
         out.append("S|").append(stability).append('\n');
         out.append("B|").append(baseActivated ? 1 : 0).append('\n');
         out.append("H|").append(heatLockedAfterBottling ? 1 : 0).append('\n');

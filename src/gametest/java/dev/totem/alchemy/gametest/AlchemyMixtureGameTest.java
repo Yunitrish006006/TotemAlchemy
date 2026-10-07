@@ -15,6 +15,7 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.util.RandomSource;
 
+import java.util.List;
 import java.util.Map;
 
 public final class AlchemyMixtureGameTest {
@@ -138,6 +139,43 @@ public final class AlchemyMixtureGameTest {
                 "Fully extracted source retained composition after reset");
         requireNear(helper, bottle.liquidComposition().amount(water), 1.0D,
                 "Fully extracted state lost its liquid composition");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void liquidCompositionSerializationIsDeterministic(GameTestHelper helper) {
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+        Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
+
+        Map<Identifier, Double> firstOrder = new java.util.LinkedHashMap<>();
+        firstOrder.put(water, 2.0D);
+        firstOrder.put(milk, 1.0D);
+        Map<Identifier, Double> secondOrder = new java.util.LinkedHashMap<>();
+        secondOrder.put(milk, 1.0D);
+        secondOrder.put(water, 2.0D);
+
+        AlchemyMixtureState first = new AlchemyMixtureState(3);
+        first.setLiquidComposition(LiquidComposition.of(firstOrder));
+        AlchemyMixtureState second = new AlchemyMixtureState(3);
+        second.setLiquidComposition(LiquidComposition.of(secondOrder));
+
+        String firstEncoded = first.encode();
+        String secondEncoded = second.encode();
+
+        require(helper, firstEncoded.equals(secondEncoded),
+                "Liquid composition serialization depended on caller insertion order");
+        List<String> liquidLines = firstEncoded.lines()
+                .filter(line -> line.startsWith("L|"))
+                .toList();
+        require(helper, liquidLines.size() == 2,
+                "Serialized mixture did not emit one L| line per liquid component");
+        require(helper, liquidLines.get(0).contains("bWluZWNyYWZ0Om1pbGs=")
+                        || liquidLines.get(0).contains("bWluZWNyYWZ0Om1pbGs"),
+                "Deterministic L| ordering did not place minecraft:milk before minecraft:water");
+
+        AlchemyMixtureState emptyComposition = new AlchemyMixtureState(1);
+        require(helper, emptyComposition.encode().lines().noneMatch(line -> line.startsWith("L|")),
+                "Empty liquid composition emitted an L| serialization entry");
         helper.succeed();
     }
 
