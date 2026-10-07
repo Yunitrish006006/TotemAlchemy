@@ -79,6 +79,7 @@ public final class AlchemyMixtureState {
         if (volumeUnits > bounded) throw new IllegalArgumentException("Mixture exceeds destination capacity");
         AlchemyMixtureState copy = new AlchemyMixtureState(volumeUnits, bounded);
         copy.liquidComposition = liquidComposition;
+        copy.activatedBaseComposition = activatedBaseComposition;
         copy.stability = stability;
         copy.overcookTicks = overcookTicks;
         copy.perfectWindowTicks = perfectWindowTicks;
@@ -696,6 +697,7 @@ public final class AlchemyMixtureState {
     private void resetEmpty() {
         volumeUnits = 0;
         liquidComposition = LiquidComposition.empty();
+        activatedBaseComposition = ActivatedBaseComposition.empty();
         effects.clear();
         reactions.clear();
         completedStages.clear();
