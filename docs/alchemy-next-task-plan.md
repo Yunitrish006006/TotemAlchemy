@@ -116,7 +116,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M7-T07 Cauldron keeps full probabilistic outcome resolution.
 - [x] M7-T08 Brewing Stand emits standard dose/concentration.
 - [x] M7-T09 Cross-station parity test for standard primary outcomes.
-- [ ] M7-T10 Remove obsolete direct Brewing Stand chance/outcome paths.
+- [x] M7-T10 Remove obsolete direct Brewing Stand chance/outcome paths.
 
 ## M8 — Liquid registry and properties
 
