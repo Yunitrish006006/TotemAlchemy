@@ -1,7 +1,7 @@
 package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
-import dev.totem.alchemy.alchemy.VanillaBrewingChance;
+import dev.totem.alchemy.alchemy.BrewingStationPolicy;
 import dev.totem.alchemy.discovery.AlchemyDiscoverySavedData;
 import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
@@ -50,11 +50,13 @@ public final class RestorativeBrewingGameTest {
                         "minecraft:enchanted_golden_apple", "minecraft:healing") - 0.80D) < EPSILON,
                 "Enchanted golden apple healing chance was not 80%");
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
-        require(helper, VanillaBrewingChance.chanceFor(
-                        new ItemStack(Items.GOLDEN_APPLE), List.of(awkward)) == 0.94D,
+        require(helper, BrewingStationPolicy.evaluate(
+                        helper.getLevel(), new ItemStack(Items.GOLDEN_APPLE), List.of(awkward)
+                ).baseChance() == 0.94D,
                 "Golden apple processing success did not come from reaction data");
-        require(helper, VanillaBrewingChance.chanceFor(
-                        new ItemStack(Items.ENCHANTED_GOLDEN_APPLE), List.of(awkward)) == 0.99D,
+        require(helper, BrewingStationPolicy.evaluate(
+                        helper.getLevel(), new ItemStack(Items.ENCHANTED_GOLDEN_APPLE), List.of(awkward)
+                ).baseChance() == 0.99D,
                 "Enchanted golden apple processing success did not come from reaction data");
         helper.succeed();
     }
