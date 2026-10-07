@@ -43,6 +43,7 @@ public final class AlchemyMixtureState {
 
     private int volumeUnits;
     private LiquidComposition liquidComposition = LiquidComposition.empty();
+    private ActivatedBaseComposition activatedBaseComposition = ActivatedBaseComposition.empty();
     private int stability;
     private int overcookTicks;
     private int perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
@@ -104,6 +105,16 @@ public final class AlchemyMixtureState {
         this.liquidComposition = liquidComposition == null
                 ? LiquidComposition.empty()
                 : liquidComposition.normalized();
+    }
+
+    public ActivatedBaseComposition activatedBaseComposition() {
+        return activatedBaseComposition;
+    }
+
+    public void setActivatedBaseComposition(ActivatedBaseComposition activatedBaseComposition) {
+        this.activatedBaseComposition = activatedBaseComposition == null
+                ? ActivatedBaseComposition.empty()
+                : activatedBaseComposition;
     }
 
     public int stability() {
