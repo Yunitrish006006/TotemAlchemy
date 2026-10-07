@@ -146,6 +146,49 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void activatedBaseExtractionSplitsAbsoluteUnitsProportionally(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
+
+        AlchemyMixtureState state = new AlchemyMixtureState(4, 8);
+        state.setActivatedBaseComposition(ActivatedBaseComposition.of(Map.of(
+                awkward, 2.0D,
+                mushroomBase, 1.0D
+        )));
+        double originalUnits = state.activatedBaseUnits();
+        double originalConcentration = state.baseConcentration();
+
+        AlchemyMixtureState extracted = state.extractUnits(3);
+
+        require(helper, state.volumeUnits() == 1 && extracted.volumeUnits() == 3,
+                "Activated-base extraction did not split mixture volume as expected");
+        requireNear(helper, state.activatedBaseComposition().units(awkward), 0.5D,
+                "Remaining mixture did not retain its proportional awkward-base units");
+        requireNear(helper, state.activatedBaseComposition().units(mushroomBase), 0.25D,
+                "Remaining mixture did not retain its proportional mushroom-base units");
+        requireNear(helper, extracted.activatedBaseComposition().units(awkward), 1.5D,
+                "Extracted mixture did not receive its proportional awkward-base units");
+        requireNear(helper, extracted.activatedBaseComposition().units(mushroomBase), 0.75D,
+                "Extracted mixture did not receive its proportional mushroom-base units");
+        requireNear(helper, state.activatedBaseUnits() + extracted.activatedBaseUnits(), originalUnits,
+                "Extraction created or destroyed activated-base units");
+        requireNear(helper, state.baseConcentration(), originalConcentration,
+                "Remaining mixture changed activated-base concentration during extraction");
+        requireNear(helper, extracted.baseConcentration(), originalConcentration,
+                "Extracted mixture changed activated-base concentration");
+
+        require(helper, state.mergeFrom(extracted),
+                "Extracted activated-base mixture could not be merged back");
+        requireNear(helper, state.activatedBaseComposition().units(awkward), 2.0D,
+                "Recombining extraction did not restore awkward-base units");
+        requireNear(helper, state.activatedBaseComposition().units(mushroomBase), 1.0D,
+                "Recombining extraction did not restore mushroom-base units");
+        requireNear(helper, state.activatedBaseUnits(), originalUnits,
+                "Recombining extraction changed total activated-base units");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
         Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
         Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
