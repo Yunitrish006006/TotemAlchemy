@@ -39,6 +39,7 @@ public final class AlchemyMixtureState {
     private static final Base64.Decoder B64D = Base64.getUrlDecoder();
 
     private int volumeUnits;
+    private LiquidComposition liquidComposition = LiquidComposition.empty();
     private int stability;
     private int overcookTicks;
     private int perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
@@ -89,6 +90,16 @@ public final class AlchemyMixtureState {
 
     public int volumeUnits() {
         return volumeUnits;
+    }
+
+    public LiquidComposition liquidComposition() {
+        return liquidComposition;
+    }
+
+    public void setLiquidComposition(LiquidComposition liquidComposition) {
+        this.liquidComposition = liquidComposition == null
+                ? LiquidComposition.empty()
+                : liquidComposition.normalized();
     }
 
     public int stability() {

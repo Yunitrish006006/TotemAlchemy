@@ -5,8 +5,10 @@ import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.EffectDoseStandards;
+import dev.totem.alchemy.mixture.LiquidComposition;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
@@ -17,6 +19,33 @@ import java.util.Map;
 
 public final class AlchemyMixtureGameTest {
     private static final double EPSILON = 0.0001D;
+
+    @GameTest(maxTicks = 40)
+    public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+        Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
+
+        AlchemyMixtureState state = new AlchemyMixtureState(2);
+        require(helper, state.liquidComposition().isEmpty(),
+                "New mixture state did not begin with empty liquid composition");
+
+        state.setLiquidComposition(LiquidComposition.of(Map.of(
+                water, 4.0D,
+                milk, 2.0D
+        )));
+
+        requireNear(helper, state.liquidComposition().amount(water), 2.0D / 3.0D,
+                "Mixture state did not store normalized water fraction");
+        requireNear(helper, state.liquidComposition().amount(milk), 1.0D / 3.0D,
+                "Mixture state did not store normalized milk fraction");
+        requireNear(helper, state.liquidComposition().totalAmount(), 1.0D,
+                "Mixture state liquid composition did not remain normalized");
+
+        state.setLiquidComposition(null);
+        require(helper, state.liquidComposition().isEmpty(),
+                "Null liquid composition did not reset the state field to empty");
+        helper.succeed();
+    }
 
     @GameTest(maxTicks = 40)
     public void effectDoseUsesCanonicalLevelOneEquivalentTickQuantity(GameTestHelper helper) {

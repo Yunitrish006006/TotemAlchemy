@@ -57,7 +57,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 - [x] M3-T01 Add `LiquidComposition` value object.
 - [x] M3-T02 Add normalize/epsilon/deterministic ordering.
-- [ ] M3-T03 Store composition in `AlchemyMixtureState`.
+- [x] M3-T03 Store composition in `AlchemyMixtureState`.
 - [ ] M3-T04 Preserve composition through copy/reset.
 - [ ] M3-T05 Volume-weight composition in `mergeFrom`.
 - [ ] M3-T06 Preserve ratios through `extractUnits`.
