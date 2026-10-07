@@ -1,6 +1,7 @@
 package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.alchemy.AlchemyBrewing;
+import dev.totem.alchemy.alchemy.BrewingStationPolicy;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.mixin.BrewingStandBlockEntityAccessor;
@@ -241,13 +242,28 @@ public final class BrewingMigrationGameTest {
         }
         require(helper, accessor.totemAlchemy$getBrewTime() == 1, "Stand failed to reach completion");
         RandomSource random = level.getRandom();
+        BrewingStationPolicy.Decision decision =
+                BrewingStationPolicy.evaluate(level, reagent, List.of(input));
         boolean found = false;
         for (long seed = 0; seed < 100000; seed++) {
             random.setSeed(seed);
-            boolean rolledSuccess = VanillaBrewingChance.isSuccessful(reagent, List.of(input), random.nextFloat());
+            boolean rolledSuccess = BrewingStationPolicy.succeeds(decision, random.nextFloat());
             if (rolledSuccess != success) continue;
-            int outcomes = !success || minimumOutcomes < 0 ? minimumOutcomes
-                    : MultiOutcomeBrewing.chooseOutcomes(reagent, random).size();
+            int outcomes = minimumOutcomes;
+            if (success && minimumOutcomes >= 0) {
+                if (decision.deterministicModifier()) {
+                    outcomes = 0;
+                } else {
+                    MultiOutcomeBrewing.beginBatch(
+                            random,
+                            reagent,
+                            List.of(input),
+                            decision.nativeVanillaRecipe()
+                    );
+                    outcomes = MultiOutcomeBrewing.activeOutcomes().size();
+                    MultiOutcomeBrewing.clearBatch();
+                }
+            }
             if (minimumOutcomes == 0 && outcomes != 0 || minimumOutcomes > 0 && outcomes < minimumOutcomes) continue;
             random.setSeed(seed);
             found = true;

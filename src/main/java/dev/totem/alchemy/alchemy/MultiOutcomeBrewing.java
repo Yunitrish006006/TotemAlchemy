@@ -153,15 +153,15 @@ public final class MultiOutcomeBrewing {
     public static void beginBatch(ItemStack ingredient, Iterable<ItemStack> inputs, float... rolls) {
         clearBatch();
         if (!canRollOutcomes(ingredient, inputs)) return;
-        ACTIVE_BATCH.set(new BatchOutcome(ingredient.getItem(), chooseOutcomes(ingredient, rolls)));
+        OutcomePool pool = poolFor(ingredient, inputs);
+        if (pool == null) return;
+        ACTIVE_BATCH.set(new BatchOutcome(
+                ingredient.getItem(),
+                chooseOutcomes(pool, ingredient.getItem(), rolls)
+        ));
     }
 
     public static void clearBatch() { ACTIVE_BATCH.remove(); }
-
-    public static Outcome activeOutcome() {
-        BatchOutcome batch = ACTIVE_BATCH.get();
-        return batch == null || batch.outcomes().isEmpty() ? null : batch.outcomes().getFirst();
-    }
 
     public static List<Outcome> activeOutcomes() {
         BatchOutcome batch = ACTIVE_BATCH.get();
@@ -177,7 +177,9 @@ public final class MultiOutcomeBrewing {
     }
 
     public static Outcome chooseOutcome(ItemStack ingredient, ItemStack input, float roll) {
-        return isPotionContainer(input) ? chooseOutcome(ingredient, roll) : null;
+        if (!isPotionContainer(input)) return null;
+        OutcomePool pool = poolFor(ingredient, List.of(input));
+        return pool == null ? null : pool.chooseWeighted(ingredient.getItem(), roll);
     }
 
     public static Outcome chooseOutcome(ItemStack ingredient, float roll) {
@@ -186,7 +188,9 @@ public final class MultiOutcomeBrewing {
     }
 
     public static List<Outcome> chooseOutcomes(ItemStack ingredient, ItemStack input, float... rolls) {
-        return isPotionContainer(input) ? chooseOutcomes(ingredient, rolls) : List.of();
+        if (!isPotionContainer(input)) return List.of();
+        OutcomePool pool = poolFor(ingredient, List.of(input));
+        return pool == null ? List.of() : chooseOutcomes(pool, ingredient.getItem(), rolls);
     }
 
     /**
@@ -195,16 +199,19 @@ public final class MultiOutcomeBrewing {
      */
     public static List<Outcome> chooseOutcomes(ItemStack ingredient, float... rolls) {
         OutcomePool pool = poolFor(ingredient);
-        if (pool == null) return List.of();
+        return pool == null ? List.of() : chooseOutcomes(pool, ingredient.getItem(), rolls);
+    }
+
+    private static List<Outcome> chooseOutcomes(OutcomePool pool, Item ingredient, float... rolls) {
         int required = pool.outcomes().size();
         if (rolls == null || rolls.length < required) {
             throw new IllegalArgumentException("Independent outcome selection requires " + required + " rolls");
         }
         int[] cursor = {0};
-        List<Outcome> selected = pool.rollAll(ingredient.getItem(), () -> rolls[cursor[0]++]);
+        List<Outcome> selected = pool.rollAll(ingredient, () -> rolls[cursor[0]++]);
         if (selected.isEmpty() && rolls.length > required) {
             LEGACY_PROBABILITY_READS.set(2);
-            return List.of(pool.chooseWeighted(ingredient.getItem(), rolls[required]));
+            return List.of(pool.chooseWeighted(ingredient, rolls[required]));
         }
         LEGACY_PROBABILITY_READS.set(0);
         return selected;
@@ -222,12 +229,14 @@ public final class MultiOutcomeBrewing {
 
     public static int outcomeCount(ItemStack ingredient, ItemStack input) {
         if (!isPotionContainer(input)) return 0;
-        OutcomePool pool = poolFor(ingredient);
+        OutcomePool pool = poolFor(ingredient, List.of(input));
         return pool == null ? 0 : pool.outcomes().size();
     }
 
     public static List<Outcome> outcomesFor(ItemStack ingredient, ItemStack input) {
-        return isPotionContainer(input) ? outcomesForIngredient(ingredient) : List.of();
+        if (!isPotionContainer(input)) return List.of();
+        OutcomePool pool = poolFor(ingredient, List.of(input));
+        return pool == null ? List.of() : pool.outcomes();
     }
 
     public static List<Outcome> outcomesForIngredient(ItemStack ingredient) {

@@ -1,5 +1,6 @@
 package dev.totem.alchemy.alchemy;
 
+import dev.totem.alchemy.reaction.BrewingReactionContext;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 
@@ -16,6 +17,8 @@ import java.util.function.DoubleSupplier;
  * tuning from leaking back into reaction data.</p>
  */
 public final class BrewingStationPolicy {
+    public static final double DEFAULT_SUCCESS_CHANCE = 0.8D;
+    public static final double UNSTABLE_BASE_PENALTY = 0.2D;
     private static final double DEFAULT_STATION_BONUS = 0.0D;
 
     private BrewingStationPolicy() {}
@@ -30,7 +33,7 @@ public final class BrewingStationPolicy {
                 BrewingModifierPolicy.isDeterministicBatch(level, ingredient, inputs);
         boolean nativeVanillaRecipe = !deterministicModifier
                 && AlchemyBrewing.shouldGuaranteeVanillaSuccess(level, ingredient, inputs);
-        double baseChance = VanillaBrewingChance.chanceFor(ingredient, inputs);
+        double baseChance = baseChance(ingredient, inputs);
         double stationBonus = nativeVanillaRecipe || deterministicModifier
                 ? 0.0D
                 : DEFAULT_STATION_BONUS;
@@ -62,6 +65,19 @@ public final class BrewingStationPolicy {
 
     public static boolean succeeds(Decision decision, float randomRoll) {
         return succeeds(decision, () -> randomRoll);
+    }
+
+    private static double baseChance(ItemStack ingredient, List<ItemStack> inputs) {
+        double chance = BrewingReactionContext.resolveFirst(inputs, ingredient)
+                .map(context -> context.reaction().successChance())
+                .orElse(DEFAULT_SUCCESS_CHANCE);
+        for (ItemStack input : inputs) {
+            if (VanillaBrewingChance.hasUnstableMushroomBase(input)) {
+                chance -= UNSTABLE_BASE_PENALTY;
+                break;
+            }
+        }
+        return clamp(chance);
     }
 
     private static List<ItemStack> copyInputs(Iterable<ItemStack> potionInputs) {

@@ -39,10 +39,6 @@ public final class ReactionRegistryMigrationGameTest {
                 "Sugar processing success chance was not migrated");
 
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(
-                        new ItemStack(Items.SUGAR), List.of(awkward)) - sugar.successChance()) < EPSILON,
-                "Brewing Stand success chance did not resolve from reaction data");
-
         BrewingStationPolicy.Decision vanillaDecision = BrewingStationPolicy.evaluate(
                 helper.getLevel(), new ItemStack(Items.SUGAR), List.of(awkward));
         require(helper, vanillaDecision.nativeVanillaRecipe(),
@@ -59,14 +55,17 @@ public final class ReactionRegistryMigrationGameTest {
         require(helper, Math.abs(customDecision.effectiveChance() - 0.80D) < EPSILON,
                 "Custom Brewing Stand chemistry did not preserve reaction success chance");
 
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(new ItemStack(Items.SUGAR))
-                        - VanillaBrewingChance.DEFAULT_SUCCESS_CHANCE) < EPSILON,
-                "Bare ingredient lookup retained a hidden hard-coded sugar chance");
+        BrewingStationPolicy.Decision bareDecision = BrewingStationPolicy.evaluate(
+                helper.getLevel(), new ItemStack(Items.SUGAR), List.of());
+        require(helper, Math.abs(bareDecision.baseChance()
+                        - BrewingStationPolicy.DEFAULT_SUCCESS_CHANCE) < EPSILON,
+                "Bare station lookup retained a hidden hard-coded sugar chance");
 
         VanillaBrewingChance.markUnstableMushroomBase(awkward);
-        require(helper, Math.abs(VanillaBrewingChance.chanceFor(
-                        new ItemStack(Items.SUGAR), List.of(awkward)) - 0.70D) < EPSILON,
-                "Resolver-backed Brewing Stand chance did not preserve unstable-base penalty");
+        BrewingStationPolicy.Decision unstableDecision = BrewingStationPolicy.evaluate(
+                helper.getLevel(), new ItemStack(Items.SUGAR), List.of(awkward));
+        require(helper, Math.abs(unstableDecision.baseChance() - 0.70D) < EPSILON,
+                "Resolver-backed Brewing Stand policy did not preserve unstable-base penalty");
         require(helper, sugar.outcomes().size() == 3,
                 "Sugar outcome set was not migrated");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
@@ -91,7 +90,7 @@ public final class ReactionRegistryMigrationGameTest {
         );
         try {
             require(helper, MultiOutcomeBrewing.activeOutcomes().size() == 1
-                            && MultiOutcomeBrewing.activeOutcome().potion().is(Potions.SWIFTNESS),
+                            && MultiOutcomeBrewing.activeOutcomes().getFirst().potion().is(Potions.SWIFTNESS),
                     "Native Brewing Stand batch did not collapse sugar to one canonical swiftness outcome");
         } finally {
             MultiOutcomeBrewing.clearBatch();

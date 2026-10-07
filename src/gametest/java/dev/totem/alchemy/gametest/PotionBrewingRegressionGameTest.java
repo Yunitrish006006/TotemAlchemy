@@ -221,17 +221,24 @@ public final class PotionBrewingRegressionGameTest {
                 "Vanilla brewing stand did not reach completion");
 
         RandomSource random = level.getRandom();
-        boolean foundLegacyFailureRoll = false;
+        BrewingStationPolicy.Decision decision =
+                BrewingStationPolicy.evaluate(level, reagent, List.of(input));
+        require(helper, decision.nativeVanillaRecipe() || decision.deterministicModifier(),
+                "Guaranteed Brewing Stand fixture was not classified as native vanilla or deterministic modifier");
+        boolean foundBaseChanceFailureRoll = false;
         for (long seed = 0; seed < 100000; seed++) {
             random.setSeed(seed);
-            if (!VanillaBrewingChance.isSuccessful(reagent, List.of(input), random.nextFloat())) {
+            float roll = random.nextFloat();
+            if (roll >= decision.baseChance()) {
+                require(helper, BrewingStationPolicy.succeeds(decision, roll),
+                        "Guaranteed Brewing Stand policy did not override the lower reaction base chance");
                 random.setSeed(seed);
-                foundLegacyFailureRoll = true;
+                foundBaseChanceFailureRoll = true;
                 break;
             }
         }
-        require(helper, foundLegacyFailureRoll,
-                "Could not find a deterministic roll that fails the legacy vanilla chance");
+        require(helper, foundBaseChanceFailureRoll,
+                "Could not find a deterministic roll above the reaction base chance");
 
         BrewingStandBlockEntity.serverTick(level, pos, blockState, stand);
         require(helper, accessor.totemAlchemy$getBrewTime() == 0,
