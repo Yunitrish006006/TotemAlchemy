@@ -62,7 +62,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M3-T05 Volume-weight composition in `mergeFrom`.
 - [x] M3-T06 Preserve ratios through `extractUnits`.
 - [x] M3-T07 Add deterministic `L|` serialization.
-- [ ] M3-T08 Decode `L|` and migrate legacy non-empty mixtures to Water.
+- [x] M3-T08 Decode `L|` and migrate legacy non-empty mixtures to Water.
 - [ ] M3-T09 Import vanilla potion containers as Water 100%.
 - [ ] M3-T10 Liquid-composition regression pass with gameplay unchanged.
 
