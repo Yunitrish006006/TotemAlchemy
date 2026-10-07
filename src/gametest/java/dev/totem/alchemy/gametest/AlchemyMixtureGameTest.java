@@ -180,6 +180,41 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void liquidCompositionDecodeRestoresSerializedFractionsAndMigratesLegacyWater(GameTestHelper helper) {
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+        Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
+
+        AlchemyMixtureState encoded = new AlchemyMixtureState(3);
+        encoded.setLiquidComposition(LiquidComposition.of(Map.of(
+                water, 2.0D,
+                milk, 1.0D
+        )));
+        AlchemyMixtureState restored = AlchemyMixtureState.decode(encoded.encode());
+
+        requireNear(helper, restored.liquidComposition().amount(water), 2.0D / 3.0D,
+                "L| decode changed serialized water fraction");
+        requireNear(helper, restored.liquidComposition().amount(milk), 1.0D / 3.0D,
+                "L| decode changed serialized milk fraction");
+        requireNear(helper, restored.liquidComposition().totalAmount(), 1.0D,
+                "Decoded liquid composition did not remain normalized");
+
+        AlchemyMixtureState legacy = AlchemyMixtureState.decode("V|2\nS|100\nB|0\n");
+        requireNear(helper, legacy.liquidComposition().amount(water), 1.0D,
+                "Legacy non-empty mixture without L| data did not migrate to Water 100%");
+
+        AlchemyMixtureState emptyLegacy = AlchemyMixtureState.decode("V|0\nS|100\nB|0\n");
+        require(helper, emptyLegacy.liquidComposition().isEmpty(),
+                "Empty legacy mixture incorrectly gained Water composition");
+
+        AlchemyMixtureState corruptMarked = AlchemyMixtureState.decode(
+                "V|1\nL|%%%|1.0\nS|100\nB|0\n"
+        );
+        require(helper, corruptMarked.liquidComposition().isEmpty(),
+                "Corrupt explicit L| data was incorrectly treated as an absent legacy marker");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void effectDoseUsesCanonicalLevelOneEquivalentTickQuantity(GameTestHelper helper) {
         AlchemyMixtureState.EffectDose levelOne =
                 AlchemyMixtureState.EffectDose.fromDuration(200, 0);
