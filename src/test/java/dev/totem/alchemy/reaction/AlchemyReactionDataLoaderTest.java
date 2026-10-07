@@ -79,6 +79,139 @@ class AlchemyReactionDataLoaderTest {
     }
 
     @Test
+    void parsesAdditiveIngredientReactionExtension() {
+        IngredientReactionExtension extension = AlchemyReactionDataLoader.parseIngredientReactionExtension(
+                id("totem", "sugar_totem_additions"),
+                JsonParser.parseString("""
+                        {
+                          "target": "minecraft_alchemy:vanilla/sugar",
+                          "outcomes": [
+                            {"potion": "totem:alchemy/saturation", "chance": 0.03, "priority": 1}
+                          ]
+                        }
+                        """).getAsJsonObject()
+        );
+
+        assertEquals(id("minecraft_alchemy", "vanilla/sugar"), extension.targetReactionId());
+        assertEquals(List.of(id("totem", "alchemy/saturation")),
+                extension.outcomes().stream().map(ReactionOutcome::resultPotionId).toList());
+    }
+
+    @Test
+    void extensionsAppendOutcomesWithoutOverridingReactionPolicy() {
+        IngredientReaction base = AlchemyReactionDataLoader.parseIngredientReaction(
+                id("minecraft_alchemy", "vanilla/sugar"),
+                JsonParser.parseString("""
+                        {
+                          "base": "totem:alchemy/awkward",
+                          "ingredient": "minecraft:sugar",
+                          "success_chance": 0.9,
+                          "effect_yield": 0.75,
+                          "processing_ticks": 300,
+                          "max_dose": 2,
+                          "brewing_stand": true,
+                          "outcomes": [
+                            {"potion": "minecraft:swiftness", "chance": 0.94, "priority": 10}
+                          ]
+                        }
+                        """).getAsJsonObject()
+        );
+        IngredientReactionExtension extension = AlchemyReactionDataLoader.parseIngredientReactionExtension(
+                id("totem", "sugar_side_effects"),
+                JsonParser.parseString("""
+                        {
+                          "target": "minecraft_alchemy:vanilla/sugar",
+                          "outcomes": [
+                            {"potion": "totem:alchemy/saturation", "chance": 0.03}
+                          ]
+                        }
+                        """).getAsJsonObject()
+        );
+
+        IngredientReaction merged = AlchemyReactionDataLoader.applyIngredientExtensions(
+                List.of(base), List.of(extension)).getFirst();
+
+        assertEquals(base.id(), merged.id());
+        assertEquals(base.baseId(), merged.baseId());
+        assertEquals(base.ingredient(), merged.ingredient());
+        assertEquals(base.successChance(), merged.successChance());
+        assertEquals(base.effectYield(), merged.effectYield());
+        assertEquals(base.processingTicks(), merged.processingTicks());
+        assertEquals(base.maxDose(), merged.maxDose());
+        assertEquals(base.brewingStandCompatible(), merged.brewingStandCompatible());
+        assertEquals(List.of(
+                id("minecraft", "swiftness"),
+                id("totem", "alchemy/saturation")
+        ), merged.outcomes().stream().map(ReactionOutcome::resultPotionId).toList());
+    }
+
+    @Test
+    void extensionRejectsScalarReactionOverrides() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                AlchemyReactionDataLoader.parseIngredientReactionExtension(
+                        id("totem", "bad_override"),
+                        JsonParser.parseString("""
+                                {
+                                  "target": "minecraft_alchemy:vanilla/sugar",
+                                  "success_chance": 1.0,
+                                  "outcomes": [
+                                    {"potion": "totem:alchemy/saturation", "chance": 0.03}
+                                  ]
+                                }
+                                """).getAsJsonObject()
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("may only add outcomes"));
+    }
+
+    @Test
+    void extensionRejectsUnknownTargetAndDuplicateOutcome() {
+        IngredientReaction base = AlchemyReactionDataLoader.parseIngredientReaction(
+                id("minecraft_alchemy", "vanilla/sugar"),
+                JsonParser.parseString("""
+                        {
+                          "base": "totem:alchemy/awkward",
+                          "ingredient": "minecraft:sugar",
+                          "outcomes": [
+                            {"potion": "minecraft:swiftness", "chance": 0.94}
+                          ]
+                        }
+                        """).getAsJsonObject()
+        );
+        IngredientReactionExtension unknown = AlchemyReactionDataLoader.parseIngredientReactionExtension(
+                id("totem", "unknown_target"),
+                JsonParser.parseString("""
+                        {
+                          "target": "minecraft_alchemy:missing",
+                          "outcomes": [
+                            {"potion": "totem:alchemy/saturation", "chance": 0.03}
+                          ]
+                        }
+                        """).getAsJsonObject()
+        );
+        IngredientReactionExtension duplicate = AlchemyReactionDataLoader.parseIngredientReactionExtension(
+                id("totem", "duplicate_swiftness"),
+                JsonParser.parseString("""
+                        {
+                          "target": "minecraft_alchemy:vanilla/sugar",
+                          "outcomes": [
+                            {"potion": "minecraft:swiftness", "chance": 0.01}
+                          ]
+                        }
+                        """).getAsJsonObject()
+        );
+
+        assertTrue(assertThrows(IllegalArgumentException.class, () ->
+                AlchemyReactionDataLoader.applyIngredientExtensions(List.of(base), List.of(unknown))
+        ).getMessage().contains("Unknown ingredient reaction extension target"));
+
+        assertTrue(assertThrows(IllegalArgumentException.class, () ->
+                AlchemyReactionDataLoader.applyIngredientExtensions(List.of(base), List.of(duplicate))
+        ).getMessage().contains("duplicates outcome minecraft:swiftness"));
+    }
+
+    @Test
     void rejectsStringEncodedNumericFields() {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
                 AlchemyReactionDataLoader.parseIngredientReaction(
