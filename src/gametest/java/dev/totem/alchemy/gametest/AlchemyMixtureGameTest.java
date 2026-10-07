@@ -108,6 +108,40 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void extractingUnitsPreservesLiquidCompositionRatios(GameTestHelper helper) {
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+        Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
+
+        AlchemyMixtureState state = new AlchemyMixtureState(3);
+        state.setLiquidComposition(LiquidComposition.of(Map.of(
+                water, 2.0D,
+                milk, 1.0D
+        )));
+
+        AlchemyMixtureState extracted = state.extractUnits(2);
+
+        require(helper, state.volumeUnits() == 1 && extracted.volumeUnits() == 2,
+                "Extracting two units did not split the mixture volume as expected");
+        requireNear(helper, state.liquidComposition().amount(water), 2.0D / 3.0D,
+                "Remaining mixture changed water ratio during extraction");
+        requireNear(helper, state.liquidComposition().amount(milk), 1.0D / 3.0D,
+                "Remaining mixture changed milk ratio during extraction");
+        requireNear(helper, extracted.liquidComposition().amount(water), 2.0D / 3.0D,
+                "Extracted mixture changed water ratio");
+        requireNear(helper, extracted.liquidComposition().amount(milk), 1.0D / 3.0D,
+                "Extracted mixture changed milk ratio");
+
+        AlchemyMixtureState full = new AlchemyMixtureState(1);
+        full.setLiquidComposition(LiquidComposition.single(water, 1.0D));
+        AlchemyMixtureState bottle = full.extractUnits(1);
+        require(helper, full.liquidComposition().isEmpty(),
+                "Fully extracted source retained composition after reset");
+        requireNear(helper, bottle.liquidComposition().amount(water), 1.0D,
+                "Fully extracted state lost its liquid composition");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void effectDoseUsesCanonicalLevelOneEquivalentTickQuantity(GameTestHelper helper) {
         AlchemyMixtureState.EffectDose levelOne =
                 AlchemyMixtureState.EffectDose.fromDuration(200, 0);
