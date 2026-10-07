@@ -54,6 +54,19 @@ class ActivatedBaseCompositionTest {
     }
 
     @Test
+    void derivesTotalActivatedUnitsWithoutChangingComponents() {
+        ActivatedBaseComposition composition = ActivatedBaseComposition.of(Map.of(
+                AWKWARD, 2.0D,
+                MUSHROOM_BASE, 0.5D
+        ));
+
+        assertEquals(2.5D, composition.totalUnits());
+        assertEquals(2.0D, composition.units(AWKWARD));
+        assertEquals(0.5D, composition.units(MUSHROOM_BASE));
+        assertEquals(0.0D, ActivatedBaseComposition.empty().totalUnits());
+    }
+
+    @Test
     void rejectsNegativeOrNonFiniteUnits() {
         assertThrows(IllegalArgumentException.class, () ->
                 ActivatedBaseComposition.single(AWKWARD, -0.01D));
