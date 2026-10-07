@@ -32,6 +32,7 @@ import java.util.Map;
 public final class AlchemyReactionDataLoader {
     static final String BASE_REACTION_DIRECTORY = "alchemy/base_reactions";
     static final String INGREDIENT_REACTION_DIRECTORY = "alchemy/ingredient_reactions";
+    static final String INGREDIENT_REACTION_EXTENSION_DIRECTORY = "alchemy/ingredient_reaction_extensions";
 
     private static volatile List<BaseReaction> baseReactions = List.of();
     private static volatile List<IngredientReaction> ingredientReactions = List.of();
@@ -76,22 +77,27 @@ public final class AlchemyReactionDataLoader {
         List<LoadError> errors = new ArrayList<>();
         List<BaseReaction> loadedBases = loadBaseReactions(resourceManager, errors);
         List<IngredientReaction> loadedIngredients = loadIngredientReactions(resourceManager, errors);
+        List<IngredientReactionExtension> loadedExtensions =
+                loadIngredientReactionExtensions(resourceManager, errors);
 
         if (!errors.isEmpty()) {
             throw new IllegalStateException(formatReloadErrors(errors));
         }
 
-        AlchemyReactionIndex nextIndex = AlchemyReactionIndex.build(loadedBases, loadedIngredients);
+        List<IngredientReaction> mergedIngredients =
+                applyIngredientExtensions(loadedIngredients, loadedExtensions);
+        AlchemyReactionIndex nextIndex = AlchemyReactionIndex.build(loadedBases, mergedIngredients);
 
         baseReactions = List.copyOf(loadedBases);
-        ingredientReactions = List.copyOf(loadedIngredients);
+        ingredientReactions = List.copyOf(mergedIngredients);
         index = nextIndex;
         revision++;
 
         TotemAlchemy.LOGGER.info(
-                "Loaded {} base reactions and {} ingredient reactions",
+                "Loaded {} base reactions, {} ingredient reactions, and {} ingredient reaction extensions",
                 baseReactions.size(),
-                ingredientReactions.size()
+                ingredientReactions.size(),
+                loadedExtensions.size()
         );
     }
 
@@ -133,6 +139,32 @@ public final class AlchemyReactionDataLoader {
                     } catch (Exception exception) {
                         errors.add(new LoadError(
                                 "ingredient reaction",
+                                entry.getKey(),
+                                usefulMessage(exception)
+                        ));
+                    }
+                });
+        return loaded;
+    }
+
+    private static List<IngredientReactionExtension> loadIngredientReactionExtensions(
+            ResourceManager resourceManager,
+            List<LoadError> errors
+    ) {
+        List<IngredientReactionExtension> loaded = new ArrayList<>();
+        resourceManager.listResources(INGREDIENT_REACTION_EXTENSION_DIRECTORY, AlchemyReactionDataLoader::isJson)
+                .entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(Identifier::toString)))
+                .forEach(entry -> {
+                    try (BufferedReader reader = entry.getValue().openAsReader()) {
+                        JsonObject json = readRootObject(reader, "ingredient reaction extension");
+                        loaded.add(parseIngredientReactionExtension(
+                                reactionId(entry.getKey(), INGREDIENT_REACTION_EXTENSION_DIRECTORY),
+                                json
+                        ));
+                    } catch (Exception exception) {
+                        errors.add(new LoadError(
+                                "ingredient reaction extension",
                                 entry.getKey(),
                                 usefulMessage(exception)
                         ));
@@ -214,6 +246,116 @@ public final class AlchemyReactionDataLoader {
                 optionalBoolean(json, "brewing_stand", false),
                 outcomes
         );
+    }
+
+    static IngredientReactionExtension parseIngredientReactionExtension(Identifier id, JsonObject json) {
+        requireObject(json, "ingredient reaction extension");
+        for (String forbidden : List.of(
+                "base",
+                "ingredient",
+                "success_chance",
+                "effect_yield",
+                "processing_ticks",
+                "max_dose",
+                "brewing_stand"
+        )) {
+            if (json.has(forbidden)) {
+                throw new IllegalArgumentException(
+                        "Ingredient reaction extensions may only add outcomes; field " + forbidden + " is not allowed"
+                );
+            }
+        }
+
+        List<ReactionOutcome> outcomes = new ArrayList<>();
+        JsonElement outcomesElement = required(json, "outcomes");
+        if (!outcomesElement.isJsonArray()) {
+            throw new IllegalArgumentException("outcomes must be an array");
+        }
+        int index = 0;
+        for (JsonElement element : outcomesElement.getAsJsonArray()) {
+            String prefix = "outcomes[" + index + "]";
+            if (element == null || element.isJsonNull() || !element.isJsonObject()) {
+                throw new IllegalArgumentException(prefix + " must be an object");
+            }
+            JsonObject outcome = element.getAsJsonObject();
+            try {
+                outcomes.add(new ReactionOutcome(
+                        requiredId(requiredString(outcome, "potion"), prefix + ".potion"),
+                        optionalDouble(outcome, "chance", 1.0D),
+                        optionalInt(outcome, "priority", 0)
+                ));
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException(prefix + ": " + exception.getMessage(), exception);
+            }
+            index++;
+        }
+
+        return new IngredientReactionExtension(
+                id,
+                requiredId(requiredString(json, "target"), "target"),
+                outcomes
+        );
+    }
+
+    static List<IngredientReaction> applyIngredientExtensions(
+            List<IngredientReaction> reactions,
+            List<IngredientReactionExtension> extensions
+    ) {
+        Map<Identifier, IngredientReaction> merged = new LinkedHashMap<>();
+        for (IngredientReaction reaction : reactions) {
+            IngredientReaction previous = merged.putIfAbsent(reaction.id(), reaction);
+            if (previous != null) {
+                throw new IllegalArgumentException("Duplicate ingredient reaction id: " + reaction.id());
+            }
+        }
+
+        extensions.stream()
+                .sorted(Comparator.comparing(extension -> extension.id().toString()))
+                .forEach(extension -> {
+                    IngredientReaction target = merged.get(extension.targetReactionId());
+                    if (target == null) {
+                        throw new IllegalArgumentException(
+                                "Unknown ingredient reaction extension target "
+                                        + extension.targetReactionId()
+                                        + " for "
+                                        + extension.id()
+                        );
+                    }
+
+                    Map<Identifier, ReactionOutcome> outcomes = new LinkedHashMap<>();
+                    for (ReactionOutcome outcome : target.outcomes()) {
+                        outcomes.put(outcome.resultPotionId(), outcome);
+                    }
+                    for (ReactionOutcome outcome : extension.outcomes()) {
+                        ReactionOutcome previous = outcomes.putIfAbsent(outcome.resultPotionId(), outcome);
+                        if (previous != null) {
+                            throw new IllegalArgumentException(
+                                    "Ingredient reaction extension "
+                                            + extension.id()
+                                            + " duplicates outcome "
+                                            + outcome.resultPotionId()
+                                            + " on "
+                                            + target.id()
+                            );
+                        }
+                    }
+
+                    merged.put(target.id(), new IngredientReaction(
+                            target.id(),
+                            target.baseId(),
+                            target.ingredient(),
+                            target.successChance(),
+                            target.effectYield(),
+                            target.processingTicks(),
+                            target.maxDose(),
+                            target.brewingStandCompatible(),
+                            List.copyOf(outcomes.values())
+                    ));
+                });
+
+        return merged.values().stream()
+                .sorted(Comparator.comparing(reaction -> reaction.id().toString()))
+                .toList();
     }
 
     static Identifier reactionId(Identifier resourceId, String directory) {
