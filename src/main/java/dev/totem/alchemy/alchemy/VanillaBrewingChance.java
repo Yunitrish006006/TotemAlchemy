@@ -1,58 +1,15 @@
 package dev.totem.alchemy.alchemy;
 
-import dev.totem.alchemy.reaction.BrewingReactionContext;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
-/** Ingredient-sensitive completion roll for recipes executed by a vanilla brewing stand. */
+/** Carries Brewing Stand compatibility metadata that survives potion transformations. */
 public final class VanillaBrewingChance {
-    public static final double DEFAULT_SUCCESS_CHANCE = 0.8D;
-    public static final double UNSTABLE_BASE_PENALTY = 0.2D;
     private static final String TAG_UNSTABLE_MUSHROOM_BASE = "totem_alchemy_unstable_mushroom_base";
+
     private VanillaBrewingChance() {}
-
-    /**
-     * Legacy fallback for callers that do not yet provide an input reaction context.
-     * Ingredient-specific values live only in reaction data.
-     */
-    public static double chanceFor(ItemStack ingredient) {
-        return DEFAULT_SUCCESS_CHANCE;
-    }
-
-    public static double chanceFor(ItemStack ingredient, Iterable<ItemStack> potionInputs) {
-        java.util.List<ItemStack> inputs = new java.util.ArrayList<>();
-        if (potionInputs != null) {
-            potionInputs.forEach(inputs::add);
-        }
-
-        double chance = BrewingReactionContext.resolveFirst(inputs, ingredient)
-                .map(context -> context.reaction().successChance())
-                .orElseGet(() -> chanceFor(ingredient));
-        return applyInputPenalty(chance, inputs);
-    }
-
-    static double applyInputPenalty(double baseChance, Iterable<ItemStack> potionInputs) {
-        double chance = Math.max(0.0D, Math.min(1.0D, baseChance));
-        if (potionInputs == null) {
-            return chance;
-        }
-        for (ItemStack potionInput : potionInputs) {
-            if (hasUnstableMushroomBase(potionInput)) {
-                return Math.max(0.0D, chance - UNSTABLE_BASE_PENALTY);
-            }
-        }
-        return chance;
-    }
-
-    public static boolean isSuccessful(ItemStack ingredient, float randomRoll) {
-        return randomRoll >= 0.0F && randomRoll < chanceFor(ingredient);
-    }
-
-    public static boolean isSuccessful(ItemStack ingredient, Iterable<ItemStack> potionInputs, float randomRoll) {
-        return randomRoll >= 0.0F && randomRoll < chanceFor(ingredient, potionInputs);
-    }
 
     public static boolean hasUnstableMushroomBase(ItemStack stack) {
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
