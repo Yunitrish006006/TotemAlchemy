@@ -244,6 +244,90 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void liquidCompositionEndToEndPreservesExistingEffectGameplay(GameTestHelper helper) {
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+        Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
+
+        AlchemyMixtureState imported = AlchemyMixtureBottle.fromPotion(
+                PotionContents.createItemStack(Items.POTION, Potions.SWIFTNESS));
+        AlchemyMixtureState.EffectDose initialSpeed = imported.effects().get("minecraft:speed");
+        require(helper, initialSpeed != null,
+                "End-to-end liquid composition fixture could not import swiftness EffectDose");
+        double initialQuantity = initialSpeed.quantity();
+        double initialConcentration = initialSpeed.concentrationForVolume(imported.volumeUnits());
+
+        requireNear(helper, imported.liquidComposition().amount(water), 1.0D,
+                "Vanilla potion import did not begin as Water 100%");
+
+        AlchemyMixtureState diluent = new AlchemyMixtureState(2);
+        diluent.setLiquidComposition(LiquidComposition.single(milk, 1.0D));
+        require(helper, imported.mergeFrom(diluent),
+                "End-to-end fixture could not merge potion with diluent");
+        require(helper, imported.volumeUnits() == 3,
+                "Liquid composition merge changed expected total volume");
+        requireNear(helper, imported.liquidComposition().amount(water), 1.0D / 3.0D,
+                "Volume-weight merge changed Water fraction");
+        requireNear(helper, imported.liquidComposition().amount(milk), 2.0D / 3.0D,
+                "Volume-weight merge changed Milk fraction");
+
+        AlchemyMixtureState.EffectDose mergedSpeed = imported.effects().get("minecraft:speed");
+        requireNear(helper, mergedSpeed.quantity(), initialQuantity,
+                "Adding effectless liquid created or destroyed EffectDose quantity");
+        requireNear(helper, mergedSpeed.concentrationForVolume(imported.volumeUnits()),
+                initialConcentration / 3.0D,
+                "Adding two effectless liquid units did not dilute concentration to one third");
+
+        AlchemyMixtureState extracted = imported.extractUnits(2);
+        require(helper, imported.volumeUnits() == 1 && extracted.volumeUnits() == 2,
+                "End-to-end extraction did not split volume 1 + 2");
+        requireNear(helper, imported.liquidComposition().amount(water), 1.0D / 3.0D,
+                "Remaining mixture changed Water ratio during extraction");
+        requireNear(helper, extracted.liquidComposition().amount(milk), 2.0D / 3.0D,
+                "Extracted mixture changed Milk ratio during extraction");
+
+        double splitQuantity = imported.effects().get("minecraft:speed").quantity()
+                + extracted.effects().get("minecraft:speed").quantity();
+        requireNear(helper, splitQuantity, initialQuantity,
+                "Extraction created or destroyed EffectDose quantity");
+        requireNear(helper,
+                imported.effects().get("minecraft:speed").concentrationForVolume(imported.volumeUnits()),
+                initialConcentration / 3.0D,
+                "Remaining mixture changed diluted concentration");
+        requireNear(helper,
+                extracted.effects().get("minecraft:speed").concentrationForVolume(extracted.volumeUnits()),
+                initialConcentration / 3.0D,
+                "Extracted mixture changed diluted concentration");
+
+        AlchemyMixtureState restored = AlchemyMixtureState.decode(extracted.encode());
+        require(helper, restored.volumeUnits() == 2,
+                "Encode/decode changed extracted volume");
+        requireNear(helper, restored.liquidComposition().amount(water), 1.0D / 3.0D,
+                "Encode/decode changed Water fraction");
+        requireNear(helper, restored.liquidComposition().amount(milk), 2.0D / 3.0D,
+                "Encode/decode changed Milk fraction");
+        requireNear(helper, restored.effects().get("minecraft:speed").quantity(),
+                extracted.effects().get("minecraft:speed").quantity(),
+                "Encode/decode changed EffectDose quantity");
+        require(helper, restored.deliveryForm() == AlchemyMixtureState.DeliveryForm.DRINKABLE,
+                "Liquid composition persistence changed potion delivery form");
+
+        require(helper, imported.mergeFrom(restored),
+                "Restored extracted mixture could not merge back");
+        require(helper, imported.volumeUnits() == 3,
+                "Recombining restored extraction did not restore total volume");
+        requireNear(helper, imported.effects().get("minecraft:speed").quantity(), initialQuantity,
+                "Recombining restored extraction did not restore EffectDose quantity");
+        requireNear(helper, imported.effects().get("minecraft:speed").concentrationForVolume(imported.volumeUnits()),
+                initialConcentration / 3.0D,
+                "Recombining restored extraction changed diluted concentration");
+        requireNear(helper, imported.liquidComposition().amount(water), 1.0D / 3.0D,
+                "Recombining restored extraction changed Water fraction");
+        requireNear(helper, imported.liquidComposition().amount(milk), 2.0D / 3.0D,
+                "Recombining restored extraction changed Milk fraction");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void effectDoseUsesCanonicalLevelOneEquivalentTickQuantity(GameTestHelper helper) {
         AlchemyMixtureState.EffectDose levelOne =
                 AlchemyMixtureState.EffectDose.fromDuration(200, 0);
