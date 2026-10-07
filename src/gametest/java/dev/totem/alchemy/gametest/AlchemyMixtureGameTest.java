@@ -76,6 +76,35 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void activatedBaseCompositionSurvivesCopyAndClearsWhenStateResets(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
+
+        AlchemyMixtureState original = new AlchemyMixtureState(1);
+        original.setActivatedBaseComposition(ActivatedBaseComposition.of(Map.of(
+                awkward, 0.75D,
+                mushroomBase, 0.25D
+        )));
+
+        AlchemyMixtureState copy = original.copy();
+        require(helper, copy.activatedBaseComposition().equals(original.activatedBaseComposition()),
+                "Mixture copy did not preserve activated-base composition");
+        requireNear(helper, copy.activatedBaseComposition().units(awkward), 0.75D,
+                "Mixture copy changed awkward-base units");
+        requireNear(helper, copy.activatedBaseComposition().units(mushroomBase), 0.25D,
+                "Mixture copy changed mushroom-base units");
+
+        original.extractUnits(1);
+        require(helper, original.volumeUnits() == 0,
+                "Full extraction did not reset source volume");
+        require(helper, original.activatedBaseComposition().isEmpty(),
+                "Reset-empty mixture retained stale activated-base composition");
+        require(helper, !copy.activatedBaseComposition().isEmpty(),
+                "Resetting the source also cleared the copied activated-base composition");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
         Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
         Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
