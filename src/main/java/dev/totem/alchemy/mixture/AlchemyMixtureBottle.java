@@ -24,6 +24,8 @@ import java.util.Objects;
 /** Conversion between potion containers and persistent Alchemy mixture snapshots. */
 public final class AlchemyMixtureBottle {
     public static final String TAG_MIXTURE_STATE = "totem_alchemy_mixture_state";
+    private static final Identifier WATER_LIQUID_ID =
+            Identifier.fromNamespaceAndPath("minecraft", "water");
 
     private AlchemyMixtureBottle() {
     }
@@ -73,6 +75,9 @@ public final class AlchemyMixtureBottle {
 
         PotionContents contents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
         AlchemyMixtureState state = new AlchemyMixtureState(1);
+        if (isVanillaPotionContainer(stack)) {
+            state.setLiquidComposition(LiquidComposition.single(WATER_LIQUID_ID, 1.0D));
+        }
         state.setDeliveryForm(deliveryForm(stack));
         contents.potion()
                 .flatMap(Holder::unwrapKey)
@@ -91,6 +96,12 @@ public final class AlchemyMixtureBottle {
         state.addProvenance("potion:" + (state.canonicalPotionId() == null ? "custom" : state.canonicalPotionId()));
         state.lockHeatIfFinished();
         return state;
+    }
+
+    private static boolean isVanillaPotionContainer(ItemStack stack) {
+        return stack != null && (stack.is(Items.POTION)
+                || stack.is(Items.SPLASH_POTION)
+                || stack.is(Items.LINGERING_POTION));
     }
 
     private static boolean isActivatedPotion(String potionId, boolean hasNoEffects) {
