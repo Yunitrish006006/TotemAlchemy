@@ -4,6 +4,7 @@ import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.alchemy.BrewingStationPolicy;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.reaction.AlchemyReactionDataLoader;
+import dev.totem.alchemy.reaction.AlchemyReactionReader;
 import dev.totem.alchemy.reaction.AlchemyReactionResolver;
 import dev.totem.alchemy.reaction.IngredientReaction;
 import dev.totem.alchemy.reaction.ReactionIngredient;
@@ -68,6 +69,18 @@ public final class ReactionRegistryMigrationGameTest {
                 "Resolver-backed Brewing Stand policy did not preserve unstable-base penalty");
         require(helper, sugar.outcomes().size() == 3,
                 "Sugar outcome set was not migrated");
+        require(helper, Math.abs(AlchemyReactionReader.outcomeProbability(
+                        "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
+                "Merged reaction reader lost sugar swiftness truth");
+        require(helper, Math.abs(AlchemyReactionReader.outcomeProbability(
+                        "minecraft:sugar", "minecraft:slowness") - 0.03D) < EPSILON,
+                "Merged reaction reader lost sugar slowness truth");
+        require(helper, Math.abs(AlchemyReactionReader.outcomeProbability(
+                        "minecraft:sugar", "totem:alchemy/saturation") - 0.03D) < EPSILON,
+                "Merged reaction reader lost sugar saturation truth");
+        require(helper, Math.abs(AlchemyReactionReader.noEffectProbability("minecraft:sugar")
+                        - ((1.0D - 0.94D) * (1.0D - 0.03D) * (1.0D - 0.03D))) < EPSILON,
+                "Merged reaction reader no-effect truth did not reflect the full outcome set");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
                 "Sugar swiftness probability did not come from migrated reaction data");
