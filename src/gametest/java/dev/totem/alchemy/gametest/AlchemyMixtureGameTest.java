@@ -15,6 +15,7 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.util.RandomSource;
 
+import java.util.List;
 import java.util.Map;
 
 public final class AlchemyMixtureGameTest {
