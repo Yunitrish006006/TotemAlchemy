@@ -32,6 +32,7 @@ public final class AlchemyMixtureState {
     public static final int MIN_PERFECT_WINDOW_TICKS = 20 * 5;
     public static final int MAX_PERFECT_WINDOW_TICKS = 20 * 15;
     public static final int STABILITY_MAX = 100;
+    public static final double DEFAULT_SUSTAINED_EFFECT_BIAS = 0.5D;
     private static final String PRESERVE_INDEPENDENT_OUTCOMES = "state:independent_outcome_set";
 
     private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
@@ -1007,14 +1008,22 @@ public final class AlchemyMixtureState {
         }
 
         /**
-         * Neutral sustained-effect presentation relative to one standard registered potion dose.
+         * Sustained-effect presentation relative to one standard registered potion dose.
          *
-         * <p>The current concentration ratio is split evenly between potency and duration. With the neutral
-         * 0.5/0.5 split, both scales are {@code sqrt(relativeConcentration)}, so their product still equals
-         * the concentration ratio and the underlying EffectDose remains conserved. Configurable bias is added
-         * separately by M6-T05.</p>
+         * <p>{@code potencyBias} is clamped to {@code [0, 1]}. A bias of {@code 0} allocates all relative
+         * concentration change to duration, {@code 1} allocates it to potency, and the default {@code 0.5}
+         * splits it evenly. The potency and duration scales always multiply back to the relative concentration,
+         * so the underlying EffectDose concentration remains conserved.</p>
          */
         public SustainedEffectPresentation sustainedPresentation(EffectDose standardDose, int volumeUnits) {
+            return sustainedPresentation(standardDose, volumeUnits, DEFAULT_SUSTAINED_EFFECT_BIAS);
+        }
+
+        public SustainedEffectPresentation sustainedPresentation(
+                EffectDose standardDose,
+                int volumeUnits,
+                double potencyBias
+        ) {
             if (standardDose == null || standardDose.quantity <= 0.0001D || volumeUnits <= 0) {
                 return SustainedEffectPresentation.EMPTY;
             }
@@ -1024,12 +1033,14 @@ public final class AlchemyMixtureState {
                 return SustainedEffectPresentation.EMPTY;
             }
             double relativeConcentration = concentration / standardConcentration;
-            double neutralScale = Math.sqrt(Math.max(0.0D, relativeConcentration));
+            double clampedBias = Math.max(0.0D, Math.min(1.0D, potencyBias));
+            double potencyScale = Math.pow(relativeConcentration, clampedBias);
+            double durationScale = Math.pow(relativeConcentration, 1.0D - clampedBias);
             double standardPotency = standardDose.amplifierCap + 1.0D;
             double standardDuration = standardDose.quantity / standardPotency;
             return new SustainedEffectPresentation(
-                    standardPotency * neutralScale,
-                    standardDuration * neutralScale
+                    standardPotency * potencyScale,
+                    standardDuration * durationScale
             );
         }
 
