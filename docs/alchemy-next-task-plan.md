@@ -114,7 +114,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M7-T05 Brewing Stand selects deterministic highest-chance outcome.
 - [x] M7-T06 Implement chance/priority/resource-ID tie break.
 - [x] M7-T07 Cauldron keeps full probabilistic outcome resolution.
-- [ ] M7-T08 Brewing Stand emits standard dose/concentration. (M6 handoff ready: use registered one-bottle EffectDose standards and preserve the normal-recipe concentration cap.)
+- [x] M7-T08 Brewing Stand emits standard dose/concentration.
 - [ ] M7-T09 Cross-station parity test for standard primary outcomes.
 - [ ] M7-T10 Remove obsolete direct Brewing Stand chance/outcome paths.
 
