@@ -852,6 +852,9 @@ public final class AlchemyMixtureState {
                     out.append("L|").append(enc(liquidId.toString())).append('|')
                             .append(fraction).append('\n'));
         }
+        activatedBaseComposition.components().forEach((baseId, units) ->
+                out.append("A|").append(enc(baseId.toString())).append('|')
+                        .append(units).append('\n'));
         out.append("S|").append(stability).append('\n');
         out.append("B|").append(baseActivated ? 1 : 0).append('\n');
         out.append("H|").append(heatLockedAfterBottling ? 1 : 0).append('\n');
