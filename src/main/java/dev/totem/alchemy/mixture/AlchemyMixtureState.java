@@ -2,6 +2,7 @@ package dev.totem.alchemy.mixture;
 
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import dev.totem.alchemy.migration.LegacyAlchemyIds;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 
 import java.nio.charset.StandardCharsets;
@@ -563,6 +564,12 @@ public final class AlchemyMixtureState {
         int oldVolume = volumeUnits;
         int incomingVolume = other.volumeUnits;
         int mergedVolume = oldVolume + incomingVolume;
+        LiquidComposition mergedLiquidComposition = mergeLiquidComposition(
+                liquidComposition,
+                oldVolume,
+                other.liquidComposition,
+                incomingVolume
+        );
         boolean preserveOutcomeSet = other.preservesIndependentOutcomes()
                 && (oldVolume == 0 || preservesIndependentOutcomes() && effects.keySet().equals(other.effects.keySet()));
         if (preserveOutcomeSet) {
@@ -591,10 +598,37 @@ public final class AlchemyMixtureState {
             canonicalPotionId = null;
         }
         volumeUnits = mergedVolume;
+        liquidComposition = mergedLiquidComposition;
         if (!preserveOutcomeSet) {
             neutralizeOpposites();
         }
         return true;
+    }
+
+    private static LiquidComposition mergeLiquidComposition(
+            LiquidComposition current,
+            int currentVolume,
+            LiquidComposition incoming,
+            int incomingVolume
+    ) {
+        if (currentVolume <= 0) {
+            return incoming == null ? LiquidComposition.empty() : incoming;
+        }
+        if (incomingVolume <= 0) {
+            return current == null ? LiquidComposition.empty() : current;
+        }
+        if (current == null || incoming == null || current.isEmpty() || incoming.isEmpty()) {
+            return LiquidComposition.empty();
+        }
+
+        int totalVolume = currentVolume + incomingVolume;
+        Map<Identifier, Double> weighted = new LinkedHashMap<>();
+        current.components().forEach((liquidId, fraction) ->
+                weighted.merge(liquidId, fraction * currentVolume, Double::sum));
+        incoming.components().forEach((liquidId, fraction) ->
+                weighted.merge(liquidId, fraction * incomingVolume, Double::sum));
+        weighted.replaceAll((liquidId, amount) -> amount / totalVolume);
+        return LiquidComposition.of(weighted).normalized();
     }
 
     private boolean canAdvanceUnderHeat() {
