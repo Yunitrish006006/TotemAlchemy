@@ -734,6 +734,7 @@ public final class AlchemyMixtureState {
     private AlchemyMixtureState scaledCopy(double factor, int newVolume) {
         AlchemyMixtureState result = new AlchemyMixtureState(newVolume, Math.max(MAX_VOLUME_UNITS, newVolume));
         result.liquidComposition = liquidComposition;
+        result.activatedBaseComposition = scaleActivatedBaseComposition(activatedBaseComposition, factor);
         result.stability = stability;
         result.overcookTicks = overcookTicks;
         result.perfectWindowTicks = perfectWindowTicks;
@@ -749,8 +750,23 @@ public final class AlchemyMixtureState {
     }
 
     private void scaleInPlace(double factor, int newVolume) {
+        activatedBaseComposition = scaleActivatedBaseComposition(activatedBaseComposition, factor);
         effects.replaceAll((id, dose) -> dose.scale(factor));
         reactions.replaceAll((id, reaction) -> reaction.scale(factor, Math.max(1, newVolume)));
+    }
+
+    private static ActivatedBaseComposition scaleActivatedBaseComposition(
+            ActivatedBaseComposition composition,
+            double factor
+    ) {
+        if (composition == null || composition.isEmpty()) {
+            return ActivatedBaseComposition.empty();
+        }
+
+        Map<Identifier, Double> scaled = new LinkedHashMap<>();
+        composition.components().forEach((baseId, units) ->
+                scaled.put(baseId, units * factor));
+        return ActivatedBaseComposition.of(scaled);
     }
 
     private void subtractEffects(Map<String, EffectDose> removals) {
