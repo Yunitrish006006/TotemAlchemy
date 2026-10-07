@@ -4,6 +4,7 @@ import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.ActivatedBaseComposition;
 import dev.totem.alchemy.mixture.EffectDoseStandards;
 import dev.totem.alchemy.mixture.LiquidComposition;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
@@ -20,6 +21,34 @@ import java.util.Map;
 
 public final class AlchemyMixtureGameTest {
     private static final double EPSILON = 0.0001D;
+
+    @GameTest(maxTicks = 40)
+    public void mixtureStateStoresActivatedBaseComposition(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
+
+        AlchemyMixtureState state = new AlchemyMixtureState(3);
+        require(helper, state.activatedBaseComposition().isEmpty(),
+                "New mixture state did not begin with empty activated-base composition");
+
+        ActivatedBaseComposition composition = ActivatedBaseComposition.of(Map.of(
+                awkward, 2.0D,
+                mushroomBase, 0.5D
+        ));
+        state.setActivatedBaseComposition(composition);
+
+        require(helper, state.activatedBaseComposition().equals(composition),
+                "Mixture state did not retain activated-base composition");
+        requireNear(helper, state.activatedBaseComposition().units(awkward), 2.0D,
+                "Mixture state changed stored awkward-base units");
+        requireNear(helper, state.activatedBaseComposition().units(mushroomBase), 0.5D,
+                "Mixture state changed stored mushroom-base units");
+
+        state.setActivatedBaseComposition(null);
+        require(helper, state.activatedBaseComposition().isEmpty(),
+                "Null activated-base composition did not reset the state field to empty");
+        helper.succeed();
+    }
 
     @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
