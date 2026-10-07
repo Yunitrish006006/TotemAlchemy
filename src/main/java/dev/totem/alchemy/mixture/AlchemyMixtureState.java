@@ -690,6 +690,7 @@ public final class AlchemyMixtureState {
 
     private AlchemyMixtureState scaledCopy(double factor, int newVolume) {
         AlchemyMixtureState result = new AlchemyMixtureState(newVolume, Math.max(MAX_VOLUME_UNITS, newVolume));
+        result.liquidComposition = liquidComposition;
         result.stability = stability;
         result.overcookTicks = overcookTicks;
         result.perfectWindowTicks = perfectWindowTicks;
