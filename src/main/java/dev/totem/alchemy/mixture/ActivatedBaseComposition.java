@@ -59,6 +59,10 @@ public final class ActivatedBaseComposition {
         return baseId == null ? 0.0D : components.getOrDefault(baseId, 0.0D);
     }
 
+    public double totalUnits() {
+        return components.values().stream().mapToDouble(Double::doubleValue).sum();
+    }
+
     public boolean isEmpty() {
         return components.isEmpty();
     }
