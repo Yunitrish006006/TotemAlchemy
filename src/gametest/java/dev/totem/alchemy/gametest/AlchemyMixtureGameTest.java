@@ -222,6 +222,28 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void vanillaPotionContainersImportAsWaterComposition(GameTestHelper helper) {
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+
+        AlchemyMixtureState drinkable = AlchemyMixtureBottle.fromPotion(
+                PotionContents.createItemStack(Items.POTION, Potions.SWIFTNESS));
+        AlchemyMixtureState splash = AlchemyMixtureBottle.fromPotion(
+                PotionContents.createItemStack(Items.SPLASH_POTION, Potions.SWIFTNESS));
+        AlchemyMixtureState lingering = AlchemyMixtureBottle.fromPotion(
+                PotionContents.createItemStack(Items.LINGERING_POTION, Potions.SWIFTNESS));
+
+        for (AlchemyMixtureState imported : List.of(drinkable, splash, lingering)) {
+            require(helper, imported.volumeUnits() == 1,
+                    "Vanilla potion import did not preserve one bottle-equivalent volume");
+            requireNear(helper, imported.liquidComposition().amount(water), 1.0D,
+                    "Vanilla potion import did not set Water to 100%");
+            requireNear(helper, imported.liquidComposition().totalAmount(), 1.0D,
+                    "Vanilla potion import did not produce a normalized liquid composition");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void effectDoseUsesCanonicalLevelOneEquivalentTickQuantity(GameTestHelper helper) {
         AlchemyMixtureState.EffectDose levelOne =
                 AlchemyMixtureState.EffectDose.fromDuration(200, 0);
