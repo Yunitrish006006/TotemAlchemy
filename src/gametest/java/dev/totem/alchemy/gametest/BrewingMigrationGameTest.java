@@ -5,7 +5,9 @@ import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.mixin.BrewingStandBlockEntityAccessor;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.EffectDoseStandards;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -59,6 +61,37 @@ public final class BrewingMigrationGameTest {
                     "Bottles did not share one outcome set");
         }
         require(helper, stand.getItem(3).isEmpty(), "Successful batch did not consume exactly one reagent");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void brewingStandOutcomeEmitsRegisteredStandardDoseAndConcentration(GameTestHelper helper) {
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        MultiOutcomeBrewing.Outcome strength =
+                new MultiOutcomeBrewing.Outcome(Potions.STRENGTH, "message.totem.alchemy.outcome.strength");
+
+        ItemStack output = AlchemyMixtureBrewing.applyBrewingStandIngredient(
+                new ItemStack(Items.BLAZE_POWDER),
+                awkward,
+                PotionContents.createItemStack(Items.POTION, Potions.STRENGTH),
+                strength
+        );
+        AlchemyMixtureState mixture = AlchemyMixtureBottle.fromPotion(output);
+        AlchemyMixtureState.EffectDose actual = mixture.effects().get("minecraft:strength");
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forEffect(Potions.STRENGTH, "minecraft:strength");
+
+        require(helper, actual != null && standard != null,
+                "Brewing Stand standard-dose fixture could not resolve strength EffectDose");
+        require(helper, mixture.volumeUnits() == 1,
+                "Brewing Stand output did not represent one bottle-equivalent volume");
+        requireNear(helper, actual.quantity(), standard.quantity(),
+                "Brewing Stand outcome did not emit the registered one-bottle standard quantity");
+        requireNear(helper, actual.concentrationForVolume(mixture.volumeUnits()),
+                standard.concentrationForVolume(1),
+                "Brewing Stand outcome did not emit standard concentration");
+        require(helper, actual.amplifierCap() == standard.amplifierCap(),
+                "Brewing Stand outcome changed the registered standard amplifier");
         helper.succeed();
     }
 
@@ -178,6 +211,12 @@ public final class BrewingMigrationGameTest {
         require(helper, accessor.totemAlchemy$getBrewTime() == 0, "Stand did not complete");
         require(helper, MultiOutcomeBrewing.activeOutcomes().isEmpty(), "Completed brew leaked batch context");
         return stand;
+    }
+
+    private static void requireNear(GameTestHelper helper, double actual, double expected, String message) {
+        if (Math.abs(actual - expected) > 0.0001D) {
+            helper.fail(message + ": expected " + expected + ", got " + actual);
+        }
     }
 
     private static void require(GameTestHelper helper, boolean condition, String message) {
