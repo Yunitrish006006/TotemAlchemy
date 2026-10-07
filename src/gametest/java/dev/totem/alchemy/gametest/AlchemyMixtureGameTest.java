@@ -126,6 +126,59 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void sustainedEffectBiasIsConfigurableAndConservative(GameTestHelper helper) {
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forEffect(Potions.SWIFTNESS, "minecraft:speed");
+        require(helper, standard != null,
+                "Bias fixture could not resolve standard swiftness dose");
+
+        AlchemyMixtureState.EffectDose doubled = standard.merge(standard);
+        AlchemyMixtureState.SustainedEffectPresentation defaultSplit =
+                doubled.sustainedPresentation(standard, 1);
+        AlchemyMixtureState.SustainedEffectPresentation explicitNeutral =
+                doubled.sustainedPresentation(
+                        standard,
+                        1,
+                        AlchemyMixtureState.DEFAULT_SUSTAINED_EFFECT_BIAS
+                );
+        requireNear(helper, AlchemyMixtureState.DEFAULT_SUSTAINED_EFFECT_BIAS, 0.5D,
+                "Default sustained-effect bias changed from 0.5");
+        requireNear(helper, defaultSplit.potencyLevel(), explicitNeutral.potencyLevel(),
+                "Default sustained split diverged from explicit 0.5 bias potency");
+        requireNear(helper, defaultSplit.durationTicks(), explicitNeutral.durationTicks(),
+                "Default sustained split diverged from explicit 0.5 bias duration");
+
+        AlchemyMixtureState.SustainedEffectPresentation durationOnly =
+                doubled.sustainedPresentation(standard, 1, 0.0D);
+        requireNear(helper, durationOnly.potencyLevel(), 1.0D,
+                "Duration-only bias unexpectedly increased potency");
+        requireNear(helper, durationOnly.durationTicks(), 20.0D * 360.0D,
+                "Duration-only bias did not allocate the full concentration ratio to duration");
+
+        AlchemyMixtureState.SustainedEffectPresentation potencyOnly =
+                doubled.sustainedPresentation(standard, 1, 1.0D);
+        requireNear(helper, potencyOnly.potencyLevel(), 2.0D,
+                "Potency-only bias did not allocate the full concentration ratio to potency");
+        requireNear(helper, potencyOnly.durationTicks(), 20.0D * 180.0D,
+                "Potency-only bias unexpectedly changed duration");
+
+        requireNear(helper, durationOnly.concentration(), doubled.concentrationForVolume(1),
+                "Duration-biased split did not conserve concentration");
+        requireNear(helper, potencyOnly.concentration(), doubled.concentrationForVolume(1),
+                "Potency-biased split did not conserve concentration");
+
+        AlchemyMixtureState.SustainedEffectPresentation clampedLow =
+                doubled.sustainedPresentation(standard, 1, -10.0D);
+        AlchemyMixtureState.SustainedEffectPresentation clampedHigh =
+                doubled.sustainedPresentation(standard, 1, 10.0D);
+        requireNear(helper, clampedLow.durationTicks(), durationOnly.durationTicks(),
+                "Bias below zero was not clamped to duration-only");
+        requireNear(helper, clampedHigh.potencyLevel(), potencyOnly.potencyLevel(),
+                "Bias above one was not clamped to potency-only");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void opposingSpeedEffectsNeutralizeByEffectQuantity(GameTestHelper helper) {
         AlchemyMixtureState state = new AlchemyMixtureState(1);
         state.putEffect("minecraft:speed", 2_000.0D, 0);
