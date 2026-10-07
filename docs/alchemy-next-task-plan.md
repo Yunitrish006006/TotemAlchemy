@@ -50,7 +50,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M2-T12 Convert `VanillaBrewingChance` to resolver-backed chance data.
 - [x] M2-T13 Remove Java hard-coded ingredient chance table.
 - [x] M2-T14 Add reaction-extension merge semantics for Totem-on-Minecraft additions.
-- [ ] M2-T15 Adapt Manual/Discovery readers without changing UI.
+- [x] M2-T15 Adapt Manual/Discovery readers without changing UI.
 - [ ] M2-T16 Full reaction-registry regression pass.
 
 ## M3 — Liquid composition model
