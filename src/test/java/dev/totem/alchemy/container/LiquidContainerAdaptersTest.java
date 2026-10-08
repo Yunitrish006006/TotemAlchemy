@@ -17,12 +17,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LiquidContainerAdaptersTest {
     @Test
-    void m9T01RegistersNoConcreteBuiltInAdapters() {
-        assertTrue(LiquidContainerAdapters.drain(new ItemStack(Items.POTION), 1).isEmpty());
+    void unsupportedContainersStillFallThroughBuiltInDispatcher() {
+        assertTrue(LiquidContainerAdapters.drain(new ItemStack(Items.MILK_BUCKET), 3).isEmpty());
         assertTrue(LiquidContainerAdapters.fill(
-                new ItemStack(Items.GLASS_BOTTLE),
-                water(1),
-                1
+                new ItemStack(Items.BUCKET),
+                water(3),
+                3
         ).isEmpty());
     }
 

@@ -9,12 +9,13 @@ import java.util.Optional;
 /**
  * Deterministic adapter dispatcher for portable liquid/mixture containers.
  *
- * <p>M9-T01 intentionally registers no built-in adapters. M9-T02 through M9-T07 add concrete adapters
- * one at a time. The first adapter that can perform a requested transfer wins, making adapter precedence
- * explicit and stable.</p>
+ * <p>Concrete adapters are added one M9 task at a time. The first adapter that can perform a requested
+ * transfer wins, making adapter precedence explicit and stable.</p>
  */
 public final class LiquidContainerAdapters {
-    private static final List<LiquidContainerAdapter> BUILT_INS = List.of();
+    private static final List<LiquidContainerAdapter> BUILT_INS = List.of(
+            WaterBottleContainerAdapter.INSTANCE
+    );
 
     private LiquidContainerAdapters() {
     }
