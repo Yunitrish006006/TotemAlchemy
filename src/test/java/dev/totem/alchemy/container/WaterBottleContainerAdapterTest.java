@@ -101,11 +101,19 @@ class WaterBottleContainerAdapterTest {
         AlchemyMixtureState damaged = AlchemyMixtureBrewing.waterState(1);
         damaged.setStability(90);
 
+        AlchemyMixtureState mundane = AlchemyMixtureBrewing.waterState(1);
+        mundane.setCanonicalPotionId("minecraft:mundane");
+
+        AlchemyMixtureState splashWater = AlchemyMixtureBrewing.waterState(1);
+        splashWater.setDeliveryForm(AlchemyMixtureState.DeliveryForm.SPLASH);
+
         ItemStack glass = new ItemStack(Items.GLASS_BOTTLE);
         assertTrue(LiquidContainerAdapters.fill(glass, activated, 1).isEmpty());
         assertTrue(LiquidContainerAdapters.fill(glass, effectful, 1).isEmpty());
         assertTrue(LiquidContainerAdapters.fill(glass, mixed, 1).isEmpty());
         assertTrue(LiquidContainerAdapters.fill(glass, damaged, 1).isEmpty());
+        assertTrue(LiquidContainerAdapters.fill(glass, mundane, 1).isEmpty());
+        assertTrue(LiquidContainerAdapters.fill(glass, splashWater, 1).isEmpty());
     }
 
     @Test
