@@ -29,7 +29,9 @@ public final class AlchemyMixtureBrewing {
         if (level == null || state == null || state.isEmpty() || ingredient == null || ingredient.isEmpty()) return false;
         if (AlchemyCompoundBrewing.hasActiveRecipe(state)) return false;
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
-        if (state.hasPendingReactionForIngredient(ingredientId)) return false;
+        if (state.hasPendingReactionForIngredient(ingredientId)) {
+            return MultiOutcomeBrewing.isOutcomeIngredient(ingredient);
+        }
         boolean pendingStarter = hasPendingStarter(state);
         if (!state.baseActivated() && pendingStarter && BrewingMaterialSettings.isStarter(ingredient.getItem())) return false;
         if (ingredient.is(Items.REDSTONE) || ingredient.is(Items.GLOWSTONE_DUST)) return !state.effects().isEmpty();
@@ -79,6 +81,23 @@ public final class AlchemyMixtureBrewing {
         }
 
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
+        if (state.hasPendingReactionForIngredient(ingredientId)
+                && MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) {
+            AlchemyMixtureState.Reaction updated =
+                    state.incrementPendingReactionDoseForIngredient(ingredientId);
+            if (updated == null) {
+                return ScheduleResult.NOT_SCHEDULED;
+            }
+            return new ScheduleResult(
+                    true,
+                    updated.id(),
+                    updated.ingredientId(),
+                    updated.requiredTicks(),
+                    false,
+                    List.of()
+            );
+        }
+
         String sourcePotion = state.canonicalPotionId();
         String targetPotion = null;
         Map<String, AlchemyMixtureState.EffectDose> source = Map.of();

@@ -83,9 +83,12 @@ public final class MixtureV2GameTest {
         require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
                         helper.getLevel(), mixture, sugar, java.util.List.of()),
                 "Initial sugar reaction could not be scheduled");
-        require(helper, !AlchemyMixtureBrewing.scheduleOutcomeSet(
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
                         helper.getLevel(), mixture, sugar, java.util.List.of()),
-                "Pending same-ingredient guard allowed a duplicate sugar reaction");
+                "Repeated pending sugar did not accumulate dose");
+        require(helper, mixture.reactions().size() == 1
+                        && reactionFor(helper, mixture, "minecraft:sugar").dose() == 2,
+                "Repeated pending sugar created another reaction instead of increasing dose");
 
         mixture.tickReactions(Integer.MAX_VALUE);
         require(helper, !mixture.hasPendingReactionForIngredient("minecraft:sugar"),
@@ -98,10 +101,48 @@ public final class MixtureV2GameTest {
         require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
                         helper.getLevel(), mixture, sugar, java.util.List.of()),
                 "Completed timing history incorrectly blocked a later sugar reaction");
-        require(helper, mixture.hasPendingReactionForIngredient("minecraft:sugar"),
-                "Repeated sugar reaction was not represented as a new pending reaction");
+        require(helper, mixture.hasPendingReactionForIngredient("minecraft:sugar")
+                        && reactionFor(helper, mixture, "minecraft:sugar").dose() == 1,
+                "A post-completion sugar reaction did not start a fresh dose-one reaction");
         require(helper, mixture.completedStages().size() == completedBeforeRepeat,
                 "Scheduling a later sugar reaction consumed completed timing history as capacity");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void repeatedPendingIngredientIncrementsDoseWithoutResettingProgress(GameTestHelper helper) {
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        AlchemyMixtureState mixture = AlchemyMixtureBottle.fromPotion(awkward);
+        ItemStack sugar = new ItemStack(Items.SUGAR);
+
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(), mixture, sugar, java.util.List.of()),
+                "Initial sugar reaction could not be scheduled");
+        mixture.tickReactions(37);
+
+        AlchemyMixtureState.Reaction before = reactionFor(helper, mixture, "minecraft:sugar");
+        String reactionId = before.id();
+        require(helper, before.dose() == 1 && before.elapsedTicks() == 37,
+                "Initial pending sugar did not begin at dose one with retained progress");
+
+        require(helper, AlchemyMixtureBrewing.canReact(helper.getLevel(), mixture, sugar),
+                "Pending outcome ingredient was not accepted for dose accumulation");
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(), mixture, sugar, java.util.List.of()),
+                "Second sugar could not increment pending dose");
+
+        AlchemyMixtureState.Reaction after = reactionFor(helper, mixture, "minecraft:sugar");
+        require(helper, mixture.reactions().size() == 1,
+                "Repeated ingredient created a second pending reaction");
+        require(helper, reactionId.equals(after.id()),
+                "Repeated ingredient replaced the pending reaction identity");
+        require(helper, after.dose() == 2,
+                "Repeated ingredient did not increment pending dose to two");
+        require(helper, after.elapsedTicks() == 37,
+                "Repeated ingredient reset pending reaction progress");
+        require(helper, before.sourceEffects().equals(after.sourceEffects())
+                        && before.targetEffects().equals(after.targetEffects()),
+                "Repeated ingredient rerolled or replaced captured reaction chemistry");
         helper.succeed();
     }
 
