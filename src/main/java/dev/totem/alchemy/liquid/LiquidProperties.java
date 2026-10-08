@@ -6,7 +6,8 @@ package dev.totem.alchemy.liquid;
  * <p>A value of {@code 1.0} is neutral. The stability multiplier scales stability loss
  * ({@code 0.0} prevents new loss; values above one accelerate loss). The reaction-speed multiplier
  * scales processing speed ({@code >1.0} is faster, {@code <1.0} is slower) and is captured when a
- * pending reaction is scheduled. Duration and potency multipliers are applied by M8-T08.</p>
+ * pending reaction is scheduled. Duration and potency multipliers affect only portable effect presentation;
+ * they do not mutate canonical EffectDose quantity.</p>
  */
 public record LiquidProperties(
         double stabilityMultiplier,
