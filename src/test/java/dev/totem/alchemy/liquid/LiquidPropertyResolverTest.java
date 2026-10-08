@@ -88,12 +88,19 @@ class LiquidPropertyResolverTest {
         LiquidProperties aProperties = new LiquidProperties(0.5D, 2.0D, 1.25D, 0.75D);
         LiquidProperties bProperties = new LiquidProperties(1.5D, 0.5D, 0.75D, 1.25D);
 
+        java.util.LinkedHashMap<Identifier, Double> firstOrder = new java.util.LinkedHashMap<>();
+        firstOrder.put(a, 3.0D);
+        firstOrder.put(b, 1.0D);
+        java.util.LinkedHashMap<Identifier, Double> secondOrder = new java.util.LinkedHashMap<>();
+        secondOrder.put(b, 1.0D);
+        secondOrder.put(a, 3.0D);
+
         LiquidProperties first = LiquidPropertyResolver.resolve(
-                LiquidComposition.of(new java.util.LinkedHashMap<>(Map.of(a, 3.0D, b, 1.0D))),
+                LiquidComposition.of(firstOrder),
                 id -> id.equals(a) ? aProperties : bProperties
         );
         LiquidProperties second = LiquidPropertyResolver.resolve(
-                LiquidComposition.of(new java.util.LinkedHashMap<>(Map.of(b, 1.0D, a, 3.0D))),
+                LiquidComposition.of(secondOrder),
                 id -> id.equals(a) ? aProperties : bProperties
         );
 
