@@ -175,6 +175,51 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void baseReactionCapacityTransformsOnlyUnactivatedUnits(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+
+        AlchemyMixtureState state = new AlchemyMixtureState(3);
+        state.setLiquidComposition(LiquidComposition.single(water, 1.0D));
+        state.setActivatedBaseComposition(ActivatedBaseComposition.single(awkward, 1.0D));
+
+        requireNear(helper, state.baseReactionCapacityUnits(), 2.0D,
+                "Base-reaction capacity did not equal remaining unactivated units");
+
+        double first = state.activateBaseUnits(mushroomBase, 1.5D);
+        requireNear(helper, first, 1.5D,
+                "Base activation did not consume the requested available capacity");
+        requireNear(helper, state.activatedBaseComposition().units(awkward), 1.0D,
+                "Base activation changed existing activated-base units");
+        requireNear(helper, state.activatedBaseComposition().units(mushroomBase), 1.5D,
+                "Base activation did not add transformed units to the result base");
+        requireNear(helper, state.baseReactionCapacityUnits(), 0.5D,
+                "Base activation did not reduce remaining capacity by transformed units");
+        require(helper, state.volumeUnits() == 3,
+                "Base activation changed liquid volume");
+        requireNear(helper, state.liquidComposition().amount(water), 1.0D,
+                "Base activation changed liquid composition");
+
+        double capped = state.activateBaseUnits(mushroomBase, 2.0D);
+        requireNear(helper, capped, 0.5D,
+                "Base activation exceeded the remaining unactivated capacity");
+        requireNear(helper, state.activatedBaseComposition().units(mushroomBase), 2.0D,
+                "Capped base activation did not preserve the transformed result");
+        requireNear(helper, state.baseReactionCapacityUnits(), 0.0D,
+                "Fully transformed mixture retained phantom base-reaction capacity");
+        requireNear(helper, state.activatedBaseUnits(), 3.0D,
+                "Base activation created or destroyed total liquid/base units");
+
+        double exhausted = state.activateBaseUnits(awkward, 1.0D);
+        requireNear(helper, exhausted, 0.0D,
+                "Exhausted base-reaction capacity allowed another transformation");
+        requireNear(helper, state.activatedBaseComposition().units(awkward), 1.0D,
+                "Exhausted transformation mutated existing base composition");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void activatedBaseExtractionSplitsAbsoluteUnitsProportionally(GameTestHelper helper) {
         Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
         Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
