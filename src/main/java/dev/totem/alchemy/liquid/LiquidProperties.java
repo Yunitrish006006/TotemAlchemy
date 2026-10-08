@@ -3,8 +3,9 @@ package dev.totem.alchemy.liquid;
 /**
  * Immutable multipliers that describe how one registered Alchemy liquid influences mixture chemistry.
  *
- * <p>A value of {@code 1.0} is neutral. M8-T01 defines only the value contract; mixed-liquid
- * weighting and runtime application are introduced by later M8 tasks.</p>
+ * <p>A value of {@code 1.0} is neutral. The stability multiplier scales stability loss
+ * ({@code 0.0} prevents new loss; values above one accelerate loss). The other multipliers
+ * are applied by their dedicated M8 runtime tasks.</p>
  */
 public record LiquidProperties(
         double stabilityMultiplier,

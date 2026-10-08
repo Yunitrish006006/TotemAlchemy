@@ -125,7 +125,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M8-T03 Register Milk.
 - [x] M8-T04 Register Honey.
 - [x] M8-T05 Weighted property resolution for mixed liquids.
-- [ ] M8-T06 Apply stability modifier.
+- [x] M8-T06 Apply stability modifier.
 - [ ] M8-T07 Apply reaction-speed modifier.
 - [ ] M8-T08 Apply duration/potency modifiers.
 - [ ] M8-T09 Liquid-property regression pass.
