@@ -445,6 +445,46 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void oneThirdBaseScalesDoseOneTwoThreeLinearly(GameTestHelper helper) {
+        Identifier awkwardBase = Identifier.fromNamespaceAndPath("totem", "alchemy/awkward");
+        String speedId = "minecraft:speed";
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forPotion(Potions.SWIFTNESS).get(speedId);
+        require(helper, standard != null,
+                "Swiftness fixture did not expose the standard speed EffectDose");
+
+        for (int dose = 1; dose <= 3; dose++) {
+            AlchemyMixtureState state = new AlchemyMixtureState(3);
+            state.setActivatedBaseComposition(
+                    ActivatedBaseComposition.single(awkwardBase, 1.0D));
+            requireNear(helper, state.baseConcentration(), 1.0D / 3.0D,
+                    "33% base fixture did not retain one-third concentration for dose " + dose);
+
+            state.addReaction(new AlchemyMixtureState.Reaction(
+                    "brew:test>sugar>swiftness",
+                    "minecraft:sugar",
+                    0,
+                    1,
+                    3,
+                    dose,
+                    "minecraft:awkward",
+                    null,
+                    Map.of(),
+                    Map.of(speedId, standard.scale(3.0D))
+            ));
+            state.tickReactions(1);
+
+            AlchemyMixtureState.EffectDose produced = state.effects().get(speedId);
+            require(helper, produced != null,
+                    "33% base dose " + dose + " did not produce speed");
+            requireNear(helper, produced.quantity(), standard.quantity() * dose,
+                    "33% base dose " + dose + " did not produce "
+                            + dose + "/3 of the full three-volume standard batch");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void activatedBaseCompositionEndToEndPreservesIngredientYield(GameTestHelper helper) {
         Identifier awkwardBase = Identifier.fromNamespaceAndPath("minecraft", "awkward");
         Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
