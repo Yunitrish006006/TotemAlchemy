@@ -90,7 +90,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M5-T07 Add `max_dose` and reject excess dose.
 - [x] M5-T08 Apply base concentration to produced effect quantity.
 - [x] M5-T09 Test 33% base with dose 1/2/3.
-- [ ] M5-T10 Test that the same base cannot generate unlimited repeated dose.
+- [x] M5-T10 Test that the same base cannot generate unlimited repeated dose.
 
 ## M6 — EffectDose and concentration
 
