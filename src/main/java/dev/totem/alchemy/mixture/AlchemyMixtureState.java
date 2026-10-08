@@ -126,6 +126,34 @@ public final class AlchemyMixtureState {
         return Math.max(0.0D, volumeUnits - activatedBaseUnits());
     }
 
+    /**
+     * Remaining base-reaction capacity. Base reactions consume this capacity by transforming
+     * unactivated liquid units into explicit activated-base units; volume is conserved.
+     */
+    public double baseReactionCapacityUnits() {
+        return unactivatedUnits();
+    }
+
+    /**
+     * Transform unactivated liquid capacity into one named activated base.
+     *
+     * @return the actual number of units transformed, capped by remaining unactivated capacity
+     */
+    public double activateBaseUnits(Identifier baseId, double requestedUnits) {
+        if (baseId == null || !Double.isFinite(requestedUnits) || requestedUnits <= 0.0D) {
+            return 0.0D;
+        }
+        double transformed = Math.min(requestedUnits, baseReactionCapacityUnits());
+        if (transformed <= 0.0D) {
+            return 0.0D;
+        }
+
+        Map<Identifier, Double> updated = new LinkedHashMap<>(activatedBaseComposition.components());
+        updated.merge(baseId, transformed, Double::sum);
+        activatedBaseComposition = ActivatedBaseComposition.of(updated);
+        return transformed;
+    }
+
     public double baseConcentration() {
         return volumeUnits <= 0 ? 0.0D : activatedBaseUnits() / volumeUnits;
     }
