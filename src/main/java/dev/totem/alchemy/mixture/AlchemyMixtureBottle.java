@@ -1,6 +1,9 @@
 package dev.totem.alchemy.mixture;
 
 import dev.totem.alchemy.item.LargePotionFlaskItem;
+import dev.totem.alchemy.liquid.LiquidEffectPresentationPolicy;
+import dev.totem.alchemy.liquid.LiquidProperties;
+import dev.totem.alchemy.liquid.LiquidPropertyResolver;
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -125,16 +128,25 @@ public final class AlchemyMixtureBottle {
         if (stack.isEmpty()) {
             stack = new ItemStack(deliveryItem(state.deliveryForm()));
             PotionContents contents = PotionContents.EMPTY;
+            LiquidProperties liquidProperties = LiquidPropertyResolver.resolve(state.liquidComposition());
             for (Map.Entry<String, AlchemyMixtureState.EffectDose> entry : state.effects().entrySet()) {
                 Holder<MobEffect> effect = effectHolder(entry.getKey());
                 if (effect == null) {
                     continue;
                 }
-                AlchemyMixtureState.EffectDose dose = entry.getValue();
+                LiquidEffectPresentationPolicy.Presentation presentation =
+                        LiquidEffectPresentationPolicy.present(
+                                entry.getValue(),
+                                state.volumeUnits(),
+                                liquidProperties
+                        );
+                if (presentation.suppressed()) {
+                    continue;
+                }
                 contents = contents.withEffectAdded(new MobEffectInstance(
                         effect,
-                        dose.durationForVolume(Math.max(1, state.volumeUnits())),
-                        dose.amplifierCap()
+                        presentation.minecraftDurationTicks(),
+                        presentation.minecraftAmplifier()
                 ));
             }
             if (state.stability() < 50 && state.stability() > 0) {
@@ -209,7 +221,10 @@ public final class AlchemyMixtureBottle {
             return PotionContents.EMPTY;
         }
         PotionContents contents = PotionContents.EMPTY;
-        Holder<Potion> canonical = state.hasPendingReactions() || state.canonicalPotionId() == null
+        LiquidProperties liquidProperties = LiquidPropertyResolver.resolve(state.liquidComposition());
+        Holder<Potion> canonical = state.hasPendingReactions()
+                || state.canonicalPotionId() == null
+                || !LiquidEffectPresentationPolicy.isNeutral(liquidProperties)
                 ? null
                 : potionHolder(state.canonicalPotionId());
         if (canonical != null) {
@@ -220,11 +235,19 @@ public final class AlchemyMixtureBottle {
                 if (effect == null) {
                     continue;
                 }
-                AlchemyMixtureState.EffectDose dose = entry.getValue();
+                LiquidEffectPresentationPolicy.Presentation presentation =
+                        LiquidEffectPresentationPolicy.present(
+                                entry.getValue(),
+                                state.volumeUnits(),
+                                liquidProperties
+                        );
+                if (presentation.suppressed()) {
+                    continue;
+                }
                 contents = contents.withEffectAdded(new MobEffectInstance(
                         effect,
-                        dose.durationForVolume(Math.max(1, state.volumeUnits())),
-                        dose.amplifierCap()
+                        presentation.minecraftDurationTicks(),
+                        presentation.minecraftAmplifier()
                 ));
             }
             if (state.stability() < 50 && state.stability() > 0) {
@@ -236,7 +259,10 @@ public final class AlchemyMixtureBottle {
     }
 
     private static ItemStack canonicalStack(AlchemyMixtureState state) {
-        if (state.hasPendingReactions() || state.canonicalPotionId() == null) {
+        LiquidProperties liquidProperties = LiquidPropertyResolver.resolve(state.liquidComposition());
+        if (state.hasPendingReactions()
+                || state.canonicalPotionId() == null
+                || !LiquidEffectPresentationPolicy.isNeutral(liquidProperties)) {
             return ItemStack.EMPTY;
         }
         Holder<Potion> holder = potionHolder(state.canonicalPotionId());
