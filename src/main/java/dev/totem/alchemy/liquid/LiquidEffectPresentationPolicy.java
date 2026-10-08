@@ -15,6 +15,14 @@ public final class LiquidEffectPresentationPolicy {
     private LiquidEffectPresentationPolicy() {
     }
 
+    public static boolean isNeutral(LiquidProperties properties) {
+        LiquidProperties resolved = properties == null
+                ? LiquidProperties.neutral()
+                : properties;
+        return Double.compare(resolved.durationMultiplier(), 1.0D) == 0
+                && Double.compare(resolved.potencyMultiplier(), 1.0D) == 0;
+    }
+
     public static Presentation present(
             AlchemyMixtureState.EffectDose dose,
             int volumeUnits,
