@@ -85,7 +85,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M5-T02 Prevent dilution from creating activated base.
 - [x] M5-T03 Audit `completedStages` and existing reaction-capacity semantics.
 - [x] M5-T04 Define reaction-capacity consumption/transformation rules.
-- [ ] M5-T05 Add `dose` to pending reaction state.
+- [x] M5-T05 Add `dose` to pending reaction state.
 - [ ] M5-T06 Repeated same ingredient increments dose instead of being rejected.
 - [ ] M5-T07 Add `max_dose` and reject excess dose.
 - [ ] M5-T08 Apply base concentration to produced effect quantity.
