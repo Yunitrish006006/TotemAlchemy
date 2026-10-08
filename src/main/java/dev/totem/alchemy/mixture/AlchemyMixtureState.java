@@ -919,7 +919,8 @@ public final class AlchemyMixtureState {
                         .append(enc(nullToBlank(reaction.sourcePotionId()))).append('|')
                         .append(enc(nullToBlank(reaction.targetPotionId()))).append('|')
                         .append(enc(encodeEffects(reaction.sourceEffects()))).append('|')
-                        .append(enc(encodeEffects(reaction.targetEffects()))).append('\n'));
+                        .append(enc(encodeEffects(reaction.targetEffects()))).append('|')
+                        .append(reaction.dose()).append('\n'));
         completedStages.values().stream().sorted(Comparator.comparing(CompletedStage::id)).forEach(stage ->
                 out.append("T|").append(enc(stage.id())).append('|')
                         .append(enc(stage.ingredientId())).append('|')
@@ -994,7 +995,8 @@ public final class AlchemyMixtureState {
                             new EffectDose(Double.parseDouble(part[2]), Integer.parseInt(part[3])));
                     case "R" -> state.reactions.put(dec(part[1]), new Reaction(
                             dec(part[1]), dec(part[2]), Integer.parseInt(part[3]), Integer.parseInt(part[4]),
-                            Integer.parseInt(part[5]), blankToNull(dec(part[6])), blankToNull(dec(part[7])),
+                            Integer.parseInt(part[5]), part.length >= 11 ? Integer.parseInt(part[10]) : 1,
+                            blankToNull(dec(part[6])), blankToNull(dec(part[7])),
                             decodeEffects(dec(part[8])), decodeEffects(dec(part[9]))));
                     case "T" -> state.completedStages.put(dec(part[1]), new CompletedStage(
                             dec(part[1]), dec(part[2]), Integer.parseInt(part[3]), Integer.parseInt(part[4])));
@@ -1044,6 +1046,7 @@ public final class AlchemyMixtureState {
                     reaction.elapsedTicks(),
                     reaction.requiredTicks(),
                     reaction.volumeUnits(),
+                    reaction.dose(),
                     blankToNull(LegacyAlchemyIds.canonicalize(reaction.sourcePotionId())),
                     blankToNull(LegacyAlchemyIds.canonicalize(reaction.targetPotionId())),
                     rewriteEffectsCopy(reaction.sourceEffects()),
@@ -1335,6 +1338,7 @@ public final class AlchemyMixtureState {
             int elapsedTicks,
             int requiredTicks,
             int volumeUnits,
+            int dose,
             String sourcePotionId,
             String targetPotionId,
             Map<String, EffectDose> sourceEffects,
@@ -1346,8 +1350,25 @@ public final class AlchemyMixtureState {
             elapsedTicks = Math.max(0, elapsedTicks);
             requiredTicks = Math.max(1, requiredTicks);
             volumeUnits = Math.max(1, Math.min(MAX_FLASK_VOLUME_UNITS, volumeUnits));
+            dose = Math.max(1, dose);
             sourceEffects = Map.copyOf(sourceEffects == null ? Map.of() : sourceEffects);
             targetEffects = Map.copyOf(targetEffects == null ? Map.of() : targetEffects);
+        }
+
+        /** Compatibility constructor for callers that have not started explicit dose accumulation yet. */
+        public Reaction(
+                String id,
+                String ingredientId,
+                int elapsedTicks,
+                int requiredTicks,
+                int volumeUnits,
+                String sourcePotionId,
+                String targetPotionId,
+                Map<String, EffectDose> sourceEffects,
+                Map<String, EffectDose> targetEffects
+        ) {
+            this(id, ingredientId, elapsedTicks, requiredTicks, volumeUnits, 1,
+                    sourcePotionId, targetPotionId, sourceEffects, targetEffects);
         }
 
         public boolean complete() {
@@ -1364,15 +1385,15 @@ public final class AlchemyMixtureState {
 
         public Reaction advance(int ticks) {
             return new Reaction(id, ingredientId, Math.min(requiredTicks, elapsedTicks + Math.max(0, ticks)),
-                    requiredTicks, volumeUnits, sourcePotionId, targetPotionId, sourceEffects, targetEffects);
+                    requiredTicks, volumeUnits, dose, sourcePotionId, targetPotionId, sourceEffects, targetEffects);
         }
 
         public Reaction scale(double factor, int newVolume) {
             Map<String, EffectDose> source = new LinkedHashMap<>();
-            sourceEffects.forEach((id, dose) -> source.put(id, dose.scale(factor)));
+            sourceEffects.forEach((id, effectDose) -> source.put(id, effectDose.scale(factor)));
             Map<String, EffectDose> target = new LinkedHashMap<>();
-            targetEffects.forEach((id, dose) -> target.put(id, dose.scale(factor)));
-            return new Reaction(id, ingredientId, elapsedTicks, requiredTicks, newVolume,
+            targetEffects.forEach((id, effectDose) -> target.put(id, effectDose.scale(factor)));
+            return new Reaction(id, ingredientId, elapsedTicks, requiredTicks, newVolume, dose,
                     sourcePotionId, targetPotionId, source, target);
         }
 
@@ -1383,8 +1404,11 @@ public final class AlchemyMixtureState {
             Map<String, EffectDose> target = mergeMaps(targetEffects, other.targetEffects);
             String sourcePotion = java.util.Objects.equals(sourcePotionId, other.sourcePotionId) ? sourcePotionId : null;
             String targetPotion = java.util.Objects.equals(targetPotionId, other.targetPotionId) ? targetPotionId : null;
+            // Dose is per-reaction state, not a conserved liquid quantity. Split/recombine must not duplicate it.
+            int mergedDose = Math.max(dose, other.dose);
             return new Reaction(id, ingredientId, elapsed, Math.max(requiredTicks, other.requiredTicks),
-                    Math.min(MAX_FLASK_VOLUME_UNITS, volumeUnits + other.volumeUnits), sourcePotion, targetPotion, source, target);
+                    Math.min(MAX_FLASK_VOLUME_UNITS, volumeUnits + other.volumeUnits), mergedDose,
+                    sourcePotion, targetPotion, source, target);
         }
 
         private static Reaction mergeSameReaction(Reaction left, Reaction right) {
