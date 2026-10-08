@@ -146,6 +146,35 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void dilutionDoesNotCreateActivatedBaseUnits(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
+
+        AlchemyMixtureState activated = new AlchemyMixtureState(1);
+        activated.setLiquidComposition(LiquidComposition.single(water, 1.0D));
+        activated.setActivatedBaseComposition(ActivatedBaseComposition.single(awkward, 1.0D));
+
+        AlchemyMixtureState diluent = new AlchemyMixtureState(2);
+        diluent.setLiquidComposition(LiquidComposition.single(water, 1.0D));
+
+        require(helper, activated.mergeFrom(diluent),
+                "Activated-base dilution fixture could not merge unactivated liquid");
+        require(helper, activated.volumeUnits() == 3,
+                "Dilution did not increase mixture volume to three units");
+        requireNear(helper, activated.activatedBaseComposition().units(awkward), 1.0D,
+                "Dilution created additional awkward-base units");
+        requireNear(helper, activated.activatedBaseUnits(), 1.0D,
+                "Dilution changed total activated-base units");
+        requireNear(helper, activated.unactivatedUnits(), 2.0D,
+                "Dilution did not expose the added liquid as unactivated units");
+        requireNear(helper, activated.baseConcentration(), 1.0D / 3.0D,
+                "Dilution did not lower base concentration from 100% to one third");
+        require(helper, activated.baseActivated(),
+                "Dilution incorrectly cleared the remaining activated-base state");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void activatedBaseExtractionSplitsAbsoluteUnitsProportionally(GameTestHelper helper) {
         Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
         Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
