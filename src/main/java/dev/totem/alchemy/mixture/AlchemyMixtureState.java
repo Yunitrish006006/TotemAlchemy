@@ -713,9 +713,12 @@ public final class AlchemyMixtureState {
         deliveryForm = deliveryForm == other.deliveryForm ? deliveryForm : DeliveryForm.DRINKABLE;
         overcookTicks = 0;
         perfectWindowTicks = Math.max(perfectWindowTicks, other.perfectWindowTicks);
-        stability = mergedVolume == 0 ? STABILITY_MAX
+        int mergedStability = mergedVolume == 0 ? STABILITY_MAX
                 : Math.max(0, Math.min(STABILITY_MAX,
-                (stability * oldVolume + other.stability * incomingVolume) / mergedVolume - 2));
+                (stability * oldVolume + other.stability * incomingVolume) / mergedVolume));
+        double mergedStabilityDamageCarry = mergedVolume == 0 ? 0.0D
+                : (stabilityDamageCarry * oldVolume
+                + other.stabilityDamageCarry * incomingVolume) / mergedVolume;
         if (canonicalPotionId == null || other.canonicalPotionId == null
                 || !canonicalPotionId.equals(other.canonicalPotionId)) {
             canonicalPotionId = null;
@@ -723,6 +726,11 @@ public final class AlchemyMixtureState {
         volumeUnits = mergedVolume;
         liquidComposition = mergedLiquidComposition;
         activatedBaseComposition = mergedActivatedBaseComposition;
+        stability = mergedStability;
+        stabilityDamageCarry = mergedStabilityDamageCarry;
+        if (stability > 0) {
+            applyStabilityLoss(2);
+        }
         if (!preserveOutcomeSet) {
             neutralizeOpposites();
         }
@@ -823,6 +831,7 @@ public final class AlchemyMixtureState {
         provenance.clear();
         canonicalPotionId = null;
         stability = STABILITY_MAX;
+        stabilityDamageCarry = 0.0D;
         overcookTicks = 0;
         perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
         heatLockedAfterBottling = false;
@@ -834,6 +843,7 @@ public final class AlchemyMixtureState {
         result.liquidComposition = liquidComposition;
         result.activatedBaseComposition = scaleActivatedBaseComposition(activatedBaseComposition, factor);
         result.stability = stability;
+        result.stabilityDamageCarry = stabilityDamageCarry;
         result.overcookTicks = overcookTicks;
         result.perfectWindowTicks = perfectWindowTicks;
         result.heatLockedAfterBottling = heatLockedAfterBottling;
@@ -976,6 +986,7 @@ public final class AlchemyMixtureState {
                             .append(units).append('\n'));
         }
         out.append("S|").append(stability).append('\n');
+        out.append("D|").append(stabilityDamageCarry).append('\n');
         out.append("B|").append(baseActivated() ? 1 : 0).append('\n');
         out.append("H|").append(heatLockedAfterBottling ? 1 : 0).append('\n');
         out.append("F|").append(deliveryForm.name()).append('\n');
@@ -1059,6 +1070,13 @@ public final class AlchemyMixtureState {
                         }
                     }
                     case "S" -> state.stability = Math.max(0, Math.min(STABILITY_MAX, Integer.parseInt(part[1])));
+                    case "D" -> {
+                        double carry = Double.parseDouble(part[1]);
+                        if (!Double.isFinite(carry) || carry < 0.0D || carry >= 1.0D) {
+                            throw new IllegalArgumentException("Invalid stability damage carry");
+                        }
+                        state.stabilityDamageCarry = carry;
+                    }
                     case "B" -> {
                         decodedBaseActivated = Integer.parseInt(part[1]) != 0;
                         sawBaseMarker = true;
