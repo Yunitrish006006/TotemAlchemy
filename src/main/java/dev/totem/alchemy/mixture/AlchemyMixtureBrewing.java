@@ -3,6 +3,8 @@ package dev.totem.alchemy.mixture;
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import dev.totem.alchemy.alchemy.BrewingModifierPolicy;
 import dev.totem.alchemy.alchemy.AlchemyBrewing;
+import dev.totem.alchemy.liquid.LiquidPropertyResolver;
+import dev.totem.alchemy.liquid.LiquidReactionSpeedPolicy;
 import dev.totem.alchemy.reaction.BrewingReactionContext;
 import dev.totem.alchemy.reaction.IngredientReaction;
 import net.minecraft.server.level.ServerLevel;
@@ -164,8 +166,13 @@ public final class AlchemyMixtureBrewing {
         String id = reactionPrefix + (sourcePotion == null ? "mixed" : sourcePotion)
                 + ">" + ingredientId + ">" + (targetPotion == null ? "mixed" : targetPotion);
         int processingTicks = BrewingMaterialSettings.processingTicks(ingredient.getItem());
+        LiquidReactionSpeedPolicy.ReactionTiming reactionTiming = LiquidReactionSpeedPolicy.scale(
+                0,
+                processingTicks,
+                LiquidPropertyResolver.resolve(state.liquidComposition())
+        );
         state.addReaction(new AlchemyMixtureState.Reaction(
-                id, ingredientId, 0, processingTicks,
+                id, ingredientId, reactionTiming.elapsedTicks(), reactionTiming.requiredTicks(),
                 state.volumeUnits(), sourcePotion, targetPotion, source, target));
 
         List<String> resultPotionIds;
@@ -185,7 +192,14 @@ public final class AlchemyMixtureBrewing {
             resultPotionIds = List.of();
             researchable = false;
         }
-        return new ScheduleResult(true, id, ingredientId, processingTicks, researchable, resultPotionIds);
+        return new ScheduleResult(
+                true,
+                id,
+                ingredientId,
+                reactionTiming.requiredTicks(),
+                researchable,
+                resultPotionIds
+        );
     }
 
     private static boolean hasPendingStarter(AlchemyMixtureState state) {
