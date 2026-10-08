@@ -23,10 +23,23 @@ class AlchemyLiquidsTest {
     }
 
     @Test
-    void registryContainsOnlyWaterAtTheM8T02Boundary() {
-        assertEquals(1, AlchemyLiquids.all().size());
+    void milkResolvesAsRegisteredNeutralLiquid() {
+        AlchemyLiquid milk = AlchemyLiquids.get(AlchemyLiquids.MILK_ID).orElseThrow();
+
+        assertSame(AlchemyLiquids.MILK, milk);
+        assertEquals(Identifier.fromNamespaceAndPath("minecraft", "milk"), milk.id());
+        assertSame(LiquidProperties.NEUTRAL, milk.properties());
+        assertEquals(1.0D, milk.properties().stabilityMultiplier());
+        assertEquals(1.0D, milk.properties().reactionSpeedMultiplier());
+        assertEquals(1.0D, milk.properties().durationMultiplier());
+        assertEquals(1.0D, milk.properties().potencyMultiplier());
+    }
+
+    @Test
+    void registryContainsWaterAndMilkAtTheM8T03Boundary() {
+        assertEquals(2, AlchemyLiquids.all().size());
         assertTrue(AlchemyLiquids.all().containsKey(AlchemyLiquids.WATER_ID));
-        assertFalse(AlchemyLiquids.get(Identifier.fromNamespaceAndPath("minecraft", "milk")).isPresent());
+        assertTrue(AlchemyLiquids.all().containsKey(AlchemyLiquids.MILK_ID));
         assertFalse(AlchemyLiquids.get(Identifier.fromNamespaceAndPath("minecraft", "honey")).isPresent());
     }
 
