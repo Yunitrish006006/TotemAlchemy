@@ -219,8 +219,11 @@ public final class AlchemyMixtureGameTest {
                 "Deterministic A| ordering did not place minecraft:awkward before totem base IDs");
 
         AlchemyMixtureState emptyComposition = new AlchemyMixtureState(1);
-        require(helper, emptyComposition.encode().lines().noneMatch(line -> line.startsWith("A|")),
-                "Empty activated-base composition emitted an A| serialization entry");
+        require(helper, emptyComposition.encode().lines().anyMatch(line -> line.equals("A|")),
+                "Empty activated-base composition did not emit the explicit modern A| sentinel");
+        require(helper, AlchemyMixtureState.decode(emptyComposition.encode())
+                        .activatedBaseComposition().isEmpty(),
+                "Explicit modern empty activated-base composition was misclassified as legacy");
         helper.succeed();
     }
 
@@ -238,6 +241,12 @@ public final class AlchemyMixtureGameTest {
                 "A| decode did not restore explicit activated-base units");
         requireNear(helper, restored.activatedBaseComposition().units(legacyBase), 0.0D,
                 "Modern A| data was replaced by the legacy activated-base fallback");
+
+        AlchemyMixtureState modernEmpty = new AlchemyMixtureState(2);
+        modernEmpty.setBaseActivated(true);
+        AlchemyMixtureState modernEmptyRestored = AlchemyMixtureState.decode(modernEmpty.encode());
+        require(helper, modernEmptyRestored.activatedBaseComposition().isEmpty(),
+                "Modern empty A| sentinel was incorrectly migrated to legacy activated base");
 
         AlchemyMixtureState legacy = AlchemyMixtureState.decode(
                 "V|3\nL|\nS|100\nB|1\n"
