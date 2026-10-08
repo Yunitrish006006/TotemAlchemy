@@ -1,9 +1,13 @@
 package dev.totem.alchemy.reaction;
 
+import dev.totem.alchemy.mixture.ActivatedBaseComposition;
+import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.LiquidComposition;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,6 +15,83 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AlchemyReactionResolverTest {
     private static final Identifier AWKWARD = id("totem", "alchemy/awkward");
     private static final Identifier SUGAR = id("minecraft", "sugar");
+    private static final Identifier NETHER_WART = id("minecraft", "nether_wart");
+    private static final Identifier WATER = id("minecraft", "water");
+    private static final Identifier MILK = id("minecraft", "milk");
+
+    @Test
+    void baseStarterResolutionUsesOnlyUnactivatedUnits() {
+        BaseReaction starter = baseReaction(
+                "nether_wart",
+                Map.of(WATER, 1.0D),
+                ReactionIngredient.item(NETHER_WART),
+                1.0D,
+                0
+        );
+        AlchemyReactionIndex index = AlchemyReactionIndex.build(List.of(starter), List.of());
+
+        AlchemyMixtureState state = new AlchemyMixtureState(3);
+        state.setLiquidComposition(LiquidComposition.single(WATER, 1.0D));
+        state.setActivatedBaseComposition(ActivatedBaseComposition.single(AWKWARD, 1.25D));
+
+        AlchemyReactionResolver.BaseReactionResolution resolved =
+                AlchemyReactionResolver.resolveBaseReaction(
+                        index,
+                        state,
+                        NETHER_WART,
+                        tag -> false
+                ).orElseThrow();
+
+        assertEquals(starter, resolved.reaction());
+        assertEquals(1.75D, resolved.unactivatedUnits(), 1.0E-9D);
+        assertEquals(1.0D, resolved.activationUnits(), 1.0E-9D);
+
+        state.setActivatedBaseComposition(ActivatedBaseComposition.single(AWKWARD, 3.0D));
+        assertTrue(AlchemyReactionResolver.resolveBaseReaction(
+                index,
+                state,
+                NETHER_WART,
+                tag -> false
+        ).isEmpty());
+    }
+
+    @Test
+    void baseStarterResolutionHonorsLiquidRequirementsAndCapsYieldToAvailableUnits() {
+        BaseReaction incompatibleHighPriority = baseReaction(
+                "milk_first",
+                Map.of(MILK, 0.5D),
+                ReactionIngredient.item(NETHER_WART),
+                1.0D,
+                10
+        );
+        BaseReaction waterFallback = baseReaction(
+                "water_fallback",
+                Map.of(WATER, 1.0D),
+                ReactionIngredient.item(NETHER_WART),
+                2.0D,
+                0
+        );
+        AlchemyReactionIndex index = AlchemyReactionIndex.build(
+                List.of(waterFallback, incompatibleHighPriority),
+                List.of()
+        );
+
+        AlchemyMixtureState state = new AlchemyMixtureState(3);
+        state.setLiquidComposition(LiquidComposition.single(WATER, 1.0D));
+        state.setActivatedBaseComposition(ActivatedBaseComposition.single(AWKWARD, 2.5D));
+
+        AlchemyReactionResolver.BaseReactionResolution resolved =
+                AlchemyReactionResolver.resolveBaseReaction(
+                        index,
+                        state,
+                        NETHER_WART,
+                        tag -> false
+                ).orElseThrow();
+
+        assertEquals(waterFallback, resolved.reaction());
+        assertEquals(0.5D, resolved.unactivatedUnits(), 1.0E-9D);
+        assertEquals(0.5D, resolved.activationUnits(), 1.0E-9D);
+    }
 
     @Test
     void exactItemReactionWinsBeforeMatchingTagCandidates() {
@@ -141,6 +222,26 @@ class AlchemyReactionResolverTest {
                 SUGAR,
                 tag -> false
         ).isEmpty());
+    }
+
+    private static BaseReaction baseReaction(
+            String idPath,
+            Map<Identifier, Double> liquids,
+            ReactionIngredient starter,
+            double activationYield,
+            int priority
+    ) {
+        return new BaseReaction(
+                id("totem", "base/" + idPath),
+                liquids,
+                starter,
+                AWKWARD,
+                1.0D,
+                activationYield,
+                400,
+                true,
+                priority
+        );
     }
 
     private static IngredientReaction reaction(
