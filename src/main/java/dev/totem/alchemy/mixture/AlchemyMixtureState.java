@@ -37,6 +37,8 @@ public final class AlchemyMixtureState {
     private static final String PRESERVE_INDEPENDENT_OUTCOMES = "state:independent_outcome_set";
     private static final Identifier WATER_LIQUID_ID =
             Identifier.fromNamespaceAndPath("minecraft", "water");
+    private static final Identifier LEGACY_ACTIVATED_BASE_ID =
+            Identifier.fromNamespaceAndPath("totem", "alchemy/legacy_activated_base");
 
     private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder B64D = Base64.getUrlDecoder();
@@ -897,7 +899,9 @@ public final class AlchemyMixtureState {
         AlchemyMixtureState state = new AlchemyMixtureState(0, capacity);
         boolean sawBaseMarker = false;
         boolean sawLiquidMarker = false;
+        boolean sawActivatedBaseMarker = false;
         Map<Identifier, Double> decodedLiquids = new LinkedHashMap<>();
+        Map<Identifier, Double> decodedActivatedBases = new LinkedHashMap<>();
         for (String line : encoded.split("\\R")) {
             if (line.isBlank()) {
                 continue;
@@ -918,6 +922,20 @@ public final class AlchemyMixtureState {
                                 throw new IllegalArgumentException("Invalid liquid fraction");
                             }
                             decodedLiquids.merge(liquidId, fraction, Double::sum);
+                        }
+                    }
+                    case "A" -> {
+                        sawActivatedBaseMarker = true;
+                        if (part.length >= 3 && !part[1].isBlank()) {
+                            Identifier baseId = Identifier.tryParse(dec(part[1]));
+                            if (baseId == null) {
+                                throw new IllegalArgumentException("Invalid activated-base identifier");
+                            }
+                            double units = Double.parseDouble(part[2]);
+                            if (!Double.isFinite(units) || units < 0.0D) {
+                                throw new IllegalArgumentException("Invalid activated-base units");
+                            }
+                            decodedActivatedBases.merge(baseId, units, Double::sum);
                         }
                     }
                     case "S" -> state.stability = Math.max(0, Math.min(STABILITY_MAX, Integer.parseInt(part[1])));
@@ -952,8 +970,17 @@ public final class AlchemyMixtureState {
         } else {
             state.liquidComposition = LiquidComposition.empty();
         }
+        if (!decodedActivatedBases.isEmpty()) {
+            state.activatedBaseComposition = ActivatedBaseComposition.of(decodedActivatedBases);
+        } else {
+            state.activatedBaseComposition = ActivatedBaseComposition.empty();
+        }
         if (!sawBaseMarker) {
             state.baseActivated = inferLegacyBase(state);
+        }
+        if (!sawActivatedBaseMarker && state.baseActivated && state.volumeUnits > 0) {
+            state.activatedBaseComposition =
+                    ActivatedBaseComposition.single(LEGACY_ACTIVATED_BASE_ID, state.volumeUnits);
         }
         rewriteLegacyIds(state);
         // Migrate mixtures created by builds that intentionally preserved opposing rolled outcomes.
