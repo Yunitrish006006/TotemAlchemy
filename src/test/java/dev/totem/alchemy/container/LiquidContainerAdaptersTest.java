@@ -18,14 +18,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LiquidContainerAdaptersTest {
     @Test
     void unsupportedContainersStillFallThroughBuiltInDispatcher() {
-        assertTrue(LiquidContainerAdapters.drain(new ItemStack(Items.MILK_BUCKET), 3).isEmpty());
+        assertTrue(LiquidContainerAdapters.drain(new ItemStack(Items.HONEY_BOTTLE), 1).isEmpty());
 
-        AlchemyMixtureState milk = new AlchemyMixtureState(3);
-        milk.setLiquidComposition(LiquidComposition.single(AlchemyLiquids.MILK_ID, 1.0D));
+        AlchemyMixtureState honey = new AlchemyMixtureState(1);
+        honey.setLiquidComposition(LiquidComposition.single(AlchemyLiquids.HONEY_ID, 1.0D));
         assertTrue(LiquidContainerAdapters.fill(
-                new ItemStack(Items.BUCKET),
-                milk,
-                3
+                new ItemStack(Items.GLASS_BOTTLE),
+                honey,
+                1
         ).isEmpty());
     }
 
