@@ -120,7 +120,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 ## M8 — Liquid registry and properties
 
-- [ ] M8-T01 Define `AlchemyLiquid` / `LiquidProperties`.
+- [x] M8-T01 Define `AlchemyLiquid` / `LiquidProperties`.
 - [ ] M8-T02 Register Water baseline.
 - [ ] M8-T03 Register Milk.
 - [ ] M8-T04 Register Honey.
