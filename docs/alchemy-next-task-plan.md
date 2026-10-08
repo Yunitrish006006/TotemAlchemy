@@ -127,7 +127,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M8-T05 Weighted property resolution for mixed liquids.
 - [x] M8-T06 Apply stability modifier.
 - [x] M8-T07 Apply reaction-speed modifier.
-- [ ] M8-T08 Apply duration/potency modifiers.
+- [x] M8-T08 Apply duration/potency modifiers.
 - [ ] M8-T09 Liquid-property regression pass.
 
 ## M9 — Container adapters
