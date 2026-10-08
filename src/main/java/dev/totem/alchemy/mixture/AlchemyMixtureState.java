@@ -287,6 +287,26 @@ public final class AlchemyMixtureState {
                 .anyMatch(reaction -> ingredientId.equals(reaction.ingredientId()));
     }
 
+    public Reaction pendingReactionForIngredient(String ingredientId) {
+        if (ingredientId == null) {
+            return null;
+        }
+        return reactions.values().stream()
+                .filter(reaction -> ingredientId.equals(reaction.ingredientId()))
+                .min(Comparator.comparing(Reaction::id))
+                .orElse(null);
+    }
+
+    public Reaction incrementPendingReactionDoseForIngredient(String ingredientId) {
+        Reaction existing = pendingReactionForIngredient(ingredientId);
+        if (existing == null) {
+            return null;
+        }
+        Reaction updated = existing.withAdditionalDose(1);
+        reactions.put(updated.id(), updated);
+        return updated;
+    }
+
     public boolean canOvercook() {
         return !heatLockedAfterBottling && !isEmpty() && !hasPendingReactions() && !hasCompletedStages()
                 && (baseActivated() || !effects.isEmpty());
@@ -1386,6 +1406,15 @@ public final class AlchemyMixtureState {
         public Reaction advance(int ticks) {
             return new Reaction(id, ingredientId, Math.min(requiredTicks, elapsedTicks + Math.max(0, ticks)),
                     requiredTicks, volumeUnits, dose, sourcePotionId, targetPotionId, sourceEffects, targetEffects);
+        }
+
+        public Reaction withAdditionalDose(int additionalDose) {
+            if (additionalDose <= 0) {
+                return this;
+            }
+            int increased = (int) Math.min(Integer.MAX_VALUE, (long) dose + additionalDose);
+            return new Reaction(id, ingredientId, elapsedTicks, requiredTicks, volumeUnits, increased,
+                    sourcePotionId, targetPotionId, sourceEffects, targetEffects);
         }
 
         public Reaction scale(double factor, int newVolume) {
