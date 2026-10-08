@@ -199,6 +199,11 @@ public final class AlchemyMixtureBrewing {
                 .orElse(1);
     }
 
+    /**
+     * Scale one captured full-concentration ingredient-reaction contribution by the chemistry available
+     * when it completes. Normal-recipe output remains capped at one registered standard concentration.
+     * Non-registry reactions keep their existing target quantity unchanged.
+     */
     static double pendingReactionEffectQuantityScale(
             AlchemyMixtureState state,
             AlchemyMixtureState.Reaction reaction
@@ -216,10 +221,14 @@ public final class AlchemyMixtureBrewing {
             return 1.0D;
         }
 
-        double effectYield = BrewingReactionContext.resolveLegacyActivated(new ItemStack(ingredient))
-                .map(IngredientReaction::effectYield)
-                .orElse(1.0D);
-        double requestedScale = state.baseConcentration() * reaction.dose() * effectYield;
+        java.util.Optional<IngredientReaction> ingredientReaction =
+                BrewingReactionContext.resolveLegacyActivated(new ItemStack(ingredient));
+        if (ingredientReaction.isEmpty()) {
+            return 1.0D;
+        }
+
+        double requestedScale =
+                state.baseConcentration() * reaction.dose() * ingredientReaction.get().effectYield();
         return Math.max(0.0D, Math.min(1.0D, requestedScale));
     }
 
