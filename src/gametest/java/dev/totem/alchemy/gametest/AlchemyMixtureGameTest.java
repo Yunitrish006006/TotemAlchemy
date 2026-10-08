@@ -273,6 +273,47 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void baseActivatedCompatibilityIsDerivedFromExplicitComposition(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier legacyBase = Identifier.fromNamespaceAndPath("totem", "alchemy/legacy_activated_base");
+
+        AlchemyMixtureState explicit = new AlchemyMixtureState(2);
+        explicit.setActivatedBaseComposition(ActivatedBaseComposition.single(awkward, 0.5D));
+        require(helper, explicit.baseActivated(),
+                "Explicit activated-base composition did not derive baseActivated=true");
+
+        explicit.setBaseActivated(true);
+        requireNear(helper, explicit.activatedBaseComposition().units(awkward), 0.5D,
+                "Compatibility true setter overwrote explicit activated-base identity");
+        requireNear(helper, explicit.activatedBaseComposition().units(legacyBase), 0.0D,
+                "Compatibility true setter injected a legacy fallback into explicit composition");
+
+        String staleFalse = explicit.encode().replace("B|1", "B|0");
+        AlchemyMixtureState restored = AlchemyMixtureState.decode(staleFalse);
+        require(helper, restored.baseActivated(),
+                "Stale compatibility B|0 overrode explicit activated-base composition");
+
+        explicit.setBaseActivated(false);
+        require(helper, !explicit.baseActivated() && explicit.activatedBaseComposition().isEmpty(),
+                "Compatibility false setter did not clear activated-base composition");
+
+        AlchemyMixtureState compatibility = new AlchemyMixtureState(2);
+        compatibility.setBaseActivated(true);
+        require(helper, compatibility.baseActivated(),
+                "Compatibility true setter did not expose an activated state");
+        requireNear(helper, compatibility.activatedBaseComposition().units(legacyBase), 2.0D,
+                "Compatibility true setter did not create one fallback base unit per liquid unit");
+        requireNear(helper, compatibility.baseConcentration(), 1.0D,
+                "Compatibility true setter changed legacy full-base concentration");
+
+        AlchemyMixtureState empty = AlchemyMixtureState.empty();
+        empty.setBaseActivated(true);
+        require(helper, !empty.baseActivated() && empty.activatedBaseComposition().isEmpty(),
+                "Compatibility true setter created activated base in a zero-volume state");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
         Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
         Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
