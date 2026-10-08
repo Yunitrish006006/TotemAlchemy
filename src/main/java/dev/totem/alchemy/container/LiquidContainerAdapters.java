@@ -14,7 +14,8 @@ import java.util.Optional;
  */
 public final class LiquidContainerAdapters {
     private static final List<LiquidContainerAdapter> BUILT_INS = List.of(
-            WaterBottleContainerAdapter.INSTANCE
+            WaterBottleContainerAdapter.INSTANCE,
+            WaterBucketContainerAdapter.INSTANCE
     );
 
     private LiquidContainerAdapters() {
