@@ -222,9 +222,11 @@ public final class AlchemyMixtureBottle {
         }
         PotionContents contents = PotionContents.EMPTY;
         LiquidProperties liquidProperties = LiquidPropertyResolver.resolve(state.liquidComposition());
+        boolean needsCustomEffectPresentation =
+                !state.effects().isEmpty() && !LiquidEffectPresentationPolicy.isNeutral(liquidProperties);
         Holder<Potion> canonical = state.hasPendingReactions()
                 || state.canonicalPotionId() == null
-                || !LiquidEffectPresentationPolicy.isNeutral(liquidProperties)
+                || needsCustomEffectPresentation
                 ? null
                 : potionHolder(state.canonicalPotionId());
         if (canonical != null) {
@@ -260,9 +262,11 @@ public final class AlchemyMixtureBottle {
 
     private static ItemStack canonicalStack(AlchemyMixtureState state) {
         LiquidProperties liquidProperties = LiquidPropertyResolver.resolve(state.liquidComposition());
+        boolean needsCustomEffectPresentation =
+                !state.effects().isEmpty() && !LiquidEffectPresentationPolicy.isNeutral(liquidProperties);
         if (state.hasPendingReactions()
                 || state.canonicalPotionId() == null
-                || !LiquidEffectPresentationPolicy.isNeutral(liquidProperties)) {
+                || needsCustomEffectPresentation) {
             return ItemStack.EMPTY;
         }
         Holder<Potion> holder = potionHolder(state.canonicalPotionId());
