@@ -445,10 +445,16 @@ public final class AlchemyMixtureState {
     private void applyReaction(Reaction reaction) {
         boolean independentOutcomeSet = reaction.id().startsWith("brewset:");
         subtractEffects(reaction.sourceEffects());
+
+        double producedScale = AlchemyMixtureBrewing.pendingReactionEffectQuantityScale(this, reaction);
+        Map<String, EffectDose> producedEffects =
+                producedScale >= 0.999999D
+                        ? reaction.targetEffects()
+                        : scaleEffectDoses(reaction.targetEffects(), producedScale);
         if (independentOutcomeSet) {
-            addIndependentOutcomeEffects(reaction.targetEffects());
+            addIndependentOutcomeEffects(producedEffects);
         } else {
-            addEffects(reaction.targetEffects());
+            addEffects(producedEffects);
         }
 
         if (BrewingMaterialSettings.isStarter(reaction.ingredientId())) {
@@ -829,6 +835,25 @@ public final class AlchemyMixtureState {
         composition.components().forEach((baseId, units) ->
                 scaled.put(baseId, units * factor));
         return ActivatedBaseComposition.of(scaled);
+    }
+
+    private static Map<String, EffectDose> scaleEffectDoses(
+            Map<String, EffectDose> values,
+            double factor
+    ) {
+        if (values == null || values.isEmpty() || factor <= 0.0D) {
+            return Map.of();
+        }
+        if (factor >= 0.999999D) {
+            return values;
+        }
+        Map<String, EffectDose> scaled = new LinkedHashMap<>();
+        values.forEach((id, dose) -> {
+            if (dose != null) {
+                scaled.put(id, dose.scale(factor));
+            }
+        });
+        return scaled;
     }
 
     private void subtractEffects(Map<String, EffectDose> removals) {

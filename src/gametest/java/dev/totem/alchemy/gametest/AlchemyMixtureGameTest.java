@@ -388,6 +388,63 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void baseConcentrationAndDoseScaleProducedEffectQuantity(GameTestHelper helper) {
+        Identifier awkwardBase = Identifier.fromNamespaceAndPath("totem", "alchemy/awkward");
+        String speedId = "minecraft:speed";
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forPotion(Potions.SWIFTNESS).get(speedId);
+        require(helper, standard != null,
+                "Swiftness fixture did not expose the standard speed EffectDose");
+
+        AlchemyMixtureState halfBaseDoseOne = new AlchemyMixtureState(2);
+        halfBaseDoseOne.setActivatedBaseComposition(
+                ActivatedBaseComposition.single(awkwardBase, 1.0D));
+        halfBaseDoseOne.addReaction(new AlchemyMixtureState.Reaction(
+                "brew:test>sugar>swiftness",
+                "minecraft:sugar",
+                0,
+                1,
+                2,
+                1,
+                "minecraft:awkward",
+                null,
+                Map.of(),
+                Map.of(speedId, standard.scale(2.0D))
+        ));
+        halfBaseDoseOne.tickReactions(1);
+
+        AlchemyMixtureState.EffectDose oneDose = halfBaseDoseOne.effects().get(speedId);
+        require(helper, oneDose != null,
+                "50% base dose-one reaction did not produce speed");
+        requireNear(helper, oneDose.quantity(), standard.quantity(),
+                "50% base dose-one reaction did not produce half of the two-volume standard batch");
+
+        AlchemyMixtureState halfBaseDoseTwo = new AlchemyMixtureState(2);
+        halfBaseDoseTwo.setActivatedBaseComposition(
+                ActivatedBaseComposition.single(awkwardBase, 1.0D));
+        halfBaseDoseTwo.addReaction(new AlchemyMixtureState.Reaction(
+                "brew:test>sugar>swiftness",
+                "minecraft:sugar",
+                0,
+                1,
+                2,
+                2,
+                "minecraft:awkward",
+                null,
+                Map.of(),
+                Map.of(speedId, standard.scale(2.0D))
+        ));
+        halfBaseDoseTwo.tickReactions(1);
+
+        AlchemyMixtureState.EffectDose twoDose = halfBaseDoseTwo.effects().get(speedId);
+        require(helper, twoDose != null,
+                "50% base dose-two reaction did not produce speed");
+        requireNear(helper, twoDose.quantity(), standard.quantity() * 2.0D,
+                "50% base dose-two reaction did not recover the full two-volume standard batch");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void activatedBaseCompositionEndToEndPreservesIngredientYield(GameTestHelper helper) {
         Identifier awkwardBase = Identifier.fromNamespaceAndPath("minecraft", "awkward");
         Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");

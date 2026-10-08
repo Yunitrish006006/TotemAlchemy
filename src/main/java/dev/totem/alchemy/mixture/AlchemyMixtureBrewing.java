@@ -10,6 +10,8 @@ import net.minecraft.world.item.crafting.RecipePropertySet;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
@@ -195,6 +197,39 @@ public final class AlchemyMixtureBrewing {
         return BrewingReactionContext.resolveLegacyActivated(ingredient)
                 .map(IngredientReaction::maxDose)
                 .orElse(1);
+    }
+
+    /**
+     * Scale one captured full-concentration ingredient-reaction contribution by the chemistry available
+     * when it completes. Normal-recipe output remains capped at one registered standard concentration.
+     * Non-registry reactions keep their existing target quantity unchanged.
+     */
+    static double pendingReactionEffectQuantityScale(
+            AlchemyMixtureState state,
+            AlchemyMixtureState.Reaction reaction
+    ) {
+        if (state == null || reaction == null || reaction.targetEffects().isEmpty()) {
+            return 1.0D;
+        }
+
+        Identifier ingredientId = Identifier.tryParse(reaction.ingredientId());
+        if (ingredientId == null) {
+            return 1.0D;
+        }
+        Item ingredient = BuiltInRegistries.ITEM.getValue(ingredientId);
+        if (ingredient == null) {
+            return 1.0D;
+        }
+
+        java.util.Optional<IngredientReaction> ingredientReaction =
+                BrewingReactionContext.resolveLegacyActivated(new ItemStack(ingredient));
+        if (ingredientReaction.isEmpty()) {
+            return 1.0D;
+        }
+
+        double requestedScale =
+                state.baseConcentration() * reaction.dose() * ingredientReaction.get().effectYield();
+        return Math.max(0.0D, Math.min(1.0D, requestedScale));
     }
 
     public static boolean canApplyBrewingStandIngredient(ItemStack input, ItemStack ingredient) {
