@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WaterBottleContainerAdapterTest {
@@ -118,6 +117,6 @@ class WaterBottleContainerAdapterTest {
         assertTrue(LiquidContainerAdapters.fill(
                 new ItemStack(Items.GLASS_BOTTLE), water, 0
         ).isEmpty());
-        assertFalse(WaterBottleContainerAdapter.isPlainWater(water) == false);
+        assertTrue(WaterBottleContainerAdapter.isPlainWater(water));
     }
 }
