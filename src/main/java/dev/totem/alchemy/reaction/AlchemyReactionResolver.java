@@ -1,5 +1,6 @@
 package dev.totem.alchemy.reaction;
 
+import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -19,7 +20,26 @@ import java.util.function.Predicate;
  * until explicit merge semantics are introduced later in the migration.</p>
  */
 public final class AlchemyReactionResolver {
+    private static final double EPSILON = 1.0E-6D;
+
     private AlchemyReactionResolver() {
+    }
+
+    public static Optional<BaseReactionResolution> resolveBaseReaction(
+            AlchemyMixtureState state,
+            ItemStack starter
+    ) {
+        if (state == null || state.isEmpty() || starter == null || starter.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Identifier starterItemId = BuiltInRegistries.ITEM.getKey(starter.getItem());
+        return resolveBaseReaction(
+                AlchemyReactionDataLoader.index(),
+                state,
+                starterItemId,
+                tagId -> starter.is(TagKey.create(Registries.ITEM, tagId))
+        );
     }
 
     public static Optional<IngredientReaction> resolveIngredientReaction(
@@ -122,6 +142,47 @@ public final class AlchemyReactionResolver {
                 : OptionalDouble.empty();
     }
 
+    static Optional<BaseReactionResolution> resolveBaseReaction(
+            AlchemyReactionIndex index,
+            AlchemyMixtureState state,
+            Identifier starterItemId,
+            Predicate<Identifier> matchesTag
+    ) {
+        if (index == null || state == null || state.isEmpty()
+                || starterItemId == null || matchesTag == null
+                || state.unactivatedUnits() <= EPSILON) {
+            return Optional.empty();
+        }
+
+        for (BaseReaction candidate : index.exactBaseStarterCandidates(starterItemId)) {
+            if (matchesLiquidRequirements(state, candidate)) {
+                return Optional.of(baseResolution(state, candidate));
+            }
+        }
+
+        for (BaseReaction candidate : index.taggedBaseStarterCandidates()) {
+            if (matchesTag.test(candidate.starter().id()) && matchesLiquidRequirements(state, candidate)) {
+                return Optional.of(baseResolution(state, candidate));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean matchesLiquidRequirements(AlchemyMixtureState state, BaseReaction reaction) {
+        for (var requirement : reaction.minimumLiquidFractions().entrySet()) {
+            if (state.liquidComposition().amount(requirement.getKey()) + EPSILON < requirement.getValue()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static BaseReactionResolution baseResolution(AlchemyMixtureState state, BaseReaction reaction) {
+        double unactivatedUnits = state.unactivatedUnits();
+        double activationUnits = Math.min(unactivatedUnits, reaction.activationYield());
+        return new BaseReactionResolution(reaction, unactivatedUnits, activationUnits);
+    }
+
     static Optional<IngredientReaction> resolveIngredientReaction(
             AlchemyReactionIndex index,
             Identifier baseId,
@@ -143,5 +204,12 @@ public final class AlchemyReactionResolver {
             }
         }
         return Optional.empty();
+    }
+
+    public record BaseReactionResolution(
+            BaseReaction reaction,
+            double unactivatedUnits,
+            double activationUnits
+    ) {
     }
 }
