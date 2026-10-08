@@ -36,11 +36,24 @@ class AlchemyLiquidsTest {
     }
 
     @Test
-    void registryContainsWaterAndMilkAtTheM8T03Boundary() {
-        assertEquals(2, AlchemyLiquids.all().size());
+    void honeyResolvesAsRegisteredNeutralLiquid() {
+        AlchemyLiquid honey = AlchemyLiquids.get(AlchemyLiquids.HONEY_ID).orElseThrow();
+
+        assertSame(AlchemyLiquids.HONEY, honey);
+        assertEquals(Identifier.fromNamespaceAndPath("minecraft", "honey"), honey.id());
+        assertSame(LiquidProperties.NEUTRAL, honey.properties());
+        assertEquals(1.0D, honey.properties().stabilityMultiplier());
+        assertEquals(1.0D, honey.properties().reactionSpeedMultiplier());
+        assertEquals(1.0D, honey.properties().durationMultiplier());
+        assertEquals(1.0D, honey.properties().potencyMultiplier());
+    }
+
+    @Test
+    void registryContainsWaterMilkAndHoneyAtTheM8T04Boundary() {
+        assertEquals(3, AlchemyLiquids.all().size());
         assertTrue(AlchemyLiquids.all().containsKey(AlchemyLiquids.WATER_ID));
         assertTrue(AlchemyLiquids.all().containsKey(AlchemyLiquids.MILK_ID));
-        assertFalse(AlchemyLiquids.get(Identifier.fromNamespaceAndPath("minecraft", "honey")).isPresent());
+        assertTrue(AlchemyLiquids.all().containsKey(AlchemyLiquids.HONEY_ID));
     }
 
     @Test
