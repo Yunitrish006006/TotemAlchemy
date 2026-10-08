@@ -132,7 +132,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 ## M9 — Container adapters
 
-- [ ] M9-T01 Define ItemStack ↔ liquid adapter boundary.
+- [x] M9-T01 Define ItemStack ↔ liquid adapter boundary.
 - [ ] M9-T02 Water Bottle adapter.
 - [ ] M9-T03 Water Bucket adapter.
 - [ ] M9-T04 Milk Bucket adapter.
