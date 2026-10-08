@@ -225,6 +225,45 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void activatedBaseDecodeRestoresModernRecordsAndMigratesLegacyFlag(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier legacyBase = Identifier.fromNamespaceAndPath("totem", "alchemy/legacy_activated_base");
+
+        AlchemyMixtureState modern = new AlchemyMixtureState(2);
+        modern.setBaseActivated(true);
+        modern.setActivatedBaseComposition(ActivatedBaseComposition.single(awkward, 0.75D));
+        AlchemyMixtureState restored = AlchemyMixtureState.decode(modern.encode());
+
+        requireNear(helper, restored.activatedBaseComposition().units(awkward), 0.75D,
+                "A| decode did not restore explicit activated-base units");
+        requireNear(helper, restored.activatedBaseComposition().units(legacyBase), 0.0D,
+                "Modern A| data was replaced by the legacy activated-base fallback");
+
+        AlchemyMixtureState legacy = AlchemyMixtureState.decode(
+                "V|3\nL|\nS|100\nB|1\n"
+        );
+        require(helper, legacy.baseActivated(),
+                "Legacy B|1 activation flag was not preserved");
+        requireNear(helper, legacy.activatedBaseComposition().units(legacyBase), 3.0D,
+                "Legacy B|1 state did not migrate to one activated-base unit per liquid unit");
+        requireNear(helper, legacy.baseConcentration(), 1.0D,
+                "Legacy B|1 migration did not preserve full activated-base concentration");
+
+        AlchemyMixtureState inactive = AlchemyMixtureState.decode(
+                "V|2\nL|\nS|100\nB|0\n"
+        );
+        require(helper, inactive.activatedBaseComposition().isEmpty(),
+                "Legacy B|0 state incorrectly gained activated-base composition");
+
+        AlchemyMixtureState corruptModern = AlchemyMixtureState.decode(
+                "V|1\nL|\nA|%%%|1.0\nS|100\nB|1\n"
+        );
+        require(helper, corruptModern.activatedBaseComposition().isEmpty(),
+                "Corrupt explicit A| data was incorrectly treated as an absent legacy marker");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
         Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
         Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
