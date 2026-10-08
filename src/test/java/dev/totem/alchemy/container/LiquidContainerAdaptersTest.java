@@ -19,9 +19,12 @@ class LiquidContainerAdaptersTest {
     @Test
     void unsupportedContainersStillFallThroughBuiltInDispatcher() {
         assertTrue(LiquidContainerAdapters.drain(new ItemStack(Items.MILK_BUCKET), 3).isEmpty());
+
+        AlchemyMixtureState milk = new AlchemyMixtureState(3);
+        milk.setLiquidComposition(LiquidComposition.single(AlchemyLiquids.MILK_ID, 1.0D));
         assertTrue(LiquidContainerAdapters.fill(
                 new ItemStack(Items.BUCKET),
-                water(3),
+                milk,
                 3
         ).isEmpty());
     }
