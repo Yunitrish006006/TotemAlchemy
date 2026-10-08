@@ -81,7 +81,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 ## M5 — Base activation and ingredient dose
 
-- [ ] M5-T01 Resolve starter reactions against unactivated units.
+- [x] M5-T01 Resolve starter reactions against unactivated units.
 - [ ] M5-T02 Prevent dilution from creating activated base.
 - [ ] M5-T03 Audit `completedStages` and existing reaction-capacity semantics.
 - [ ] M5-T04 Define reaction-capacity consumption/transformation rules.
