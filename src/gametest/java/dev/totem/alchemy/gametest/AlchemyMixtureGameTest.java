@@ -485,6 +485,61 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void finiteActivatedBaseCannotGenerateUnboundedRepeatedDose(GameTestHelper helper) {
+        Identifier awkwardBase = Identifier.fromNamespaceAndPath("totem", "alchemy/awkward");
+        String speedId = "minecraft:speed";
+        ItemStack sugar = new ItemStack(Items.SUGAR);
+        List<MultiOutcomeBrewing.Outcome> swiftnessOnly = List.of(
+                new MultiOutcomeBrewing.Outcome(
+                        Potions.SWIFTNESS,
+                        "message.totem.alchemy.outcome.swiftness"
+                )
+        );
+        AlchemyMixtureState.EffectDose standard =
+                EffectDoseStandards.forPotion(Potions.SWIFTNESS).get(speedId);
+        require(helper, standard != null,
+                "Swiftness fixture did not expose the standard speed EffectDose");
+
+        AlchemyMixtureState state = new AlchemyMixtureState(3);
+        state.setActivatedBaseComposition(
+                ActivatedBaseComposition.single(awkwardBase, 1.0D));
+        double originalBaseUnits = state.activatedBaseUnits();
+        double quantityCeiling = standard.quantity() * state.volumeUnits();
+
+        double previousQuantity = 0.0D;
+        for (int cycle = 1; cycle <= 32; cycle++) {
+            require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                            helper.getLevel(), state, sugar, swiftnessOnly),
+                    "Repeated sugar cycle " + cycle + " could not be scheduled");
+            AlchemyMixtureState.Reaction pending = state.pendingReactionForIngredient("minecraft:sugar");
+            require(helper, pending != null && pending.dose() == 1,
+                    "Completed-cycle repeat bypassed registry max_dose semantics on cycle " + cycle);
+
+            state.tickReactions(Integer.MAX_VALUE);
+
+            AlchemyMixtureState.EffectDose produced = state.effects().get(speedId);
+            require(helper, produced != null,
+                    "Repeated sugar cycle " + cycle + " lost the speed EffectDose");
+            require(helper, produced.quantity() + EPSILON >= previousQuantity,
+                    "Repeated sugar cycle reduced previously produced EffectDose");
+            require(helper, produced.quantity() <= quantityCeiling + EPSILON,
+                    "Repeated sugar cycles exceeded the finite normal-recipe EffectDose ceiling");
+            requireNear(helper, state.activatedBaseUnits(), originalBaseUnits,
+                    "Repeated ingredient use created or destroyed activated-base units");
+            requireNear(helper, state.baseConcentration(), 1.0D / 3.0D,
+                    "Repeated ingredient use changed the finite base concentration");
+
+            previousQuantity = produced.quantity();
+        }
+
+        require(helper, previousQuantity > standard.quantity(),
+                "Repeated-dose regression did not exercise cumulative EffectDose production");
+        require(helper, previousQuantity <= quantityCeiling + EPSILON,
+                "Finite activated base generated unbounded EffectDose after repeated completed reactions");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void activatedBaseCompositionEndToEndPreservesIngredientYield(GameTestHelper helper) {
         Identifier awkwardBase = Identifier.fromNamespaceAndPath("minecraft", "awkward");
         Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
