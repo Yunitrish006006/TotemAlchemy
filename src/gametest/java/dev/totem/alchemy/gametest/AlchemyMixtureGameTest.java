@@ -314,6 +314,92 @@ public final class AlchemyMixtureGameTest {
     }
 
     @GameTest(maxTicks = 40)
+    public void activatedBaseCompositionEndToEndPreservesIngredientYield(GameTestHelper helper) {
+        Identifier awkwardBase = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier mushroomBase = Identifier.fromNamespaceAndPath("totem", "alchemy/mushroom_base");
+        ItemStack awkwardBottle = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        ItemStack sugar = new ItemStack(Items.SUGAR);
+        List<MultiOutcomeBrewing.Outcome> selected = MultiOutcomeBrewing.chooseOutcomes(
+                sugar, awkwardBottle, 0.0F, 0.0F, 0.999F);
+        require(helper, !selected.isEmpty(),
+                "Activated-base regression fixture did not select an ingredient outcome");
+
+        AlchemyMixtureState compatibilityState = AlchemyMixtureBottle.fromPotion(awkwardBottle);
+        AlchemyMixtureState explicitState = compatibilityState.copy();
+        explicitState.setActivatedBaseComposition(
+                ActivatedBaseComposition.single(awkwardBase, explicitState.volumeUnits()));
+
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(), compatibilityState, sugar, selected),
+                "Compatibility activated-base state rejected the regression ingredient");
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(), explicitState, sugar, selected),
+                "Explicit activated-base composition rejected the regression ingredient");
+        compatibilityState.tickReactions(Integer.MAX_VALUE);
+        explicitState.tickReactions(Integer.MAX_VALUE);
+
+        require(helper, compatibilityState.effects().keySet().equals(explicitState.effects().keySet()),
+                "Explicit activated-base composition changed the ingredient effect set");
+        explicitState.effects().forEach((effectId, dose) -> {
+            AlchemyMixtureState.EffectDose compatibilityDose = compatibilityState.effects().get(effectId);
+            require(helper, compatibilityDose != null,
+                    "Compatibility fixture lost expected ingredient effect " + effectId);
+            requireNear(helper, dose.quantity(), compatibilityDose.quantity(),
+                    "Explicit activated-base composition changed ingredient EffectDose for " + effectId);
+            require(helper, dose.amplifierCap() == compatibilityDose.amplifierCap(),
+                    "Explicit activated-base composition changed ingredient amplifier cap for " + effectId);
+        });
+
+        Map<String, AlchemyMixtureState.EffectDose> expectedYield = Map.copyOf(explicitState.effects());
+        double expectedQuantity = expectedYield.values().stream()
+                .mapToDouble(AlchemyMixtureState.EffectDose::quantity)
+                .sum();
+
+        AlchemyMixtureState additionalBase = new AlchemyMixtureState(2);
+        additionalBase.setActivatedBaseComposition(
+                ActivatedBaseComposition.single(mushroomBase, 1.0D));
+        require(helper, explicitState.mergeFrom(additionalBase),
+                "Activated-base regression fixture could not merge explicit base units");
+        requireNear(helper, explicitState.activatedBaseComposition().units(awkwardBase), 1.0D,
+                "Merge changed original awkward-base units");
+        requireNear(helper, explicitState.activatedBaseComposition().units(mushroomBase), 1.0D,
+                "Merge did not retain incoming mushroom-base units");
+        requireNear(helper, explicitState.baseConcentration(), 2.0D / 3.0D,
+                "Merged activated-base concentration was not derived from conserved units");
+
+        double mergedQuantity = explicitState.effects().values().stream()
+                .mapToDouble(AlchemyMixtureState.EffectDose::quantity)
+                .sum();
+        requireNear(helper, mergedQuantity, expectedQuantity,
+                "Adding effectless activated-base liquid changed ingredient EffectDose quantity");
+
+        AlchemyMixtureState extracted = explicitState.extractUnits(2);
+        AlchemyMixtureState restored = AlchemyMixtureState.decode(extracted.encode());
+        require(helper, explicitState.mergeFrom(restored),
+                "Restored activated-base extraction could not merge back");
+        require(helper, explicitState.volumeUnits() == 3,
+                "Activated-base split/recombine did not restore total volume");
+        requireNear(helper, explicitState.activatedBaseComposition().units(awkwardBase), 1.0D,
+                "Activated-base split/persistence/recombine changed awkward units");
+        requireNear(helper, explicitState.activatedBaseComposition().units(mushroomBase), 1.0D,
+                "Activated-base split/persistence/recombine changed mushroom units");
+        requireNear(helper, explicitState.baseConcentration(), 2.0D / 3.0D,
+                "Activated-base split/persistence/recombine changed concentration");
+        require(helper, explicitState.effects().keySet().equals(expectedYield.keySet()),
+                "Activated-base lifecycle changed the ingredient effect set");
+        expectedYield.forEach((effectId, dose) -> {
+            AlchemyMixtureState.EffectDose restoredDose = explicitState.effects().get(effectId);
+            require(helper, restoredDose != null,
+                    "Activated-base lifecycle lost ingredient effect " + effectId);
+            requireNear(helper, restoredDose.quantity(), dose.quantity(),
+                    "Activated-base lifecycle changed ingredient EffectDose for " + effectId);
+            require(helper, restoredDose.amplifierCap() == dose.amplifierCap(),
+                    "Activated-base lifecycle changed ingredient amplifier cap for " + effectId);
+        });
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
     public void mixtureStateStoresNormalizedLiquidComposition(GameTestHelper helper) {
         Identifier water = Identifier.fromNamespaceAndPath("minecraft", "water");
         Identifier milk = Identifier.fromNamespaceAndPath("minecraft", "milk");
