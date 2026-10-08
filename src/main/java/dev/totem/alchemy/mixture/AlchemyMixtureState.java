@@ -49,7 +49,6 @@ public final class AlchemyMixtureState {
     private int stability;
     private int overcookTicks;
     private int perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
-    private boolean baseActivated;
     private boolean heatLockedAfterBottling;
     private DeliveryForm deliveryForm = DeliveryForm.DRINKABLE;
     private String canonicalPotionId;
@@ -85,7 +84,6 @@ public final class AlchemyMixtureState {
         copy.stability = stability;
         copy.overcookTicks = overcookTicks;
         copy.perfectWindowTicks = perfectWindowTicks;
-        copy.baseActivated = baseActivated;
         copy.heatLockedAfterBottling = heatLockedAfterBottling;
         copy.deliveryForm = deliveryForm;
         copy.canonicalPotionId = canonicalPotionId;
@@ -154,11 +152,21 @@ public final class AlchemyMixtureState {
     }
 
     public boolean baseActivated() {
-        return baseActivated;
+        return !activatedBaseComposition.isEmpty();
     }
 
+    /**
+     * Compatibility facade for callers that still use the legacy activation flag.
+     * Enabling an empty nonzero-volume mixture creates only the anonymous legacy fallback;
+     * disabling clears explicit activated-base units. Existing explicit composition is preserved.
+     */
     public void setBaseActivated(boolean baseActivated) {
-        this.baseActivated = baseActivated;
+        if (!baseActivated) {
+            activatedBaseComposition = ActivatedBaseComposition.empty();
+        } else if (activatedBaseComposition.isEmpty() && volumeUnits > 0) {
+            activatedBaseComposition =
+                    ActivatedBaseComposition.single(LEGACY_ACTIVATED_BASE_ID, volumeUnits);
+        }
     }
 
     public boolean isHeatLockedAfterBottling() {
@@ -249,7 +257,7 @@ public final class AlchemyMixtureState {
 
     public boolean canOvercook() {
         return !heatLockedAfterBottling && !isEmpty() && !hasPendingReactions() && !hasCompletedStages()
-                && (baseActivated || !effects.isEmpty());
+                && (baseActivated() || !effects.isEmpty());
     }
 
     public void addProvenance(String value) {
@@ -389,7 +397,7 @@ public final class AlchemyMixtureState {
         }
 
         if (BrewingMaterialSettings.isStarter(reaction.ingredientId())) {
-            baseActivated = true;
+            setBaseActivated(true);
         }
         if ("minecraft:gunpowder".equals(reaction.ingredientId())) {
             deliveryForm = DeliveryForm.SPLASH;
@@ -610,7 +618,6 @@ public final class AlchemyMixtureState {
         if (!preserveOutcomeSet) {
             provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
         }
-        baseActivated = baseActivated || other.baseActivated;
         heatLockedAfterBottling = !activeHeat
                 && (heatLockedAfterBottling || other.heatLockedAfterBottling);
         deliveryForm = deliveryForm == other.deliveryForm ? deliveryForm : DeliveryForm.DRINKABLE;
@@ -728,7 +735,6 @@ public final class AlchemyMixtureState {
         stability = STABILITY_MAX;
         overcookTicks = 0;
         perfectWindowTicks = perfectWindowTicksForProcessing(DEFAULT_REACTION_TICKS);
-        baseActivated = false;
         heatLockedAfterBottling = false;
         deliveryForm = DeliveryForm.DRINKABLE;
     }
@@ -740,7 +746,6 @@ public final class AlchemyMixtureState {
         result.stability = stability;
         result.overcookTicks = overcookTicks;
         result.perfectWindowTicks = perfectWindowTicks;
-        result.baseActivated = baseActivated;
         result.heatLockedAfterBottling = heatLockedAfterBottling;
         result.deliveryForm = deliveryForm;
         result.canonicalPotionId = canonicalPotionId;
@@ -862,7 +867,7 @@ public final class AlchemyMixtureState {
                             .append(units).append('\n'));
         }
         out.append("S|").append(stability).append('\n');
-        out.append("B|").append(baseActivated ? 1 : 0).append('\n');
+        out.append("B|").append(baseActivated() ? 1 : 0).append('\n');
         out.append("H|").append(heatLockedAfterBottling ? 1 : 0).append('\n');
         out.append("F|").append(deliveryForm.name()).append('\n');
         out.append("O|").append(overcookTicks).append('\n');
@@ -902,6 +907,7 @@ public final class AlchemyMixtureState {
         }
         AlchemyMixtureState state = new AlchemyMixtureState(0, capacity);
         boolean sawBaseMarker = false;
+        boolean decodedBaseActivated = false;
         boolean sawLiquidMarker = false;
         boolean sawActivatedBaseMarker = false;
         Map<Identifier, Double> decodedLiquids = new LinkedHashMap<>();
@@ -944,7 +950,7 @@ public final class AlchemyMixtureState {
                     }
                     case "S" -> state.stability = Math.max(0, Math.min(STABILITY_MAX, Integer.parseInt(part[1])));
                     case "B" -> {
-                        state.baseActivated = Integer.parseInt(part[1]) != 0;
+                        decodedBaseActivated = Integer.parseInt(part[1]) != 0;
                         sawBaseMarker = true;
                     }
                     case "H" -> state.heatLockedAfterBottling = Integer.parseInt(part[1]) != 0;
@@ -980,9 +986,9 @@ public final class AlchemyMixtureState {
             state.activatedBaseComposition = ActivatedBaseComposition.empty();
         }
         if (!sawBaseMarker) {
-            state.baseActivated = inferLegacyBase(state);
+            decodedBaseActivated = inferLegacyBase(state);
         }
-        if (!sawActivatedBaseMarker && state.baseActivated && state.volumeUnits > 0) {
+        if (!sawActivatedBaseMarker && decodedBaseActivated && state.volumeUnits > 0) {
             state.activatedBaseComposition =
                     ActivatedBaseComposition.single(LEGACY_ACTIVATED_BASE_ID, state.volumeUnits);
         }

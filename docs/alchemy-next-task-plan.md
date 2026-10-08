@@ -76,7 +76,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M4-T06 Split base units proportionally through extract.
 - [x] M4-T07 Add deterministic `A|` serialization.
 - [x] M4-T08 Migrate legacy `baseActivated` states.
-- [ ] M4-T09 Make `baseActivated` a compatibility-derived value.
+- [x] M4-T09 Make `baseActivated` a compatibility-derived value.
 - [ ] M4-T10 Base-composition regression pass without changing ingredient yield.
 
 ## M5 — Base activation and ingredient dose
