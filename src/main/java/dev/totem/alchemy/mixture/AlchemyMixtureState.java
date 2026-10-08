@@ -122,6 +122,10 @@ public final class AlchemyMixtureState {
         return activatedBaseComposition.totalUnits();
     }
 
+    public double unactivatedUnits() {
+        return Math.max(0.0D, volumeUnits - activatedBaseUnits());
+    }
+
     public double baseConcentration() {
         return volumeUnits <= 0 ? 0.0D : activatedBaseUnits() / volumeUnits;
     }
