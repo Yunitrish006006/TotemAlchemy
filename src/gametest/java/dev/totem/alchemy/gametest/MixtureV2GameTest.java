@@ -75,6 +75,37 @@ public final class MixtureV2GameTest {
     }
 
     @GameTest(maxTicks = 20)
+    public void completedStagesAreTimingHistoryNotReactionCapacity(GameTestHelper helper) {
+        ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        AlchemyMixtureState mixture = AlchemyMixtureBottle.fromPotion(awkward);
+        ItemStack sugar = new ItemStack(Items.SUGAR);
+
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(), mixture, sugar, java.util.List.of()),
+                "Initial sugar reaction could not be scheduled");
+        require(helper, !AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(), mixture, sugar, java.util.List.of()),
+                "Pending same-ingredient guard allowed a duplicate sugar reaction");
+
+        mixture.tickReactions(Integer.MAX_VALUE);
+        require(helper, !mixture.hasPendingReactionForIngredient("minecraft:sugar"),
+                "Completed sugar reaction remained classified as pending");
+        require(helper, mixture.completedStages().stream()
+                        .anyMatch(stage -> "minecraft:sugar".equals(stage.ingredientId())),
+                "Completed sugar reaction did not create timing history");
+
+        int completedBeforeRepeat = mixture.completedStages().size();
+        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+                        helper.getLevel(), mixture, sugar, java.util.List.of()),
+                "Completed timing history incorrectly blocked a later sugar reaction");
+        require(helper, mixture.hasPendingReactionForIngredient("minecraft:sugar"),
+                "Repeated sugar reaction was not represented as a new pending reaction");
+        require(helper, mixture.completedStages().size() == completedBeforeRepeat,
+                "Scheduling a later sugar reaction consumed completed timing history as capacity");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
     public void effectMaterialWithoutStarterImmediatelyDestroysStability(GameTestHelper helper) {
         AlchemyMixtureState water = AlchemyMixtureBrewing.waterState(1);
         require(helper, AlchemyMixtureBrewing.schedule(helper.getLevel(), water, new ItemStack(Items.MAGMA_CREAM)),
