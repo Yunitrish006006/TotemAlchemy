@@ -219,8 +219,56 @@ public final class AlchemyMixtureGameTest {
                 "Deterministic A| ordering did not place minecraft:awkward before totem base IDs");
 
         AlchemyMixtureState emptyComposition = new AlchemyMixtureState(1);
-        require(helper, emptyComposition.encode().lines().noneMatch(line -> line.startsWith("A|")),
-                "Empty activated-base composition emitted an A| serialization entry");
+        require(helper, emptyComposition.encode().lines().anyMatch(line -> line.equals("A|")),
+                "Empty activated-base composition did not emit the explicit modern A| sentinel");
+        require(helper, AlchemyMixtureState.decode(emptyComposition.encode())
+                        .activatedBaseComposition().isEmpty(),
+                "Explicit modern empty activated-base composition was misclassified as legacy");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void activatedBaseDecodeRestoresModernRecordsAndMigratesLegacyFlag(GameTestHelper helper) {
+        Identifier awkward = Identifier.fromNamespaceAndPath("minecraft", "awkward");
+        Identifier legacyBase = Identifier.fromNamespaceAndPath("totem", "alchemy/legacy_activated_base");
+
+        AlchemyMixtureState modern = new AlchemyMixtureState(2);
+        modern.setBaseActivated(true);
+        modern.setActivatedBaseComposition(ActivatedBaseComposition.single(awkward, 0.75D));
+        AlchemyMixtureState restored = AlchemyMixtureState.decode(modern.encode());
+
+        requireNear(helper, restored.activatedBaseComposition().units(awkward), 0.75D,
+                "A| decode did not restore explicit activated-base units");
+        requireNear(helper, restored.activatedBaseComposition().units(legacyBase), 0.0D,
+                "Modern A| data was replaced by the legacy activated-base fallback");
+
+        AlchemyMixtureState modernEmpty = new AlchemyMixtureState(2);
+        modernEmpty.setBaseActivated(true);
+        AlchemyMixtureState modernEmptyRestored = AlchemyMixtureState.decode(modernEmpty.encode());
+        require(helper, modernEmptyRestored.activatedBaseComposition().isEmpty(),
+                "Modern empty A| sentinel was incorrectly migrated to legacy activated base");
+
+        AlchemyMixtureState legacy = AlchemyMixtureState.decode(
+                "V|3\nL|\nS|100\nB|1\n"
+        );
+        require(helper, legacy.baseActivated(),
+                "Legacy B|1 activation flag was not preserved");
+        requireNear(helper, legacy.activatedBaseComposition().units(legacyBase), 3.0D,
+                "Legacy B|1 state did not migrate to one activated-base unit per liquid unit");
+        requireNear(helper, legacy.baseConcentration(), 1.0D,
+                "Legacy B|1 migration did not preserve full activated-base concentration");
+
+        AlchemyMixtureState inactive = AlchemyMixtureState.decode(
+                "V|2\nL|\nS|100\nB|0\n"
+        );
+        require(helper, inactive.activatedBaseComposition().isEmpty(),
+                "Legacy B|0 state incorrectly gained activated-base composition");
+
+        AlchemyMixtureState corruptModern = AlchemyMixtureState.decode(
+                "V|1\nL|\nA|%%%|1.0\nS|100\nB|1\n"
+        );
+        require(helper, corruptModern.activatedBaseComposition().isEmpty(),
+                "Corrupt explicit A| data was incorrectly treated as an absent legacy marker");
         helper.succeed();
     }
 
