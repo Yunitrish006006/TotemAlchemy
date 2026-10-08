@@ -6,6 +6,8 @@ import dev.totem.alchemy.alchemy.AlchemyHandler;
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
+import dev.totem.alchemy.liquid.LiquidPropertyResolver;
+import dev.totem.alchemy.liquid.LiquidReactionSpeedPolicy;
 import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import dev.totem.core.api.v1.migration.LegacyItemMigrationRegistry;
 import net.minecraft.core.BlockPos;
@@ -119,14 +121,19 @@ public final class AlchemyCompoundBrewing {
         }
         String actualIngredientId = BuiltInRegistries.ITEM.getKey(actualIngredient.getItem()).toString();
         int processingTicks = BrewingMaterialSettings.processingTicks(actualIngredient.getItem());
+        LiquidReactionSpeedPolicy.ReactionTiming reactionTiming = LiquidReactionSpeedPolicy.scale(
+                Math.max(0, Math.min(processingTicks, elapsedTicks)),
+                processingTicks,
+                LiquidPropertyResolver.resolve(state.liquidComposition())
+        );
         String reactionId = reactionId(recipe, ingredient);
         state.addProvenance(inputMarker(recipe, ingredient));
         state.setCanonicalPotionId(null);
         state.addReaction(new AlchemyMixtureState.Reaction(
                 reactionId,
                 actualIngredientId,
-                Math.max(0, Math.min(processingTicks, elapsedTicks)),
-                processingTicks,
+                reactionTiming.elapsedTicks(),
+                reactionTiming.requiredTicks(),
                 state.volumeUnits(),
                 null,
                 null,
