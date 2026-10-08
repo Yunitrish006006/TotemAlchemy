@@ -297,12 +297,15 @@ public final class AlchemyMixtureState {
                 .orElse(null);
     }
 
-    public Reaction incrementPendingReactionDoseForIngredient(String ingredientId) {
+    public Reaction incrementPendingReactionDoseForIngredient(String ingredientId, int maxDose) {
         Reaction existing = pendingReactionForIngredient(ingredientId);
-        if (existing == null) {
+        if (existing == null || maxDose < 1 || existing.dose() >= maxDose) {
             return null;
         }
         Reaction updated = existing.withAdditionalDose(1);
+        if (updated.dose() > maxDose) {
+            return null;
+        }
         reactions.put(updated.id(), updated);
         return updated;
     }
