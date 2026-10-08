@@ -3,6 +3,8 @@ package dev.totem.alchemy.mixture;
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import dev.totem.alchemy.alchemy.BrewingModifierPolicy;
 import dev.totem.alchemy.alchemy.AlchemyBrewing;
+import dev.totem.alchemy.reaction.BrewingReactionContext;
+import dev.totem.alchemy.reaction.IngredientReaction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.crafting.RecipePropertySet;
 import dev.totem.alchemy.alchemy.MultiOutcomeBrewing;
@@ -30,7 +32,11 @@ public final class AlchemyMixtureBrewing {
         if (AlchemyCompoundBrewing.hasActiveRecipe(state)) return false;
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
         if (state.hasPendingReactionForIngredient(ingredientId)) {
-            return MultiOutcomeBrewing.isOutcomeIngredient(ingredient);
+            if (!MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) {
+                return false;
+            }
+            AlchemyMixtureState.Reaction pending = state.pendingReactionForIngredient(ingredientId);
+            return pending != null && pending.dose() < maxDoseForOutcomeIngredient(ingredient);
         }
         boolean pendingStarter = hasPendingStarter(state);
         if (!state.baseActivated() && pendingStarter && BrewingMaterialSettings.isStarter(ingredient.getItem())) return false;
@@ -84,7 +90,10 @@ public final class AlchemyMixtureBrewing {
         if (state.hasPendingReactionForIngredient(ingredientId)
                 && MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) {
             AlchemyMixtureState.Reaction updated =
-                    state.incrementPendingReactionDoseForIngredient(ingredientId);
+                    state.incrementPendingReactionDoseForIngredient(
+                            ingredientId,
+                            maxDoseForOutcomeIngredient(ingredient)
+                    );
             if (updated == null) {
                 return ScheduleResult.NOT_SCHEDULED;
             }
@@ -180,6 +189,12 @@ public final class AlchemyMixtureBrewing {
     private static boolean hasPendingStarter(AlchemyMixtureState state) {
         return state.reactions().stream()
                 .anyMatch(reaction -> BrewingMaterialSettings.isStarter(reaction.ingredientId()));
+    }
+
+    private static int maxDoseForOutcomeIngredient(ItemStack ingredient) {
+        return BrewingReactionContext.resolveLegacyActivated(ingredient)
+                .map(IngredientReaction::maxDose)
+                .orElse(1);
     }
 
     public static boolean canApplyBrewingStandIngredient(ItemStack input, ItemStack ingredient) {
