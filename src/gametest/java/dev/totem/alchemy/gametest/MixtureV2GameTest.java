@@ -83,12 +83,14 @@ public final class MixtureV2GameTest {
         require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
                         helper.getLevel(), mixture, sugar, java.util.List.of()),
                 "Initial sugar reaction could not be scheduled");
-        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+        require(helper, !AlchemyMixtureBrewing.canReact(helper.getLevel(), mixture, sugar),
+                "Registry max_dose=1 did not close pending sugar capacity");
+        require(helper, !AlchemyMixtureBrewing.scheduleOutcomeSet(
                         helper.getLevel(), mixture, sugar, java.util.List.of()),
-                "Repeated pending sugar did not accumulate dose");
+                "Registry max_dose=1 allowed excess pending sugar dose");
         require(helper, mixture.reactions().size() == 1
-                        && reactionFor(helper, mixture, "minecraft:sugar").dose() == 2,
-                "Repeated pending sugar created another reaction instead of increasing dose");
+                        && reactionFor(helper, mixture, "minecraft:sugar").dose() == 1,
+                "Rejected excess sugar dose mutated the pending reaction");
 
         mixture.tickReactions(Integer.MAX_VALUE);
         require(helper, !mixture.hasPendingReactionForIngredient("minecraft:sugar"),
@@ -110,7 +112,50 @@ public final class MixtureV2GameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void repeatedPendingIngredientIncrementsDoseWithoutResettingProgress(GameTestHelper helper) {
+    public void repeatedPendingIngredientIncrementsDoseWithinExplicitMaxWithoutResettingProgress(GameTestHelper helper) {
+        AlchemyMixtureState mixture = new AlchemyMixtureState(1);
+        mixture.setBaseActivated(true);
+        mixture.addReaction(new AlchemyMixtureState.Reaction(
+                "dose:test",
+                "minecraft:sugar",
+                37,
+                300,
+                1,
+                1,
+                "minecraft:awkward",
+                "minecraft:swiftness",
+                java.util.Map.of(),
+                java.util.Map.of()
+        ));
+
+        AlchemyMixtureState.Reaction before = reactionFor(helper, mixture, "minecraft:sugar");
+        AlchemyMixtureState.Reaction incremented =
+                mixture.incrementPendingReactionDoseForIngredient("minecraft:sugar", 3);
+        require(helper, incremented != null,
+                "Explicit max_dose=3 rejected a valid dose increment");
+
+        AlchemyMixtureState.Reaction after = reactionFor(helper, mixture, "minecraft:sugar");
+        require(helper, mixture.reactions().size() == 1,
+                "Dose accumulation created a second pending reaction");
+        require(helper, before.id().equals(after.id()),
+                "Dose accumulation replaced the pending reaction identity");
+        require(helper, after.dose() == 2,
+                "Dose accumulation did not increment pending dose to two");
+        require(helper, after.elapsedTicks() == 37,
+                "Dose accumulation reset pending reaction progress");
+        require(helper, before.sourceEffects().equals(after.sourceEffects())
+                        && before.targetEffects().equals(after.targetEffects()),
+                "Dose accumulation replaced captured reaction chemistry");
+
+        require(helper, mixture.incrementPendingReactionDoseForIngredient("minecraft:sugar", 2) == null,
+                "Dose accumulation exceeded an explicit max_dose=2");
+        require(helper, reactionFor(helper, mixture, "minecraft:sugar").dose() == 2,
+                "Rejected excess dose mutated pending dose");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void ingredientReactionMaxDoseRejectsExcessPendingDose(GameTestHelper helper) {
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
         AlchemyMixtureState mixture = AlchemyMixtureBottle.fromPotion(awkward);
         ItemStack sugar = new ItemStack(Items.SUGAR);
@@ -118,31 +163,16 @@ public final class MixtureV2GameTest {
         require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
                         helper.getLevel(), mixture, sugar, java.util.List.of()),
                 "Initial sugar reaction could not be scheduled");
-        mixture.tickReactions(37);
-
-        AlchemyMixtureState.Reaction before = reactionFor(helper, mixture, "minecraft:sugar");
-        String reactionId = before.id();
-        require(helper, before.dose() == 1 && before.elapsedTicks() == 37,
-                "Initial pending sugar did not begin at dose one with retained progress");
-
-        require(helper, AlchemyMixtureBrewing.canReact(helper.getLevel(), mixture, sugar),
-                "Pending outcome ingredient was not accepted for dose accumulation");
-        require(helper, AlchemyMixtureBrewing.scheduleOutcomeSet(
+        AlchemyMixtureState.Reaction pending = reactionFor(helper, mixture, "minecraft:sugar");
+        require(helper, pending.dose() == 1,
+                "Initial reaction did not begin at dose one");
+        require(helper, !AlchemyMixtureBrewing.canReact(helper.getLevel(), mixture, sugar),
+                "Sugar remained interactable after reaching registry max_dose");
+        require(helper, !AlchemyMixtureBrewing.scheduleOutcomeSet(
                         helper.getLevel(), mixture, sugar, java.util.List.of()),
-                "Second sugar could not increment pending dose");
-
-        AlchemyMixtureState.Reaction after = reactionFor(helper, mixture, "minecraft:sugar");
-        require(helper, mixture.reactions().size() == 1,
-                "Repeated ingredient created a second pending reaction");
-        require(helper, reactionId.equals(after.id()),
-                "Repeated ingredient replaced the pending reaction identity");
-        require(helper, after.dose() == 2,
-                "Repeated ingredient did not increment pending dose to two");
-        require(helper, after.elapsedTicks() == 37,
-                "Repeated ingredient reset pending reaction progress");
-        require(helper, before.sourceEffects().equals(after.sourceEffects())
-                        && before.targetEffects().equals(after.targetEffects()),
-                "Repeated ingredient rerolled or replaced captured reaction chemistry");
+                "Sugar exceeded registry max_dose");
+        require(helper, reactionFor(helper, mixture, "minecraft:sugar").dose() == 1,
+                "Rejected registry max_dose overflow mutated pending dose");
         helper.succeed();
     }
 
