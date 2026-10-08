@@ -88,6 +88,51 @@ class AlchemyMixtureTimingTest {
     }
 
     @Test
+    void pendingReactionDoseSurvivesLifecycleAndLegacyCodecDefaultsToOne() {
+        AlchemyMixtureState state = new AlchemyMixtureState(2);
+        state.setBaseActivated(true);
+        state.addReaction(new AlchemyMixtureState.Reaction(
+                "dose-stage",
+                "minecraft:sugar",
+                100,
+                400,
+                2,
+                3,
+                "minecraft:awkward",
+                "minecraft:swiftness",
+                Map.of("minecraft:speed", new AlchemyMixtureState.EffectDose(120.0D, 0)),
+                Map.of("minecraft:speed", new AlchemyMixtureState.EffectDose(240.0D, 0))
+        ));
+
+        AlchemyMixtureState.Reaction initial = state.reactions().iterator().next();
+        assertEquals(3, initial.dose());
+
+        state.tickReactions(20);
+        AlchemyMixtureState.Reaction advanced = state.reactions().iterator().next();
+        assertEquals(3, advanced.dose());
+
+        AlchemyMixtureState extracted = state.extractUnits(1);
+        assertEquals(3, state.reactions().iterator().next().dose());
+        assertEquals(3, extracted.reactions().iterator().next().dose());
+
+        String encoded = extracted.encode();
+        AlchemyMixtureState restored = AlchemyMixtureState.decode(encoded);
+        assertEquals(3, restored.reactions().iterator().next().dose());
+
+        assertTrue(state.mergeFrom(restored));
+        assertEquals(3, state.reactions().iterator().next().dose());
+
+        String reactionLine = encoded.lines()
+                .filter(line -> line.startsWith("R|"))
+                .findFirst()
+                .orElseThrow();
+        String legacyReactionLine = reactionLine.substring(0, reactionLine.lastIndexOf('|'));
+        AlchemyMixtureState legacyRestored =
+                AlchemyMixtureState.decode(encoded.replace(reactionLine, legacyReactionLine));
+        assertEquals(1, legacyRestored.reactions().iterator().next().dose());
+    }
+
+    @Test
     void completedStageTimersSurviveTheMixtureCodec() {
         AlchemyMixtureState state = activeMixture();
         state.addReaction(reaction("saved-stage", 399, 400));
