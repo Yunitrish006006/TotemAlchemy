@@ -71,6 +71,9 @@ public final class WaterBottleContainerAdapter implements LiquidContainerAdapter
     static boolean isPlainWater(AlchemyMixtureState state) {
         if (state == null || state.isEmpty()
                 || state.baseActivated()
+                || state.deliveryForm() != AlchemyMixtureState.DeliveryForm.DRINKABLE
+                || state.canonicalPotionId() != null
+                    && !"minecraft:water".equals(state.canonicalPotionId())
                 || !state.effects().isEmpty()
                 || state.hasPendingReactions()
                 || state.hasCompletedStages()
