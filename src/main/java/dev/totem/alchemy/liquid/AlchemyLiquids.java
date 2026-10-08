@@ -15,10 +15,12 @@ import java.util.Optional;
  */
 public final class AlchemyLiquids {
     public static final Identifier WATER_ID = Identifier.fromNamespaceAndPath("minecraft", "water");
+    public static final Identifier MILK_ID = Identifier.fromNamespaceAndPath("minecraft", "milk");
 
     private static final Map<Identifier, AlchemyLiquid> REGISTRY = new LinkedHashMap<>();
 
     public static final AlchemyLiquid WATER = register(AlchemyLiquid.neutral(WATER_ID));
+    public static final AlchemyLiquid MILK = register(AlchemyLiquid.neutral(MILK_ID));
 
     private AlchemyLiquids() {
     }
