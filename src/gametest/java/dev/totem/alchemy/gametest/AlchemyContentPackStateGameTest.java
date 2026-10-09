@@ -10,6 +10,9 @@ public final class AlchemyContentPackStateGameTest {
     @GameTest(maxTicks = 20)
     public void optionalAlchemyPacksAreDisabledByDefault(GameTestHelper helper) {
         AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
+        System.out.println("[M10-T07] selected server datapacks: "
+                + helper.getLevel().getServer().getPackRepository().getSelectedIds());
+
         System.out.println("[M10-T07] optionalAlchemyPacksAreDisabledByDefault Totem="
                 + snapshot.totemAlchemyEnabled() + " Minecraft=" + snapshot.minecraftAlchemyEnabled());
         require(helper, !snapshot.totemAlchemyEnabled(),
