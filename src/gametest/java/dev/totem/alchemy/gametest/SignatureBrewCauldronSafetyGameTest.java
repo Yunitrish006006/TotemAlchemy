@@ -1,8 +1,11 @@
 package dev.totem.alchemy.gametest;
 
+import dev.totem.alchemy.alchemy.AlchemyCauldronRecipe;
+import dev.totem.alchemy.alchemy.AlchemyCauldronRecipes;
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.AlchemyCompoundBrewing;
 import dev.totem.alchemy.mixture.SignatureBrewDefinition;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
@@ -66,6 +69,40 @@ public final class SignatureBrewCauldronSafetyGameTest {
         require(helper, !ticking.canOvercook(), "Unclaimed signature result became overcookable");
         require(helper, ticking.claimSignatureResult(HOT_COCOA).isPresent(),
                 "Completed signature could not be claimed");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void legacyHotCocoaCannotSettleInParallelWithCommittedSignature(GameTestHelper helper) {
+        AlchemyCauldronRecipe recipe = AlchemyCauldronRecipes.get(HOT_COCOA);
+        require(helper, recipe != null, "Hot cocoa legacy recipe is unavailable");
+        AlchemyMixtureState mixture = AlchemyCompoundBrewing.initialState(recipe);
+        for (AlchemyCauldronRecipe.IngredientStep ingredient : recipe.ingredients()) {
+            AlchemyCompoundBrewing.restoreCompletedInput(mixture, recipe, ingredient);
+        }
+        mixture.addReaction(new AlchemyMixtureState.Reaction(
+                "signature:sugar", "minecraft:sugar", 0, 20, mixture.volumeUnits(),
+                null, null, Map.of(), Map.of()));
+        mixture.addReaction(new AlchemyMixtureState.Reaction(
+                "signature:cocoa", "totem:alchemy/cocoa_powder", 0, 40, mixture.volumeUnits(),
+                null, null, Map.of(), Map.of()));
+        require(helper, mixture.replaceSignatureGroups(List.of(
+                new SignatureBrewResolver.ReactionGroup(
+                        HOT_COCOA, List.of("signature:sugar", "signature:cocoa")))),
+                "Could not reserve hot cocoa group");
+        require(helper, mixture.commitSignatureGroup(HOT_COCOA, new SignatureBrewDefinition.Result(
+                SignatureBrewDefinition.Type.BOTTLED_ITEM, HOT_COCOA, 1,
+                Identifier.fromNamespaceAndPath("minecraft", "glass_bottle"), null)),
+                "Could not commit hot cocoa group");
+        require(helper, AlchemyCompoundBrewing.completeIfReady(mixture) == null,
+                "Legacy hot cocoa settled while a signature owns its reaction inputs");
+        mixture.tickReactions(40);
+        require(helper, AlchemyCompoundBrewing.completeIfReady(mixture) == null,
+                "Legacy hot cocoa settled after signature members completed");
+        require(helper, AlchemyCompoundBrewing.bottledResult(mixture).isEmpty(),
+                "Legacy hot cocoa emitted a second result from committed signature");
+        require(helper, !AlchemyCompoundBrewing.isReady(mixture),
+                "Legacy hot cocoa gained a ready marker during signature settlement");
         helper.succeed();
     }
 
