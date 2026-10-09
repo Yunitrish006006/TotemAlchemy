@@ -139,7 +139,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M9-T05 Honey Bottle adapter.
 - [x] M9-T06 Large Flask full-mixture adapter.
 - [x] M9-T07 Potion bottle import/export compatibility.
-- [ ] M9-T08 Mixed-liquid cauldron fill/extract tests.
+- [x] M9-T08 Mixed-liquid cauldron fill/extract tests.
 
 ## M10 — Datapack content migration
 

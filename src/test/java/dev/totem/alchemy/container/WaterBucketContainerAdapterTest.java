@@ -1,6 +1,7 @@
 package dev.totem.alchemy.container;
 
 import dev.totem.alchemy.liquid.AlchemyLiquids;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.LiquidComposition;
@@ -69,20 +70,35 @@ class WaterBucketContainerAdapterTest {
     }
 
     @Test
-    void fillRejectsNonWaterOrStatefulMixtures() {
-        AlchemyMixtureState milk = new AlchemyMixtureState(3);
-        milk.setLiquidComposition(LiquidComposition.single(AlchemyLiquids.MILK_ID, 1.0D));
+    void nonPlainThreeUnitMixtureUsesStoredWaterBucketWithoutLosingState() {
+        AlchemyMixtureState mixed = new AlchemyMixtureState(3);
+        mixed.setLiquidComposition(LiquidComposition.of(Map.of(
+                AlchemyLiquids.WATER_ID, 0.5D,
+                AlchemyLiquids.MILK_ID, 0.5D
+        )));
+        mixed.setBaseActivated(true);
+        mixed.putEffect("minecraft:speed", 600.0D, 0);
+        mixed.setStability(83);
+        mixed.addProvenance("test:mixed_bucket");
+        mixed.lockHeatIfFinished();
 
-        AlchemyMixtureState activatedWater = AlchemyMixtureBrewing.waterState(3);
-        activatedWater.setBaseActivated(true);
+        LiquidContainerAdapter.FillResult filled = LiquidContainerAdapters.fill(
+                new ItemStack(Items.BUCKET),
+                mixed,
+                3
+        ).orElseThrow();
 
-        AlchemyMixtureState effectfulWater = AlchemyMixtureBrewing.waterState(3);
-        effectfulWater.putEffect("minecraft:speed", 600.0D, 0);
+        assertTrue(filled.filledContainer().is(Items.WATER_BUCKET));
+        assertTrue(AlchemyMixtureBottle.hasStoredMixture(filled.filledContainer()));
+        assertEquals(
+                mixed.encode(),
+                AlchemyMixtureBottle.storedMixture(filled.filledContainer()).encode()
+        );
 
-        ItemStack bucket = new ItemStack(Items.BUCKET);
-        assertTrue(LiquidContainerAdapters.fill(bucket, milk, 3).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(bucket, activatedWater, 3).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(bucket, effectfulWater, 3).isEmpty());
+        LiquidContainerAdapter.DrainResult drained =
+                LiquidContainerAdapters.drain(filled.filledContainer(), 3).orElseThrow();
+        assertEquals(mixed.encode(), drained.drained().encode());
+        assertTrue(drained.containerRemainder().is(Items.BUCKET));
     }
 
     @Test
