@@ -10,6 +10,8 @@ public final class AlchemyContentPackStateGameTest {
     @GameTest(maxTicks = 20)
     public void optionalAlchemyPacksAreDisabledByDefault(GameTestHelper helper) {
         AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
+        System.out.println("[M10-T07] optionalAlchemyPacksAreDisabledByDefault Totem="
+                + snapshot.totemAlchemyEnabled() + " Minecraft=" + snapshot.minecraftAlchemyEnabled());
         require(helper, !snapshot.totemAlchemyEnabled(),
                 "Totem Alchemy built-in datapack was unexpectedly enabled by default");
         require(helper, !snapshot.minecraftAlchemyEnabled(),
@@ -20,6 +22,8 @@ public final class AlchemyContentPackStateGameTest {
     @GameTest(maxTicks = 20)
     public void disabledTotemPackDoesNotLeakFixedBrewingRecipes(GameTestHelper helper) {
         AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
+        System.out.println("[M10-T07] disabledTotemPackDoesNotLeakFixedBrewingRecipes Totem="
+                + snapshot.totemAlchemyEnabled() + " Minecraft=" + snapshot.minecraftAlchemyEnabled());
         require(helper, !snapshot.totemAlchemyEnabled() && !snapshot.minecraftAlchemyEnabled(),
                 "OFF/OFF fixed-recipe isolation fixture requires both optional packs disabled"
                         + " (Totem=" + snapshot.totemAlchemyEnabled()
@@ -47,6 +51,8 @@ public final class AlchemyContentPackStateGameTest {
     @GameTest(maxTicks = 20)
     public void disabledAlchemyPacksDoNotLeakReactionRegistry(GameTestHelper helper) {
         AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
+        System.out.println("[M10-T07] disabledAlchemyPacksDoNotLeakReactionRegistry Totem="
+                + snapshot.totemAlchemyEnabled() + " Minecraft=" + snapshot.minecraftAlchemyEnabled());
         require(helper, !snapshot.totemAlchemyEnabled() && !snapshot.minecraftAlchemyEnabled(),
                 "OFF/OFF reaction isolation fixture requires both optional packs disabled"
                         + " (Totem=" + snapshot.totemAlchemyEnabled()
