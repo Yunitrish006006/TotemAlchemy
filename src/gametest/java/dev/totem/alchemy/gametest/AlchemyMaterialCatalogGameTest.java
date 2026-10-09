@@ -16,7 +16,7 @@ public final class AlchemyMaterialCatalogGameTest {
     @GameTest(maxTicks = 20)
     public void manualPageCountTracksOneMaterialPerPageCatalog(GameTestHelper helper) {
         int expectedMaterialPages = AlchemyMaterialCatalog.entries().size();
-        int expectedManualPages = expectedMaterialPages + 4;
+        int expectedManualPages = expectedMaterialPages + 5;
         if (AlchemyMaterialCatalog.MATERIALS_PER_PAGE != 1
                 || AlchemyMaterialCatalog.pageCount() != expectedMaterialPages
                 || AlchemyManual.pageKeys().size() != expectedManualPages) {

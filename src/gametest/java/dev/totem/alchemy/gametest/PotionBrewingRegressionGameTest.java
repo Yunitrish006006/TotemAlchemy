@@ -8,7 +8,6 @@ import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.mixin.BrewingStandBlockEntityAccessor;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
-import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -39,8 +38,13 @@ public final class PotionBrewingRegressionGameTest {
 
     @GameTest(maxTicks = 40)
     public void vanillaAwkwardToSwiftnessStillWorks(GameTestHelper helper) {
-        assertMix(helper, Potions.AWKWARD, new ItemStack(Items.SUGAR), Potions.SWIFTNESS,
-                "Sugar stopped brewing awkward potion into swiftness");
+        assertNativeVanillaStandMix(
+                helper,
+                Potions.AWKWARD,
+                new ItemStack(Items.SUGAR),
+                Potions.SWIFTNESS,
+                "Sugar stopped brewing awkward potion into swiftness"
+        );
         helper.succeed();
     }
 
@@ -130,30 +134,31 @@ public final class PotionBrewingRegressionGameTest {
     }
 
     @GameTest(maxTicks = 40)
-    public void offOffVanillaSafetyAggregate(GameTestHelper helper) {
-        AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
-        require(helper, !snapshot.totemAlchemyEnabled() && !snapshot.minecraftAlchemyEnabled(),
-                "Aggregate vanilla-safety fixture requires OFF/OFF pack state");
-
+    public void nativeVanillaSafetyAggregateRegardlessOfAlchemyPackState(GameTestHelper helper) {
         assertMix(helper, Potions.WATER, new ItemStack(Items.NETHER_WART), Potions.AWKWARD,
-                "OFF/OFF broke water to awkward");
-        assertMix(helper, Potions.AWKWARD, new ItemStack(Items.SUGAR), Potions.SWIFTNESS,
-                "OFF/OFF broke awkward to swiftness");
+                "Native vanilla safety broke water to awkward");
+        assertNativeVanillaStandMix(
+                helper,
+                Potions.AWKWARD,
+                new ItemStack(Items.SUGAR),
+                Potions.SWIFTNESS,
+                "Native vanilla safety broke awkward to swiftness"
+        );
         assertMix(helper, Potions.SWIFTNESS, new ItemStack(Items.REDSTONE), Potions.LONG_SWIFTNESS,
-                "OFF/OFF broke redstone duration modifier");
+                "Native vanilla safety broke redstone duration modifier");
         assertMix(helper, Potions.SWIFTNESS, new ItemStack(Items.GLOWSTONE_DUST), Potions.STRONG_SWIFTNESS,
-                "OFF/OFF broke glowstone potency modifier");
+                "Native vanilla safety broke glowstone potency modifier");
 
         ItemStack drinkable = potion(Potions.SWIFTNESS);
         ItemStack splash = AlchemyBrewing.mix(
                 helper.getLevel(), new ItemStack(Items.GUNPOWDER), drinkable);
         assertPotionContainer(helper, splash, Items.SPLASH_POTION, Potions.SWIFTNESS,
-                "OFF/OFF broke gunpowder delivery conversion");
+                "Native vanilla safety broke gunpowder delivery conversion");
 
         ItemStack lingering = AlchemyBrewing.mix(
                 helper.getLevel(), new ItemStack(Items.DRAGON_BREATH), splash);
         assertPotionContainer(helper, lingering, Items.LINGERING_POTION, Potions.SWIFTNESS,
-                "OFF/OFF broke dragon-breath delivery conversion");
+                "Native vanilla safety broke dragon-breath delivery conversion");
         helper.succeed();
     }
 
@@ -244,6 +249,20 @@ public final class PotionBrewingRegressionGameTest {
         require(helper, accessor.totemAlchemy$getBrewTime() == 0,
                 "Guaranteed vanilla brewing cycle did not complete");
         return stand;
+    }
+
+    private static void assertNativeVanillaStandMix(
+            GameTestHelper helper,
+            net.minecraft.core.Holder<net.minecraft.world.item.alchemy.Potion> inputPotion,
+            ItemStack ingredient,
+            net.minecraft.core.Holder<net.minecraft.world.item.alchemy.Potion> expectedPotion,
+            String message
+    ) {
+        BrewingStandBlockEntity stand =
+                completeNativeVanillaAtLegacyFailureRoll(helper, potion(inputPotion), ingredient);
+        for (int slot = 0; slot < 3; slot++) {
+            assertPotion(helper, stand.getItem(slot), expectedPotion, message);
+        }
     }
 
     private static void assertMix(
