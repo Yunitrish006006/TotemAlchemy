@@ -10,8 +10,14 @@ public final class AlchemyContentPackStateGameTest {
     @GameTest(maxTicks = 20)
     public void optionalAlchemyPacksAreDisabledByDefault(GameTestHelper helper) {
         AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
-        System.out.println("[M10-T07] selected server datapacks: "
-                + helper.getLevel().getServer().getPackRepository().getSelectedIds());
+        var selectedPacks = helper.getLevel().getServer().getPackRepository().getSelectedIds();
+        System.out.println("[M10-T07] selected server datapacks: " + selectedPacks);
+        require(helper, snapshot.totemAlchemyEnabled()
+                        == selectedPacks.contains("totem-alchemy:totem_alchemy"),
+                "Totem Alchemy marker disagrees with selected datapacks");
+        require(helper, snapshot.minecraftAlchemyEnabled()
+                        == selectedPacks.contains("totem-alchemy:minecraft_alchemy"),
+                "Minecraft Alchemy marker disagrees with selected datapacks");
 
         System.out.println("[M10-T07] optionalAlchemyPacksAreDisabledByDefault Totem="
                 + snapshot.totemAlchemyEnabled() + " Minecraft=" + snapshot.minecraftAlchemyEnabled());
