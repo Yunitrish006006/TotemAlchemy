@@ -62,7 +62,19 @@ tasks.register('verifyOptionalAlchemyPackIsolation') {
         if (!leaked.isEmpty()) {
             throw new GradleException("Optional Alchemy content leaked into base datapack: " + leaked.join(', '))
         }
-        logger.lifecycle('Optional Alchemy base-pack source isolation verified.')
+        def optionalTotemRecipes = fileTree('src/main/resources/resourcepacks/totem_alchemy/data').matching {
+            include '**/recipe/brewing/*.json'
+        }.files
+        def optionalMinecraftReactions = fileTree('src/main/resources/resourcepacks/minecraft_alchemy/data').matching {
+            include '**/alchemy/base_reactions/**/*.json'
+            include '**/alchemy/ingredient_reactions/**/*.json'
+        }.files
+        if (optionalTotemRecipes.isEmpty() || optionalMinecraftReactions.isEmpty()) {
+            throw new GradleException('Optional Alchemy isolation fixture is incomplete: missing brewing recipes or reactions')
+        }
+        logger.lifecycle("Optional Alchemy base-pack source isolation verified; "
+                + "${optionalTotemRecipes.size()} optional brewing recipes and "
+                + "${optionalMinecraftReactions.size()} optional Minecraft reactions remain in their own packs.")
     }
 }
 tasks.named('check') { dependsOn('verifyOptionalAlchemyPackIsolation') }
