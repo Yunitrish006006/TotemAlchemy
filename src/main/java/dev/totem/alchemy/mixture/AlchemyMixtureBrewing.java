@@ -5,6 +5,7 @@ import dev.totem.alchemy.alchemy.BrewingModifierPolicy;
 import dev.totem.alchemy.alchemy.AlchemyBrewing;
 import dev.totem.alchemy.liquid.LiquidPropertyResolver;
 import dev.totem.alchemy.liquid.LiquidReactionSpeedPolicy;
+import dev.totem.alchemy.reaction.AlchemyReactionResolver;
 import dev.totem.alchemy.reaction.BrewingReactionContext;
 import dev.totem.alchemy.reaction.IngredientReaction;
 import net.minecraft.server.level.ServerLevel;
@@ -28,6 +29,8 @@ import java.util.Map;
 /** Builds delayed cauldron reactions and preserves layered mixtures through a vanilla Brewing Stand. */
 public final class AlchemyMixtureBrewing {
     private static final int BREWING_STAND_BOTTLE_VOLUME_UNITS = 1;
+    private static final Identifier AWKWARD_BASE_ID =
+            Identifier.fromNamespaceAndPath("totem", "alchemy/awkward");
 
     private AlchemyMixtureBrewing() {}
 
@@ -43,11 +46,12 @@ public final class AlchemyMixtureBrewing {
             return pending != null && pending.dose() < maxDoseForOutcomeIngredient(ingredient);
         }
         boolean pendingStarter = hasPendingStarter(state);
-        if (!state.baseActivated() && pendingStarter && BrewingMaterialSettings.isStarter(ingredient.getItem())) return false;
+        boolean baseStarter = isBaseStarter(state, ingredient);
+        if (pendingStarter && baseStarter) return false;
         if (ingredient.is(Items.REDSTONE) || ingredient.is(Items.GLOWSTONE_DUST)) return !state.effects().isEmpty();
         if (ingredient.is(Items.GUNPOWDER)) return state.deliveryForm() == AlchemyMixtureState.DeliveryForm.DRINKABLE;
         if (ingredient.is(Items.DRAGON_BREATH)) return state.deliveryForm() == AlchemyMixtureState.DeliveryForm.SPLASH;
-        if (BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated()) return true;
+        if (baseStarter) return true;
         if (MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) return true;
         ItemStack input = canonicalInput(state);
         if (input.isEmpty()) return false;
@@ -119,10 +123,23 @@ public final class AlchemyMixtureBrewing {
         List<MultiOutcomeBrewing.Outcome> chosenOutcomes = List.of();
 
         boolean pendingStarter = hasPendingStarter(state);
-        boolean startingBase = BrewingMaterialSettings.isStarter(ingredient.getItem())
-                && !state.baseActivated() && !pendingStarter;
+        java.util.Optional<AlchemyReactionResolver.BaseReactionResolution> baseResolution =
+                AlchemyReactionResolver.resolveBaseReaction(state, ingredient);
+        boolean legacyStartingBase = baseResolution.isEmpty()
+                && BrewingMaterialSettings.isStarter(ingredient.getItem())
+                && !state.baseActivated()
+                && !pendingStarter;
+        boolean startingBase = (baseResolution.isPresent() && !pendingStarter) || legacyStartingBase;
         if (startingBase) {
-            if (state.effects().isEmpty()) targetPotion = "minecraft:awkward";
+            if (baseResolution.isPresent()
+                    && AWKWARD_BASE_ID.equals(baseResolution.get().reaction().resultBaseId())
+                    && state.activatedBaseComposition().isEmpty()
+                    && baseResolution.get().activationUnits() + 1.0E-6D >= state.volumeUnits()
+                    && state.effects().isEmpty()) {
+                targetPotion = "minecraft:awkward";
+            } else if (legacyStartingBase && state.effects().isEmpty()) {
+                targetPotion = "minecraft:awkward";
+            }
         } else if (ingredient.is(Items.REDSTONE)) {
             source = state.effects();
             AlchemyMixtureState targetState = state.copy();
@@ -165,7 +182,9 @@ public final class AlchemyMixtureBrewing {
         String reactionPrefix = "brew:";
         String id = reactionPrefix + (sourcePotion == null ? "mixed" : sourcePotion)
                 + ">" + ingredientId + ">" + (targetPotion == null ? "mixed" : targetPotion);
-        int processingTicks = BrewingMaterialSettings.processingTicks(ingredient.getItem());
+        int processingTicks = baseResolution
+                .map(resolution -> resolution.reaction().processingTicks())
+                .orElseGet(() -> BrewingMaterialSettings.processingTicks(ingredient.getItem()));
         LiquidReactionSpeedPolicy.ReactionTiming reactionTiming = LiquidReactionSpeedPolicy.scale(
                 0,
                 processingTicks,
@@ -203,8 +222,49 @@ public final class AlchemyMixtureBrewing {
     }
 
     private static boolean hasPendingStarter(AlchemyMixtureState state) {
-        return state.reactions().stream()
-                .anyMatch(reaction -> BrewingMaterialSettings.isStarter(reaction.ingredientId()));
+        return state.reactions().stream().anyMatch(reaction -> {
+            Identifier ingredientId = Identifier.tryParse(reaction.ingredientId());
+            if (ingredientId == null) {
+                return false;
+            }
+            Item item = BuiltInRegistries.ITEM.getValue(ingredientId);
+            if (item == null || !BuiltInRegistries.ITEM.getKey(item).equals(ingredientId)) {
+                return false;
+            }
+            return isBaseStarter(state, new ItemStack(item));
+        });
+    }
+
+    private static boolean isBaseStarter(AlchemyMixtureState state, ItemStack ingredient) {
+        return AlchemyReactionResolver.resolveBaseReaction(state, ingredient).isPresent()
+                || (!state.baseActivated() && BrewingMaterialSettings.isStarter(ingredient.getItem()));
+    }
+
+    static boolean applyCompletedBaseReaction(
+            AlchemyMixtureState state,
+            AlchemyMixtureState.Reaction reaction
+    ) {
+        if (state == null || reaction == null) {
+            return false;
+        }
+        Identifier ingredientId = Identifier.tryParse(reaction.ingredientId());
+        if (ingredientId == null) {
+            return false;
+        }
+        Item item = BuiltInRegistries.ITEM.getValue(ingredientId);
+        if (item == null || !BuiltInRegistries.ITEM.getKey(item).equals(ingredientId)) {
+            return false;
+        }
+        java.util.Optional<AlchemyReactionResolver.BaseReactionResolution> resolved =
+                AlchemyReactionResolver.resolveBaseReaction(state, new ItemStack(item));
+        if (resolved.isEmpty()) {
+            return false;
+        }
+        AlchemyReactionResolver.BaseReactionResolution resolution = resolved.get();
+        return state.activateBaseUnits(
+                resolution.reaction().resultBaseId(),
+                resolution.activationUnits()
+        ) > 1.0E-6D;
     }
 
     private static int maxDoseForOutcomeIngredient(ItemStack ingredient) {
@@ -254,6 +314,7 @@ public final class AlchemyMixtureBrewing {
         if (BrewingModifierPolicy.isModifierIngredient(ingredient)) {
             return BrewingModifierPolicy.canApply(input, ingredient);
         }
+        if (AlchemyReactionResolver.resolveBaseReaction(state, ingredient).isPresent()) return true;
         if (BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated()) return true;
         return MultiOutcomeBrewing.isOutcomeIngredient(ingredient);
     }
@@ -277,8 +338,26 @@ public final class AlchemyMixtureBrewing {
         }
 
         String ingredientId = BuiltInRegistries.ITEM.getKey(ingredient.getItem()).toString();
-        boolean startingBase = BrewingMaterialSettings.isStarter(ingredient.getItem()) && !state.baseActivated();
-        if (startingBase) {
+        java.util.Optional<AlchemyReactionResolver.BaseReactionResolution> baseResolution =
+                AlchemyReactionResolver.resolveBaseReaction(state, ingredient);
+        boolean legacyStartingBase = baseResolution.isEmpty()
+                && BrewingMaterialSettings.isStarter(ingredient.getItem())
+                && !state.baseActivated();
+        if (baseResolution.isPresent()) {
+            AlchemyReactionResolver.BaseReactionResolution resolution = baseResolution.get();
+            state.activateBaseUnits(
+                    resolution.reaction().resultBaseId(),
+                    resolution.activationUnits()
+            );
+            if (AWKWARD_BASE_ID.equals(resolution.reaction().resultBaseId())
+                    && state.activatedBaseUnits() + 1.0E-6D >= state.volumeUnits()
+                    && state.effects().isEmpty()) {
+                state.setCanonicalPotionId("minecraft:awkward");
+            }
+            state.addProvenance("reaction:" + ingredientId);
+            return AlchemyMixtureBottle.toPotion(state);
+        }
+        if (legacyStartingBase) {
             state.setBaseActivated(true);
             if (state.effects().isEmpty()) state.setCanonicalPotionId("minecraft:awkward");
             state.addProvenance("reaction:" + ingredientId);
