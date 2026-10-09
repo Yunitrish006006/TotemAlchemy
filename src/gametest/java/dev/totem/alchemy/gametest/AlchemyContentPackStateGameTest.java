@@ -75,6 +75,32 @@ public final class AlchemyContentPackStateGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 20)
+    public void selectedPackMatrixMatchesRuntimeState(GameTestHelper helper) {
+        String fixture = System.getenv("TOTEM_ALCHEMY_GAMETEST_PACKS");
+        if (fixture == null || fixture.isBlank()) {
+            // Legacy M10-T07 OFF/OFF lane has no matrix environment variable.
+            fixture = "OFF_OFF";
+        }
+        require(helper, java.util.Set.of("ON_ON", "ON_OFF", "OFF_ON", "OFF_OFF").contains(fixture),
+                "Invalid M10-T08 pack fixture: " + fixture);
+
+        boolean expectedTotem = fixture.startsWith("ON_");
+        boolean expectedMinecraft = fixture.endsWith("_ON");
+        var selected = helper.getLevel().getServer().getPackRepository().getSelectedIds();
+        var state = AlchemyContentPackState.snapshot();
+        require(helper, selected.contains("totem-alchemy:totem_alchemy") == expectedTotem,
+                "Totem selected-pack mismatch in " + fixture + ": " + selected);
+        require(helper, selected.contains("totem-alchemy:minecraft_alchemy") == expectedMinecraft,
+                "Minecraft selected-pack mismatch in " + fixture + ": " + selected);
+        require(helper, state.totemAlchemyEnabled() == expectedTotem,
+                "Totem content marker mismatch in " + fixture);
+        require(helper, state.minecraftAlchemyEnabled() == expectedMinecraft,
+                "Minecraft content marker mismatch in " + fixture);
+        System.out.println("[M10-T08] verified " + fixture + " selected=" + selected);
+        helper.succeed();
+    }
+
     private static void require(GameTestHelper helper, boolean condition, String message) {
         if (!condition) {
             throw helper.assertionException(message);

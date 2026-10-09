@@ -88,6 +88,19 @@ jobs:
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           ./gradlew -PtotemCoreJar="$core_jar" runGameTest -PoffOffGameTests=true --rerun-tasks --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
+      - name: Run M10-T08 pack matrix GameTests
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          for mode in OFF_OFF ON_OFF OFF_ON ON_ON; do
+            echo "::group::M10-T08 ${mode}"
+            TOTEM_ALCHEMY_GAMETEST_PACKS="${mode}" ./gradlew -PtotemCoreJar="$core_jar" runGameTest -PpackMatrixGameTests=true --rerun-tasks --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
+            echo "::endgroup::"
+          done
+
       - name: Run server GameTests
         shell: bash
         run: |
