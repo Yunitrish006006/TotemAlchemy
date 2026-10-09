@@ -145,7 +145,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 - [x] M10-T01 Move Minecraft base reactions into `Minecraft Alchemy`.
 - [x] M10-T02 Move vanilla ingredient chemistry into `Minecraft Alchemy`.
-- [ ] M10-T03 Move Totem mushroom starter/base reactions into `Totem Alchemy`.
+- [x] M10-T03 Move Totem mushroom starter/base reactions into `Totem Alchemy`.
 - [ ] M10-T04 Move Totem-only ingredients into `Totem Alchemy`.
 - [ ] M10-T05 Move Totem reaction extensions into `Totem Alchemy`.
 - [ ] M10-T06 Move 48 Totem Brewing Stand recipes into `Totem Alchemy`.
