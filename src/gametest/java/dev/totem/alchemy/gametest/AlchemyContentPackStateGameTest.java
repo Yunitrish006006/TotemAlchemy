@@ -20,11 +20,10 @@ public final class AlchemyContentPackStateGameTest {
     @GameTest(maxTicks = 20)
     public void disabledTotemPackDoesNotLeakFixedBrewingRecipes(GameTestHelper helper) {
         AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
-        if (snapshot.totemAlchemyEnabled()) {
-            // ON-mode recipe coverage belongs to BrewingMigrationGameTest.
-            helper.succeed();
-            return;
-        }
+        require(helper, !snapshot.totemAlchemyEnabled() && !snapshot.minecraftAlchemyEnabled(),
+                "OFF/OFF fixed-recipe isolation fixture requires both optional packs disabled"
+                        + " (Totem=" + snapshot.totemAlchemyEnabled()
+                        + ", Minecraft=" + snapshot.minecraftAlchemyEnabled() + ")");
 
         int leaked = 0;
         String firstLeakedId = null;
@@ -48,11 +47,10 @@ public final class AlchemyContentPackStateGameTest {
     @GameTest(maxTicks = 20)
     public void disabledAlchemyPacksDoNotLeakReactionRegistry(GameTestHelper helper) {
         AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
-        if (snapshot.totemAlchemyEnabled() || snapshot.minecraftAlchemyEnabled()) {
-            // This assertion applies only to a verified OFF/OFF runtime.
-            helper.succeed();
-            return;
-        }
+        require(helper, !snapshot.totemAlchemyEnabled() && !snapshot.minecraftAlchemyEnabled(),
+                "OFF/OFF reaction isolation fixture requires both optional packs disabled"
+                        + " (Totem=" + snapshot.totemAlchemyEnabled()
+                        + ", Minecraft=" + snapshot.minecraftAlchemyEnabled() + ")");
 
         int baseCount = AlchemyReactionDataLoader.baseReactions().size();
         int ingredientCount = AlchemyReactionDataLoader.ingredientReactions().size();
