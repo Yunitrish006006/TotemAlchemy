@@ -1,0 +1,12 @@
+{
+  "liquids": {
+    "minecraft:water": 1.0
+  },
+  "starter": "minecraft:nether_wart",
+  "result_base": "totem:alchemy/awkward",
+  "success_chance": 1.0,
+  "activation_yield": 3.0,
+  "processing_ticks": 400,
+  "brewing_stand": true,
+  "priority": 0
+}
