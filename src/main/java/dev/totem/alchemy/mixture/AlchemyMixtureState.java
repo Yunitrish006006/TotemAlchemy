@@ -516,18 +516,18 @@ public final class AlchemyMixtureState {
                     .orElse(null);
             if (committed == null) {
                 applyReaction(reaction);
+                completedStages.put(reaction.id(), new CompletedStage(
+                        reaction.id(),
+                        reaction.ingredientId(),
+                        0,
+                        perfectWindowTicksForProcessing(reaction.requiredTicks())
+                ));
             } else {
                 // An owned reaction advances on its original timer, but never
-                // pays out its ordinary result. The signature settles separately.
+                // pays out its ordinary result or its ordinary completed stage.
                 signatureProcesses.put(committed.signatureId(), committed.completeMember(reaction.id()));
             }
             reactions.remove(reaction.id());
-            completedStages.put(reaction.id(), new CompletedStage(
-                    reaction.id(),
-                    reaction.ingredientId(),
-                    0,
-                    perfectWindowTicksForProcessing(reaction.requiredTicks())
-            ));
         }
         if (!completed.isEmpty() && stability > 0) {
             stability = Math.min(STABILITY_MAX, stability + completed.size() * 5);
