@@ -149,8 +149,8 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M10-T04 Move Totem-only ingredients into `Totem Alchemy`.
 - [x] M10-T05 Move Totem reaction extensions into `Totem Alchemy`.
 - [x] M10-T06 Move 48 Totem Brewing Stand recipes into `Totem Alchemy`.
-- [ ] M10-T07 Verify OFF/OFF contains no Totem recipe leakage.
-- [ ] M10-T08 Verify all four pack combinations.
+- [x] M10-T07 Verify OFF/OFF contains no Totem recipe leakage. (Build #277: isolation GameTests and static content boundary passed; unrelated JUnit failures tracked separately.)
+- [ ] M10-T08 Verify all four pack combinations. (Build #278: four selected-pack/marker matrix fixtures passed; content isolation assertions still pending.)
 
 ## M11 — Signature brews
 
