@@ -30,6 +30,34 @@ fabricApi {
     }
 }
 
+// M10-T07: select GameTest entrypoints at resource-processing time, before the server starts.
+// This keeps ON/ON functionality tests and OFF/OFF isolation tests in separate launches.
+def offOffGameTests = providers.gradleProperty('offOffGameTests').map { it.toBoolean() }.getOrElse(false)
+tasks.withType(ProcessResources).configureEach { resourceTask ->
+    if (resourceTask.name.toLowerCase().contains('gametest')) {
+        inputs.property('offOffGameTests', offOffGameTests)
+        filesMatching('fabric.mod.json') {
+            filter { String line -> line }
+            expand([:]) // retain Gradle's normal resource-processing lifecycle
+        }
+        doLast {
+            def manifest = new File(destinationDir, 'fabric.mod.json')
+            if (!manifest.isFile()) throw new GradleException("GameTest manifest not found: ${manifest}")
+            def json = new groovy.json.JsonSlurper().parse(manifest)
+            def isolationClass = 'dev.totem.alchemy.gametest.AlchemyContentPackStateGameTest'
+            def entries = json.entrypoints['fabric-gametest']
+            if (!entries.contains(isolationClass)) {
+                throw new GradleException('M10-T07 isolation GameTest entrypoint is missing')
+            }
+            json.entrypoints['fabric-gametest'] = offOffGameTests
+                    ? [isolationClass]
+                    : entries.findAll { it != isolationClass }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)) + '\\n'
+            logger.lifecycle("M10-T07 GameTest suite: " + (offOffGameTests ? 'OFF/OFF isolation' : 'ON/ON functionality'))
+        }
+    }
+}
+
 repositories {
     mavenCentral()
     maven { url = 'https://repo.codemc.io/repository/relativitymc/' }
