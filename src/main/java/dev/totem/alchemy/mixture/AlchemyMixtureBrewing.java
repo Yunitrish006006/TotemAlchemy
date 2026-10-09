@@ -55,9 +55,15 @@ public final class AlchemyMixtureBrewing {
         if (MultiOutcomeBrewing.isOutcomeIngredient(ingredient)) return true;
         ItemStack input = canonicalInput(state);
         if (input.isEmpty()) return false;
-        return level instanceof ServerLevel serverLevel
-                ? AlchemyBrewing.recipe(serverLevel, input, ingredient).isPresent()
-                : level.recipeAccess().propertySet(RecipePropertySet.BREWING_REAGENTS).test(ingredient);
+        if (level instanceof ServerLevel serverLevel) {
+            if (AlchemyBrewing.recipe(serverLevel, input, ingredient).isEmpty()) {
+                return false;
+            }
+            ItemStack output = AlchemyBrewing.mix(serverLevel, ingredient, input);
+            AlchemyMixtureState targetState = AlchemyMixtureBottle.fromPotion(output);
+            return !wouldBypassBaseReactionRegistry(state, ingredient, targetState);
+        }
+        return level.recipeAccess().propertySet(RecipePropertySet.BREWING_REAGENTS).test(ingredient);
     }
 
     public static boolean schedule(Level level, AlchemyMixtureState state, ItemStack ingredient) {
@@ -173,7 +179,10 @@ public final class AlchemyMixtureBrewing {
             if (input.isEmpty()) return ScheduleResult.NOT_SCHEDULED;
             ItemStack output = AlchemyBrewing.mix(serverLevel, ingredient, input);
             AlchemyMixtureState targetState = AlchemyMixtureBottle.fromPotion(output);
-            if (targetState.isEmpty()) return ScheduleResult.NOT_SCHEDULED;
+            if (targetState.isEmpty()
+                    || wouldBypassBaseReactionRegistry(state, ingredient, targetState)) {
+                return ScheduleResult.NOT_SCHEDULED;
+            }
             source = state.effects();
             target = scaleEffects(targetState.effects(), state.volumeUnits());
             targetPotion = targetState.canonicalPotionId();
@@ -219,6 +228,18 @@ public final class AlchemyMixtureBrewing {
                 researchable,
                 resultPotionIds
         );
+    }
+
+    private static boolean wouldBypassBaseReactionRegistry(
+            AlchemyMixtureState source,
+            ItemStack ingredient,
+            AlchemyMixtureState target
+    ) {
+        return source != null
+                && target != null
+                && !source.baseActivated()
+                && target.baseActivated()
+                && AlchemyReactionResolver.resolveBaseReaction(source, ingredient).isEmpty();
     }
 
     private static boolean hasPendingStarter(AlchemyMixtureState state) {
