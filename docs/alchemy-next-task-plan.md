@@ -148,7 +148,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M10-T03 Move Totem mushroom starter/base reactions into `Totem Alchemy`.
 - [x] M10-T04 Move Totem-only ingredients into `Totem Alchemy`.
 - [x] M10-T05 Move Totem reaction extensions into `Totem Alchemy`.
-- [ ] M10-T06 Move 48 Totem Brewing Stand recipes into `Totem Alchemy`.
+- [x] M10-T06 Move 48 Totem Brewing Stand recipes into `Totem Alchemy`.
 - [ ] M10-T07 Verify OFF/OFF contains no Totem recipe leakage.
 - [ ] M10-T08 Verify all four pack combinations.
 

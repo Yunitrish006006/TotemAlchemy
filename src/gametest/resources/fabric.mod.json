@@ -15,7 +15,6 @@
       "dev.totem.alchemy.gametest.PigManureLayerGameTest",
       "dev.totem.alchemy.gametest.FlaskEnchantmentsGameTest",
       "dev.totem.alchemy.gametest.PortableMixtureGameTest",
-      "dev.totem.alchemy.gametest.AlchemyContentPackStateGameTest",
       "dev.totem.alchemy.gametest.PotionBrewingRegressionGameTest",
       "dev.totem.alchemy.gametest.RestorativeBrewingGameTest",
       "dev.totem.alchemy.gametest.AlchemyMaterialCatalogGameTest",

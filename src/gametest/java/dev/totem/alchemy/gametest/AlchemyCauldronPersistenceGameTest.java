@@ -233,27 +233,36 @@ public final class AlchemyCauldronPersistenceGameTest {
 
         ItemStack saturation = PotionContents.createItemStack(Items.POTION, AlchemyPotions.SATURATION);
         ItemStack resistance = PotionContents.createItemStack(Items.POTION, AlchemyPotions.RESISTANCE);
+        boolean fixedRecipesEnabled = AlchemyContentPackState.totemAlchemyEnabled();
         require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(),
                         saturation,
                         new ItemStack(Items.GLOWSTONE_DUST)
-                ),
-                "Saturation potion could not be strengthened");
+                ) == fixedRecipesEnabled,
+                "Saturation modifier recipe did not follow Totem Alchemy pack state");
         require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(),
                         resistance,
                         new ItemStack(Items.REDSTONE)
-                ),
-                "Resistance potion could not be extended");
+                ) == fixedRecipesEnabled,
+                "Resistance extension recipe did not follow Totem Alchemy pack state");
         require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(),
                         resistance,
                         new ItemStack(Items.GLOWSTONE_DUST)
-                ),
-                "Resistance potion could not be strengthened");
+                ) == fixedRecipesEnabled,
+                "Resistance strength recipe did not follow Totem Alchemy pack state");
         helper.succeed();
     }
 
     @GameTest(maxTicks = 40)
     public void cherryLeavesTurnEverySwiftnessTierIntoItsCherryVariant(GameTestHelper helper) {
         ItemStack cherryLeaves = new ItemStack(Items.CHERRY_LEAVES);
+        if (!AlchemyContentPackState.totemAlchemyEnabled()) {
+            ItemStack swiftness = PotionContents.createItemStack(Items.POTION, Potions.SWIFTNESS);
+            require(helper, !dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(
+                            helper.getLevel(), swiftness, cherryLeaves),
+                    "Disabled Totem Alchemy leaked Cherry Brewing recipes");
+            helper.succeed();
+            return;
+        }
         assertPotionMix(helper, Potions.SWIFTNESS, cherryLeaves, AlchemyPotions.CHERRY_SWIFTNESS);
         assertPotionMix(helper, Potions.LONG_SWIFTNESS, cherryLeaves, AlchemyPotions.LONG_CHERRY_SWIFTNESS);
         assertPotionMix(helper, Potions.STRONG_SWIFTNESS, cherryLeaves, AlchemyPotions.STRONG_CHERRY_SWIFTNESS);
@@ -272,6 +281,14 @@ public final class AlchemyCauldronPersistenceGameTest {
     @GameTest(maxTicks = 40)
     public void fireflyBushTurnsEveryStrengthTierIntoItsFireflyVariant(GameTestHelper helper) {
         ItemStack fireflyBush = new ItemStack(Items.FIREFLY_BUSH);
+        if (!AlchemyContentPackState.totemAlchemyEnabled()) {
+            ItemStack strength = PotionContents.createItemStack(Items.POTION, Potions.STRENGTH);
+            require(helper, !dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(
+                            helper.getLevel(), strength, fireflyBush),
+                    "Disabled Totem Alchemy leaked Firefly Brewing recipes");
+            helper.succeed();
+            return;
+        }
         assertPotionMix(helper, Potions.STRENGTH, fireflyBush, AlchemyPotions.FIREFLY_STRENGTH);
         assertPotionMix(helper, Potions.LONG_STRENGTH, fireflyBush, AlchemyPotions.LONG_FIREFLY_STRENGTH);
         assertPotionMix(helper, Potions.STRONG_STRENGTH, fireflyBush, AlchemyPotions.STRONG_FIREFLY_STRENGTH);
@@ -291,6 +308,13 @@ public final class AlchemyCauldronPersistenceGameTest {
     public void redMushroomCanReplaceNetherWartForAwkwardPotion(GameTestHelper helper) {
         ItemStack waterPotion = PotionContents.createItemStack(Items.POTION, Potions.WATER);
         ItemStack redMushroom = new ItemStack(Items.RED_MUSHROOM);
+        if (!AlchemyContentPackState.totemAlchemyEnabled()) {
+            require(helper, !dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(
+                            helper.getLevel(), waterPotion, redMushroom),
+                    "Disabled Totem Alchemy leaked the Red Mushroom Brewing recipe");
+            helper.succeed();
+            return;
+        }
         require(helper, dev.totem.alchemy.alchemy.AlchemyBrewing.hasMix(helper.getLevel(), waterPotion, redMushroom),
                 "Red mushroom was not registered as an alternative awkward-potion ingredient");
         ItemStack result = dev.totem.alchemy.alchemy.AlchemyBrewing.mix(helper.getLevel(), redMushroom, waterPotion);
