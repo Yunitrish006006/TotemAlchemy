@@ -57,6 +57,8 @@ public final class AlchemyMixtureState {
     private String canonicalPotionId;
     private final Map<String, EffectDose> effects = new LinkedHashMap<>();
     private final Map<String, Reaction> reactions = new LinkedHashMap<>();
+    /** M11: reserved reaction ownership only; signature outcomes are not active yet. */
+    private final Map<Identifier, SignatureBrewResolver.ReactionGroup> signatureGroups = new LinkedHashMap<>();
     private final Map<String, CompletedStage> completedStages = new LinkedHashMap<>();
     private final Set<String> provenance = new LinkedHashSet<>();
 
@@ -93,6 +95,7 @@ public final class AlchemyMixtureState {
         copy.canonicalPotionId = canonicalPotionId;
         copy.effects.putAll(effects);
         copy.reactions.putAll(reactions);
+        copy.signatureGroups.putAll(signatureGroups);
         copy.completedStages.putAll(completedStages);
         copy.provenance.addAll(provenance);
         return copy;
@@ -222,6 +225,7 @@ public final class AlchemyMixtureState {
         if (!isEmpty() && !hasPendingReactions()) {
             heatLockedAfterBottling = true;
             completedStages.clear();
+            signatureGroups.clear();
             overcookTicks = 0;
             perfectWindowTicks = 0;
             provenance.removeIf(AlchemyMixtureState::isFinishedCookingHistory);
@@ -261,6 +265,47 @@ public final class AlchemyMixtureState {
 
     public Collection<Reaction> reactions() {
         return List.copyOf(reactions.values());
+    }
+
+    public Collection<SignatureBrewResolver.ReactionGroup> signatureGroups() {
+        return List.copyOf(signatureGroups.values());
+    }
+
+    /**
+     * Atomically replace in-flight group reservations without changing individual reaction timers.
+     *
+     * <p>Each owned reaction must still be pending, and no reaction may be owned twice.
+     * A reservation is a planning marker, not permission to settle signature outcomes:
+     * ordinary completion remains authoritative until M11 group settlement is implemented.</p>
+     */
+    public boolean replaceSignatureGroups(Collection<SignatureBrewResolver.ReactionGroup> proposedGroups) {
+        if (proposedGroups == null || isEmpty()) {
+            return false;
+        }
+        for (SignatureBrewResolver.ReactionGroup previous : signatureGroups.values()) {
+            if (previous.memberReactionIds().stream().anyMatch(id -> {
+                Reaction reaction = reactions.get(id);
+                return reaction == null || reaction.complete();
+            })) {
+                return false;
+            }
+        }
+        Map<Identifier, SignatureBrewResolver.ReactionGroup> proposed = new LinkedHashMap<>();
+        Set<String> reserved = new LinkedHashSet<>();
+        for (SignatureBrewResolver.ReactionGroup group : proposedGroups) {
+            if (group == null || proposed.putIfAbsent(group.signatureId(), group) != null) {
+                return false;
+            }
+            for (String id : group.memberReactionIds()) {
+                Reaction reaction = reactions.get(id);
+                if (reaction == null || reaction.complete() || !reserved.add(id)) {
+                    return false;
+                }
+            }
+        }
+        signatureGroups.clear();
+        signatureGroups.putAll(proposed);
+        return true;
     }
 
     public Collection<CompletedStage> completedStages() {
@@ -409,6 +454,14 @@ public final class AlchemyMixtureState {
             if (advanced.complete()) {
                 completed.add(advanced);
             }
+        }
+        // M11 staging: invalidate reservations touching a completed member until
+        // atomic group settlement exists. The legacy individual outcome remains unchanged.
+        if (!completed.isEmpty()) {
+            Set<String> finishedIds = new LinkedHashSet<>();
+            completed.forEach(reaction -> finishedIds.add(reaction.id()));
+            signatureGroups.values().removeIf(group ->
+                    group.memberReactionIds().stream().anyMatch(finishedIds::contains));
         }
         for (Reaction reaction : completed) {
             applyReaction(reaction);
@@ -684,6 +737,10 @@ public final class AlchemyMixtureState {
         if (other == null || other.isEmpty() || volumeUnits + other.volumeUnits > capacity) {
             return false;
         }
+        // Until replan-after-merge is implemented, never silently lose group ownership.
+        if (!signatureGroups.isEmpty() || !other.signatureGroups.isEmpty()) {
+            return false;
+        }
         boolean activeHeat = canAdvanceUnderHeat() || other.canAdvanceUnderHeat();
         int oldVolume = volumeUnits;
         int incomingVolume = other.volumeUnits;
@@ -829,6 +886,7 @@ public final class AlchemyMixtureState {
         activatedBaseComposition = ActivatedBaseComposition.empty();
         effects.clear();
         reactions.clear();
+        signatureGroups.clear();
         completedStages.clear();
         provenance.clear();
         canonicalPotionId = null;
@@ -853,6 +911,7 @@ public final class AlchemyMixtureState {
         result.canonicalPotionId = canonicalPotionId;
         effects.forEach((id, dose) -> result.effects.put(id, dose.scale(factor)));
         reactions.forEach((id, reaction) -> result.reactions.put(id, reaction.scale(factor, newVolume)));
+        result.signatureGroups.putAll(signatureGroups);
         result.completedStages.putAll(completedStages);
         result.provenance.addAll(provenance);
         return result;
@@ -1011,6 +1070,13 @@ public final class AlchemyMixtureState {
                         .append(enc(encodeEffects(reaction.sourceEffects()))).append('|')
                         .append(enc(encodeEffects(reaction.targetEffects()))).append('|')
                         .append(reaction.dose()).append('\n'));
+        signatureGroups.values().stream()
+                .sorted(Comparator.comparing(group -> group.signatureId().toString()))
+                .forEach(group -> {
+                    out.append("G|").append(enc(group.signatureId().toString()));
+                    group.memberReactionIds().forEach(id -> out.append('|').append(enc(id)));
+                    out.append('\n');
+                });
         completedStages.values().stream().sorted(Comparator.comparing(CompletedStage::id)).forEach(stage ->
                 out.append("T|").append(enc(stage.id())).append('|')
                         .append(enc(stage.ingredientId())).append('|')
@@ -1095,6 +1161,18 @@ public final class AlchemyMixtureState {
                             Integer.parseInt(part[5]), part.length >= 11 ? Integer.parseInt(part[10]) : 1,
                             blankToNull(dec(part[6])), blankToNull(dec(part[7])),
                             decodeEffects(dec(part[8])), decodeEffects(dec(part[9]))));
+                    case "G" -> {
+                        if (part.length < 3) throw new IllegalArgumentException("Incomplete signature group");
+                        Identifier id = Identifier.tryParse(dec(part[1]));
+                        if (id == null) throw new IllegalArgumentException("Invalid signature group ID");
+                        List<String> members = new ArrayList<>();
+                        for (int i = 2; i < part.length; i++) {
+                            members.add(dec(part[i]));
+                        }
+                        SignatureBrewResolver.ReactionGroup group =
+                                new SignatureBrewResolver.ReactionGroup(id, members);
+                        state.signatureGroups.putIfAbsent(id, group);
+                    }
                     case "T" -> state.completedStages.put(dec(part[1]), new CompletedStage(
                             dec(part[1]), dec(part[2]), Integer.parseInt(part[3]), Integer.parseInt(part[4])));
                     case "P" -> state.provenance.add(dec(part[1]));
@@ -1124,6 +1202,13 @@ public final class AlchemyMixtureState {
                     ActivatedBaseComposition.single(LEGACY_ACTIVATED_BASE_ID, state.volumeUnits);
         }
         rewriteLegacyIds(state);
+        // Corrupt, overlapping or no-longer-pending reservations must not survive reload.
+        Set<String> decodedReserved = new LinkedHashSet<>();
+        state.signatureGroups.values().removeIf(group ->
+                group.memberReactionIds().stream().anyMatch(id -> {
+                    Reaction reaction = state.reactions.get(id);
+                    return reaction == null || reaction.complete() || !decodedReserved.add(id);
+                }));
         // Migrate mixtures created by builds that intentionally preserved opposing rolled outcomes.
         state.provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
         state.neutralizeOpposites();
