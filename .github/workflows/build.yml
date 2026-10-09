@@ -62,7 +62,7 @@ jobs:
           chmod +x gradlew
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
-          ./gradlew -PtotemCoreJar="$core_jar" build --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
+          ./gradlew -PtotemCoreJar="$core_jar" build --continue --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
       - name: Run server GameTests
         shell: bash
