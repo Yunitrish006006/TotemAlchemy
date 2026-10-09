@@ -1,6 +1,7 @@
 package dev.totem.alchemy.alchemy;
 
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.reaction.AlchemyReactionResolver;
 import dev.totem.alchemy.reaction.BrewingReactionContext;
 import dev.totem.alchemy.reaction.IngredientReaction;
 import dev.totem.alchemy.reaction.ReactionOutcome;
@@ -276,12 +277,18 @@ public final class MultiOutcomeBrewing {
     private static boolean canRollOutcomes(ItemStack ingredient, Iterable<ItemStack> inputs) {
         boolean foundPotion = false;
         boolean foundActivatedBase = false;
+        boolean pendingBaseStarter = false;
         for (ItemStack input : inputs) {
             if (!isPotionContainer(input)) continue;
             foundPotion = true;
-            if (AlchemyMixtureBottle.fromPotion(input).baseActivated()) foundActivatedBase = true;
+            var state = AlchemyMixtureBottle.fromPotion(input);
+            if (state.baseActivated()) foundActivatedBase = true;
+            if (AlchemyReactionResolver.resolveBaseReaction(state, ingredient).isPresent()) {
+                pendingBaseStarter = true;
+            }
         }
-        return foundPotion && (!BrewingMaterialSettings.isStarter(ingredient.getItem()) || foundActivatedBase);
+        boolean starter = pendingBaseStarter || BrewingMaterialSettings.isStarter(ingredient.getItem());
+        return foundPotion && (!starter || foundActivatedBase);
     }
 
     private static boolean isPotionContainer(ItemStack stack) {

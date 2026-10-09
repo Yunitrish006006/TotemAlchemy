@@ -69,7 +69,7 @@ class MinecraftBaseReactionPackTest {
 
         assertTrue(foundNetherWart);
         assertFalse(netherWartStarter);
-        assertTrue(redMushroomStarter, "M10-T03 must remain responsible for Totem mushroom starter migration");
+        assertFalse(redMushroomStarter, "Totem mushroom starter authority must be owned by its optional datapack");
     }
 
     private static JsonObject readJson(String path) throws Exception {
