@@ -9,6 +9,7 @@ import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.EffectDoseStandards;
+import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -43,7 +44,10 @@ public final class BrewingMigrationGameTest {
             require(helper, recipe.getInput().ingredient().test(output), "Fixed recipe changed container");
             count++;
         }
-        require(helper, count == 48, "Expected all 48 fixed container recipes, got " + count);
+        int expected = AlchemyContentPackState.totemAlchemyEnabled() ? 48 : 0;
+        require(helper, count == expected,
+                "Totem Brewing recipe count did not follow Totem Alchemy pack state: expected "
+                        + expected + ", got " + count);
         helper.succeed();
     }
 
@@ -189,6 +193,14 @@ public final class BrewingMigrationGameTest {
     @GameTest(maxTicks = 40)
     public void mushroomStarterAndUnrelatedSlotsRemainCorrect(GameTestHelper helper) {
         ItemStack water = PotionContents.createItemStack(Items.SPLASH_POTION, Potions.WATER);
+        if (!AlchemyContentPackState.totemAlchemyEnabled()) {
+            require(helper, !AlchemyBrewing.hasMix(helper.getLevel(), water, new ItemStack(Items.RED_MUSHROOM)),
+                    "Disabled Totem Alchemy leaked the Red Mushroom fixed Brewing recipe");
+            require(helper, !AlchemyBrewing.hasMix(helper.getLevel(), water, new ItemStack(Items.DIAMOND)),
+                    "Unrelated ingredient became brewable");
+            helper.succeed();
+            return;
+        }
         BrewingStandBlockEntity stand = complete(helper, water, new ItemStack(Items.RED_MUSHROOM), true, -1);
         ItemStack output = stand.getItem(0);
         require(helper, output.is(Items.SPLASH_POTION), "Starter changed the container");
