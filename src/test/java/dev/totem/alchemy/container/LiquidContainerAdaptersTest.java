@@ -3,6 +3,7 @@ package dev.totem.alchemy.container;
 import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.LiquidComposition;
+import dev.totem.alchemy.registry.AlchemyItems;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.Test;
@@ -18,13 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LiquidContainerAdaptersTest {
     @Test
     void unsupportedContainersStillFallThroughBuiltInDispatcher() {
-        assertTrue(LiquidContainerAdapters.drain(new ItemStack(Items.HONEY_BOTTLE), 1).isEmpty());
-
-        AlchemyMixtureState honey = new AlchemyMixtureState(1);
-        honey.setLiquidComposition(LiquidComposition.single(AlchemyLiquids.HONEY_ID, 1.0D));
+        ItemStack flask = new ItemStack(AlchemyItems.LARGE_POTION_FLASK);
+        assertTrue(LiquidContainerAdapters.drain(flask, 1).isEmpty());
         assertTrue(LiquidContainerAdapters.fill(
-                new ItemStack(Items.GLASS_BOTTLE),
-                honey,
+                flask,
+                water(1),
                 1
         ).isEmpty());
     }

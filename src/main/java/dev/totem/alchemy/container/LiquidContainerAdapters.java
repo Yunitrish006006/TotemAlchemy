@@ -16,7 +16,8 @@ public final class LiquidContainerAdapters {
     private static final List<LiquidContainerAdapter> BUILT_INS = List.of(
             WaterBottleContainerAdapter.INSTANCE,
             WaterBucketContainerAdapter.INSTANCE,
-            MilkBucketContainerAdapter.INSTANCE
+            MilkBucketContainerAdapter.INSTANCE,
+            HoneyBottleContainerAdapter.INSTANCE
     );
 
     private LiquidContainerAdapters() {
