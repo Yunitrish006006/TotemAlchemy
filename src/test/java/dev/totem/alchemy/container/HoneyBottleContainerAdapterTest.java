@@ -4,8 +4,10 @@ import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.LiquidComposition;
+import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -15,6 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HoneyBottleContainerAdapterTest {
+    @BeforeAll
+    static void bootstrapMinecraftRegistries() {
+        Bootstrap.bootStrap();
+    }
+
     @Test
     void honeyBottleDrainsToOneHoneyUnitAndGlassBottle() {
         ItemStack honeyBottle = new ItemStack(Items.HONEY_BOTTLE);
