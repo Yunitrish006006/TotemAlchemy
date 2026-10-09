@@ -18,11 +18,6 @@
       "priority": 3
     },
     {
-      "potion": "totem:alchemy/resistance",
-      "chance": 0.5,
-      "priority": 2
-    },
-    {
       "potion": "minecraft:fire_resistance",
       "chance": 0.35,
       "priority": 1

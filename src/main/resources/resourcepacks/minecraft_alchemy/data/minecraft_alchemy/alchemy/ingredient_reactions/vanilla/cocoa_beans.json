@@ -13,11 +13,6 @@
       "priority": 3
     },
     {
-      "potion": "totem:alchemy/saturation",
-      "chance": 0.12,
-      "priority": 2
-    },
-    {
       "potion": "minecraft:regeneration",
       "chance": 0.05,
       "priority": 1

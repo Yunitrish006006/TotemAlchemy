@@ -16,16 +16,6 @@
       "potion": "minecraft:regeneration",
       "chance": 0.5,
       "priority": 3
-    },
-    {
-      "potion": "totem:alchemy/resistance",
-      "chance": 0.25,
-      "priority": 2
-    },
-    {
-      "potion": "totem:alchemy/saturation",
-      "chance": 0.15,
-      "priority": 1
     }
   ]
 }

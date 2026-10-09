@@ -11,11 +11,6 @@
       "potion": "minecraft:healing",
       "chance": 0.94,
       "priority": 2
-    },
-    {
-      "potion": "totem:alchemy/resistance",
-      "chance": 0.04,
-      "priority": 1
     }
   ]
 }

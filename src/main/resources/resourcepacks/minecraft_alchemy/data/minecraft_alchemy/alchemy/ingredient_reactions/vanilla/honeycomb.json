@@ -8,11 +8,6 @@
   "brewing_stand": true,
   "outcomes": [
     {
-      "potion": "totem:alchemy/resistance",
-      "chance": 0.8,
-      "priority": 3
-    },
-    {
       "potion": "minecraft:regeneration",
       "chance": 0.1,
       "priority": 2
