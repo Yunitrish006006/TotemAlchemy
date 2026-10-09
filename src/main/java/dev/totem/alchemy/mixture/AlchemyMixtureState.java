@@ -275,6 +275,17 @@ public final class AlchemyMixtureState {
         return List.copyOf(signatureProcesses.values());
     }
 
+    /** A committed signature owns a whole brewing batch until its result is redeemed. */
+    public boolean hasCommittedSignatureProcess() {
+        return !signatureProcesses.isEmpty();
+    }
+
+    /** True for both completed and currently pending members of any committed group. */
+    public boolean isCommittedSignatureMember(String reactionId) {
+        return reactionId != null && signatureProcesses.values().stream()
+                .anyMatch(process -> process.owns(reactionId));
+    }
+
     /**
      * Commit one previously reserved group before its first member finishes.
      * This is the only transition that authorizes suppression of ordinary outputs.
@@ -411,7 +422,9 @@ public final class AlchemyMixtureState {
     }
 
     public boolean canOvercook() {
-        return !heatLockedAfterBottling && !isEmpty() && !hasPendingReactions() && !hasCompletedStages()
+        // A pending signature claim must remain stable until it is redeemed.
+        return !heatLockedAfterBottling && !isEmpty() && !hasCommittedSignatureProcess()
+                && !hasPendingReactions() && !hasCompletedStages()
                 && (baseActivated() || !effects.isEmpty());
     }
 
