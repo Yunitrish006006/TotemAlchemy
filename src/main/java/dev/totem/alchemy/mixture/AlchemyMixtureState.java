@@ -1204,11 +1204,16 @@ public final class AlchemyMixtureState {
         rewriteLegacyIds(state);
         // Corrupt, overlapping or no-longer-pending reservations must not survive reload.
         Set<String> decodedReserved = new LinkedHashSet<>();
-        state.signatureGroups.values().removeIf(group ->
-                group.memberReactionIds().stream().anyMatch(id -> {
-                    Reaction reaction = state.reactions.get(id);
-                    return reaction == null || reaction.complete() || !decodedReserved.add(id);
-                }));
+        state.signatureGroups.values().removeIf(group -> {
+            boolean invalid = group.memberReactionIds().stream().anyMatch(id -> {
+                Reaction reaction = state.reactions.get(id);
+                return reaction == null || reaction.complete() || decodedReserved.contains(id);
+            });
+            if (!invalid) {
+                decodedReserved.addAll(group.memberReactionIds());
+            }
+            return invalid;
+        });
         // Migrate mixtures created by builds that intentionally preserved opposing rolled outcomes.
         state.provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
         state.neutralizeOpposites();
