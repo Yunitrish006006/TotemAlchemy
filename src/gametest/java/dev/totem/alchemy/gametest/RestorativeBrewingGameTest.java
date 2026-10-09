@@ -25,13 +25,13 @@ public final class RestorativeBrewingGameTest {
         ItemStack sugar = new ItemStack(Items.SUGAR);
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
         List<MultiOutcomeBrewing.Outcome> outcomes = MultiOutcomeBrewing.chooseOutcomes(
-                sugar, awkward, 0.999F, 0.999F, 0.999F);
+                sugar, awkward, 0.999F, 0.999F);
         require(helper, outcomes.isEmpty(), "All-miss sugar rolls unexpectedly forced an effect");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
                 "Swiftness truth was not the configured independent 94% chance");
-        require(helper, Math.abs(MultiOutcomeBrewing.noEffectProbability("minecraft:sugar") - 0.056454D) < EPSILON,
-                "Sugar no-effect truth was not 5.6454% from independent 94/3/3 rolls");
+        require(helper, Math.abs(MultiOutcomeBrewing.noEffectProbability("minecraft:sugar") - 0.0582D) < EPSILON,
+                "Sugar Minecraft-core no-effect truth was not 5.82% from independent 94/3 rolls");
         helper.succeed();
     }
 

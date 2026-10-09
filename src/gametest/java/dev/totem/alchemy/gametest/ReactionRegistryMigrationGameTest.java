@@ -9,6 +9,7 @@ import dev.totem.alchemy.reaction.AlchemyReactionResolver;
 import dev.totem.alchemy.reaction.IngredientReaction;
 import dev.totem.alchemy.reaction.ReactionIngredient;
 import dev.totem.alchemy.reaction.ReactionOutcome;
+import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -25,9 +26,24 @@ public final class ReactionRegistryMigrationGameTest {
 
     @GameTest(maxTicks = 20)
     public void legacyOutcomeCatalogLoadsFromReactionRegistry(GameTestHelper helper) {
-        require(helper, AlchemyReactionDataLoader.ingredientReactions().size() == 53,
-                "Expected 53 migrated ingredient reactions, got "
-                        + AlchemyReactionDataLoader.ingredientReactions().size());
+        long minecraftCoreCount = AlchemyReactionDataLoader.ingredientReactions().stream()
+                .filter(reaction -> "minecraft_alchemy".equals(reaction.id().getNamespace()))
+                .count();
+
+        if (!AlchemyContentPackState.minecraftAlchemyEnabled()) {
+            require(helper, minecraftCoreCount == 0,
+                    "Minecraft ingredient chemistry leaked while Minecraft Alchemy was disabled");
+            require(helper, AlchemyReactionResolver.resolveIngredientReaction(
+                            AWKWARD,
+                            new ItemStack(Items.SUGAR)
+                    ).isEmpty(),
+                    "Sugar core reaction remained available while Minecraft Alchemy was disabled");
+            helper.succeed();
+            return;
+        }
+
+        require(helper, minecraftCoreCount == 50,
+                "Expected 50 Minecraft-owned ingredient reactions, got " + minecraftCoreCount);
 
         IngredientReaction sugar = AlchemyReactionResolver.resolveIngredientReaction(
                 AWKWARD,
@@ -67,29 +83,29 @@ public final class ReactionRegistryMigrationGameTest {
                 helper.getLevel(), new ItemStack(Items.SUGAR), List.of(awkward));
         require(helper, Math.abs(unstableDecision.baseChance() - 0.70D) < EPSILON,
                 "Resolver-backed Brewing Stand policy did not preserve unstable-base penalty");
-        require(helper, sugar.outcomes().size() == 3,
-                "Sugar outcome set was not migrated");
+        require(helper, sugar.outcomes().size() == 2,
+                "Sugar Minecraft-core outcome set was not migrated");
         require(helper, Math.abs(AlchemyReactionReader.outcomeProbability(
                         "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
                 "Merged reaction reader lost sugar swiftness truth");
         require(helper, Math.abs(AlchemyReactionReader.outcomeProbability(
                         "minecraft:sugar", "minecraft:slowness") - 0.03D) < EPSILON,
                 "Merged reaction reader lost sugar slowness truth");
-        require(helper, Math.abs(AlchemyReactionReader.outcomeProbability(
-                        "minecraft:sugar", "totem:alchemy/saturation") - 0.03D) < EPSILON,
-                "Merged reaction reader lost sugar saturation truth");
+        require(helper, AlchemyReactionReader.outcomeProbability(
+                        "minecraft:sugar", "totem:alchemy/saturation") < 0.0D,
+                "Totem sugar extension leaked into Minecraft core chemistry before M10-T05");
         require(helper, Math.abs(AlchemyReactionReader.noEffectProbability("minecraft:sugar")
-                        - ((1.0D - 0.94D) * (1.0D - 0.03D) * (1.0D - 0.03D))) < EPSILON,
-                "Merged reaction reader no-effect truth did not reflect the full outcome set");
+                        - ((1.0D - 0.94D) * (1.0D - 0.03D))) < EPSILON,
+                "Minecraft-core reaction reader no-effect truth did not reflect the core outcome set");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
                 "Sugar swiftness probability did not come from migrated reaction data");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:sugar", "minecraft:slowness") - 0.03D) < EPSILON,
                 "Sugar slowness probability did not come from migrated reaction data");
-        require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
-                        "minecraft:sugar", "totem:alchemy/saturation") - 0.03D) < EPSILON,
-                "Sugar saturation probability did not come from migrated reaction data");
+        require(helper, MultiOutcomeBrewing.outcomeProbability(
+                        "minecraft:sugar", "totem:alchemy/saturation") < 0.0D,
+                "Totem sugar extension leaked into runtime Minecraft core chemistry before M10-T05");
 
         MultiOutcomeBrewing.Outcome canonicalSugar = MultiOutcomeBrewing.canonicalOutcome(sugar);
         require(helper, canonicalSugar != null && canonicalSugar.potion().is(Potions.SWIFTNESS),

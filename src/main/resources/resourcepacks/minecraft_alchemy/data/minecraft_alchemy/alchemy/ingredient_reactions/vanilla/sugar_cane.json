@@ -1,0 +1,16 @@
+{
+  "base": "totem:alchemy/awkward",
+  "ingredient": "minecraft:sugar_cane",
+  "success_chance": 0.8,
+  "effect_yield": 1,
+  "processing_ticks": 300,
+  "max_dose": 1,
+  "brewing_stand": true,
+  "outcomes": [
+    {
+      "potion": "minecraft:swiftness",
+      "chance": 0.84,
+      "priority": 2
+    }
+  ]
+}

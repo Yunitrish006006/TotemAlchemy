@@ -1,20 +1,15 @@
 {
   "base": "totem:alchemy/awkward",
-  "ingredient": "minecraft:apple",
+  "ingredient": "minecraft:melon_slice",
   "success_chance": 0.9,
   "effect_yield": 1,
-  "processing_ticks": 300,
+  "processing_ticks": 260,
   "max_dose": 1,
   "brewing_stand": true,
   "outcomes": [
     {
-      "potion": "totem:alchemy/saturation",
-      "chance": 0.97,
-      "priority": 2
-    },
-    {
       "potion": "minecraft:healing",
-      "chance": 0.03,
+      "chance": 0.04,
       "priority": 1
     }
   ]

@@ -13,11 +13,6 @@
       "priority": 3
     },
     {
-      "potion": "totem:alchemy/resistance",
-      "chance": 0.06,
-      "priority": 2
-    },
-    {
       "potion": "minecraft:slowness",
       "chance": 0.02,
       "priority": 1

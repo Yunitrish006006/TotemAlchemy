@@ -1,20 +1,20 @@
 {
   "base": "totem:alchemy/awkward",
-  "ingredient": "minecraft:shulker_shell",
+  "ingredient": "minecraft:egg",
   "success_chance": 0.8,
   "effect_yield": 1,
-  "processing_ticks": 500,
+  "processing_ticks": 300,
   "max_dose": 1,
   "brewing_stand": true,
   "outcomes": [
     {
-      "potion": "totem:alchemy/resistance",
-      "chance": 0.84,
+      "potion": "minecraft:regeneration",
+      "chance": 0.08,
       "priority": 2
     },
     {
-      "potion": "minecraft:slow_falling",
-      "chance": 0.06,
+      "potion": "minecraft:healing",
+      "chance": 0.04,
       "priority": 1
     }
   ]

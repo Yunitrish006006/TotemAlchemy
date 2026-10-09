@@ -1,20 +1,20 @@
 {
   "base": "totem:alchemy/awkward",
-  "ingredient": "minecraft:wheat",
+  "ingredient": "minecraft:honey_block",
   "success_chance": 0.8,
   "effect_yield": 1,
-  "processing_ticks": 300,
+  "processing_ticks": 440,
   "max_dose": 1,
   "brewing_stand": true,
   "outcomes": [
     {
-      "potion": "totem:alchemy/saturation",
-      "chance": 0.84,
+      "potion": "minecraft:slowness",
+      "chance": 0.12,
       "priority": 2
     },
     {
       "potion": "minecraft:regeneration",
-      "chance": 0.06,
+      "chance": 0.04,
       "priority": 1
     }
   ]

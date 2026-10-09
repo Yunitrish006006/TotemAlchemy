@@ -149,24 +149,24 @@ public final class AlchemyCauldronPersistenceGameTest {
     }
 
     @GameTest(maxTicks = 40)
-    public void everyPrimaryBrewingIngredientHasMultipleReachableOutcomes(GameTestHelper helper) {
+    public void minecraftCoreBrewingIngredientsExposeConfiguredOutcomes(GameTestHelper helper) {
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
         Map<Item, Integer> expectedPools = Map.ofEntries(
                 Map.entry(Items.SPIDER_EYE, 2),
-                Map.entry(Items.RED_MUSHROOM, 2),
-                Map.entry(Items.GLISTERING_MELON_SLICE, 2),
-                Map.entry(Items.SUGAR, 3),
+                Map.entry(Items.RED_MUSHROOM, 1),
+                Map.entry(Items.GLISTERING_MELON_SLICE, 1),
+                Map.entry(Items.SUGAR, 2),
                 Map.entry(Items.RABBIT_FOOT, 3),
-                Map.entry(Items.MAGMA_CREAM, 3),
+                Map.entry(Items.MAGMA_CREAM, 2),
                 Map.entry(Items.GOLDEN_CARROT, 3),
                 Map.entry(Items.BLAZE_POWDER, 3),
                 Map.entry(Items.GHAST_TEAR, 3),
                 Map.entry(Items.PUFFERFISH, 3),
-                Map.entry(Items.TURTLE_HELMET, 3),
+                Map.entry(Items.TURTLE_HELMET, 2),
                 Map.entry(Items.PHANTOM_MEMBRANE, 3),
                 Map.entry(Items.BREEZE_ROD, 3),
                 Map.entry(Items.SLIME_BLOCK, 3),
-                Map.entry(Items.STONE, 3),
+                Map.entry(Items.STONE, 2),
                 Map.entry(Items.COBWEB, 3),
                 Map.entry(Items.FERMENTED_SPIDER_EYE, 3)
         );
@@ -206,19 +206,15 @@ public final class AlchemyCauldronPersistenceGameTest {
         require(helper, MultiOutcomeBrewing.chooseOutcome(spiderEye, awkward, 0.99F).potion().is(Potions.WEAKNESS),
                 "Spider eye second branch was not weakness");
 
-        require(helper, MultiOutcomeBrewing.outcomeCount(redMushroom, awkward) == 2,
-                "Red mushroom did not expose two brewing outcomes");
+        require(helper, MultiOutcomeBrewing.outcomeCount(redMushroom, awkward) == 1,
+                "Red mushroom Minecraft-core reaction did not expose exactly one outcome");
         require(helper, MultiOutcomeBrewing.chooseOutcome(redMushroom, awkward, 0.1F).potion().is(Potions.POISON),
-                "Red mushroom first branch was not poison");
-        require(helper, MultiOutcomeBrewing.chooseOutcome(redMushroom, awkward, 0.99F).potion().is(AlchemyPotions.SATURATION),
-                "Red mushroom second branch was not saturation");
+                "Red mushroom Minecraft-core outcome was not poison");
 
-        require(helper, MultiOutcomeBrewing.outcomeCount(melon, awkward) == 2,
-                "Glistering melon did not expose two brewing outcomes");
+        require(helper, MultiOutcomeBrewing.outcomeCount(melon, awkward) == 1,
+                "Glistering melon Minecraft-core reaction did not expose exactly one outcome");
         require(helper, MultiOutcomeBrewing.chooseOutcome(melon, awkward, 0.1F).potion().is(Potions.HEALING),
-                "Glistering melon first branch was not healing");
-        require(helper, MultiOutcomeBrewing.chooseOutcome(melon, awkward, 0.99F).potion().is(AlchemyPotions.RESISTANCE),
-                "Glistering melon second branch was not resistance");
+                "Glistering melon Minecraft-core outcome was not healing");
 
         ItemStack saturation = PotionContents.createItemStack(Items.POTION, AlchemyPotions.SATURATION);
         ItemStack resistance = PotionContents.createItemStack(Items.POTION, AlchemyPotions.RESISTANCE);

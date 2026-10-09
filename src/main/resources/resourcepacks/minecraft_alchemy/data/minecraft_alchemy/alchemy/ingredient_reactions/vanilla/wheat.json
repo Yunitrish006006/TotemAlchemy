@@ -1,6 +1,6 @@
 {
   "base": "totem:alchemy/awkward",
-  "ingredient": "minecraft:egg",
+  "ingredient": "minecraft:wheat",
   "success_chance": 0.8,
   "effect_yield": 1,
   "processing_ticks": 300,
@@ -8,18 +8,8 @@
   "brewing_stand": true,
   "outcomes": [
     {
-      "potion": "totem:alchemy/saturation",
-      "chance": 0.78,
-      "priority": 3
-    },
-    {
       "potion": "minecraft:regeneration",
-      "chance": 0.08,
-      "priority": 2
-    },
-    {
-      "potion": "minecraft:healing",
-      "chance": 0.04,
+      "chance": 0.06,
       "priority": 1
     }
   ]

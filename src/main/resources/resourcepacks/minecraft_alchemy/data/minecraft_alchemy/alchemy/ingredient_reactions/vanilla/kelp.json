@@ -1,6 +1,6 @@
 {
   "base": "totem:alchemy/awkward",
-  "ingredient": "minecraft:sugar_cane",
+  "ingredient": "minecraft:kelp",
   "success_chance": 0.8,
   "effect_yield": 1,
   "processing_ticks": 300,
@@ -8,14 +8,9 @@
   "brewing_stand": true,
   "outcomes": [
     {
-      "potion": "minecraft:swiftness",
-      "chance": 0.84,
+      "potion": "minecraft:water_breathing",
+      "chance": 0.8,
       "priority": 2
-    },
-    {
-      "potion": "totem:alchemy/saturation",
-      "chance": 0.08,
-      "priority": 1
     }
   ]
 }

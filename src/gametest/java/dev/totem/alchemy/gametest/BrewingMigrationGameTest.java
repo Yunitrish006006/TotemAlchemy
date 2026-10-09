@@ -50,7 +50,7 @@ public final class BrewingMigrationGameTest {
     @GameTest(maxTicks = 40)
     public void customOnlyIngredientUsesSharedOutcomesThroughRealStand(GameTestHelper helper) {
         ItemStack input = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
-        ItemStack ingredient = new ItemStack(Items.BROWN_MUSHROOM);
+        ItemStack ingredient = new ItemStack(Items.BAMBOO);
         require(helper, AlchemyBrewing.recipe(helper.getLevel(), input, ingredient).isEmpty(),
                 "Test ingredient unexpectedly has a fixed recipe");
         BrewingStandBlockEntity stand = complete(helper, input, ingredient, true, 2);
