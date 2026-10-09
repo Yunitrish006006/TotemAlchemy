@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/apple",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.97,
+      "priority": 2
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import dev.totem.alchemy.discovery.AlchemyDiscoveryService;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,14 +25,19 @@ public final class RestorativeBrewingGameTest {
     public void gameplayIndependentRollsMayProduceNoEffect(GameTestHelper helper) {
         ItemStack sugar = new ItemStack(Items.SUGAR);
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
-        List<MultiOutcomeBrewing.Outcome> outcomes = MultiOutcomeBrewing.chooseOutcomes(
-                sugar, awkward, 0.999F, 0.999F);
+        boolean totemExtensionsEnabled = AlchemyContentPackState.totemAlchemyEnabled();
+        List<MultiOutcomeBrewing.Outcome> outcomes = totemExtensionsEnabled
+                ? MultiOutcomeBrewing.chooseOutcomes(sugar, awkward, 0.999F, 0.999F, 0.999F)
+                : MultiOutcomeBrewing.chooseOutcomes(sugar, awkward, 0.999F, 0.999F);
         require(helper, outcomes.isEmpty(), "All-miss sugar rolls unexpectedly forced an effect");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
                 "Swiftness truth was not the configured independent 94% chance");
-        require(helper, Math.abs(MultiOutcomeBrewing.noEffectProbability("minecraft:sugar") - 0.0582D) < EPSILON,
-                "Sugar Minecraft-core no-effect truth was not 5.82% from independent 94/3 rolls");
+        double expectedNoEffect = (1.0D - 0.94D) * (1.0D - 0.03D)
+                * (totemExtensionsEnabled ? (1.0D - 0.03D) : 1.0D);
+        require(helper, Math.abs(MultiOutcomeBrewing.noEffectProbability("minecraft:sugar")
+                        - expectedNoEffect) < EPSILON,
+                "Sugar no-effect truth did not follow the active merged outcome set");
         helper.succeed();
     }
 

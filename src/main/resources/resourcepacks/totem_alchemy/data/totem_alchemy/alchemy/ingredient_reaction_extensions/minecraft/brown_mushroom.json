@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/brown_mushroom",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.78,
+      "priority": 3
+    }
+  ]
+}

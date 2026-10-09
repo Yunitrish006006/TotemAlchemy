@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/melon_slice",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.96,
+      "priority": 2
+    }
+  ]
+}

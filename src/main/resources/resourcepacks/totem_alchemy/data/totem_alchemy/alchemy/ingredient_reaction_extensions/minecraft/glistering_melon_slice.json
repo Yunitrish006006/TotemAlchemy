@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/glistering_melon_slice",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.04,
+      "priority": 1
+    }
+  ]
+}

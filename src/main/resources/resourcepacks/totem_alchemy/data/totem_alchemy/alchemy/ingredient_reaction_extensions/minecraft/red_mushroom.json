@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/red_mushroom",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.07,
+      "priority": 1
+    }
+  ]
+}

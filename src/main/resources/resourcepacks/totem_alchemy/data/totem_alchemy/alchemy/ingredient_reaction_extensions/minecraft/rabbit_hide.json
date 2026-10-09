@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/rabbit_hide",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.08,
+      "priority": 2
+    }
+  ]
+}

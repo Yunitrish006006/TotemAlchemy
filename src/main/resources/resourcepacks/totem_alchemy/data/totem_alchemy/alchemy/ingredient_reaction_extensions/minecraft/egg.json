@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/egg",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.78,
+      "priority": 3
+    }
+  ]
+}

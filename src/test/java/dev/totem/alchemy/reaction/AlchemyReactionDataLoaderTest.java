@@ -166,7 +166,7 @@ class AlchemyReactionDataLoaderTest {
     }
 
     @Test
-    void extensionRejectsUnknownTargetAndDuplicateOutcome() {
+    void extensionSkipsMissingOptionalTargetButRejectsDuplicateOutcome() {
         IngredientReaction base = AlchemyReactionDataLoader.parseIngredientReaction(
                 id("minecraft_alchemy", "vanilla/sugar"),
                 JsonParser.parseString("""
@@ -202,9 +202,10 @@ class AlchemyReactionDataLoaderTest {
                         """).getAsJsonObject()
         );
 
-        assertTrue(assertThrows(IllegalArgumentException.class, () ->
-                AlchemyReactionDataLoader.applyIngredientExtensions(List.of(base), List.of(unknown))
-        ).getMessage().contains("Unknown ingredient reaction extension target"));
+        List<IngredientReaction> missingTargetResult =
+                AlchemyReactionDataLoader.applyIngredientExtensions(List.of(base), List.of(unknown));
+        assertEquals(List.of(base), missingTargetResult,
+                "Optional extension target absence must leave loaded core reactions unchanged");
 
         assertTrue(assertThrows(IllegalArgumentException.class, () ->
                 AlchemyReactionDataLoader.applyIngredientExtensions(List.of(base), List.of(duplicate))

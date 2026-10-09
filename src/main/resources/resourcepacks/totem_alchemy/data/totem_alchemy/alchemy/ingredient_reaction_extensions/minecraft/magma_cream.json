@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/magma_cream",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.04,
+      "priority": 2
+    }
+  ]
+}

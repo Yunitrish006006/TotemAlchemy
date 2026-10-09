@@ -11,6 +11,7 @@ import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.resource.AlchemyContentPackState;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -151,22 +152,23 @@ public final class AlchemyCauldronPersistenceGameTest {
     @GameTest(maxTicks = 40)
     public void minecraftCoreBrewingIngredientsExposeConfiguredOutcomes(GameTestHelper helper) {
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
+        boolean totemExtensionsEnabled = AlchemyContentPackState.totemAlchemyEnabled();
         Map<Item, Integer> expectedPools = Map.ofEntries(
                 Map.entry(Items.SPIDER_EYE, 2),
-                Map.entry(Items.RED_MUSHROOM, 1),
-                Map.entry(Items.GLISTERING_MELON_SLICE, 1),
-                Map.entry(Items.SUGAR, 2),
+                Map.entry(Items.RED_MUSHROOM, totemExtensionsEnabled ? 2 : 1),
+                Map.entry(Items.GLISTERING_MELON_SLICE, totemExtensionsEnabled ? 2 : 1),
+                Map.entry(Items.SUGAR, totemExtensionsEnabled ? 3 : 2),
                 Map.entry(Items.RABBIT_FOOT, 3),
-                Map.entry(Items.MAGMA_CREAM, 2),
+                Map.entry(Items.MAGMA_CREAM, totemExtensionsEnabled ? 3 : 2),
                 Map.entry(Items.GOLDEN_CARROT, 3),
                 Map.entry(Items.BLAZE_POWDER, 3),
                 Map.entry(Items.GHAST_TEAR, 3),
                 Map.entry(Items.PUFFERFISH, 3),
-                Map.entry(Items.TURTLE_HELMET, 2),
+                Map.entry(Items.TURTLE_HELMET, totemExtensionsEnabled ? 3 : 2),
                 Map.entry(Items.PHANTOM_MEMBRANE, 3),
                 Map.entry(Items.BREEZE_ROD, 3),
                 Map.entry(Items.SLIME_BLOCK, 3),
-                Map.entry(Items.STONE, 2),
+                Map.entry(Items.STONE, totemExtensionsEnabled ? 3 : 2),
                 Map.entry(Items.COBWEB, 3),
                 Map.entry(Items.FERMENTED_SPIDER_EYE, 3)
         );
@@ -206,15 +208,28 @@ public final class AlchemyCauldronPersistenceGameTest {
         require(helper, MultiOutcomeBrewing.chooseOutcome(spiderEye, awkward, 0.99F).potion().is(Potions.WEAKNESS),
                 "Spider eye second branch was not weakness");
 
-        require(helper, MultiOutcomeBrewing.outcomeCount(redMushroom, awkward) == 1,
-                "Red mushroom Minecraft-core reaction did not expose exactly one outcome");
+        boolean totemExtensionsEnabled = AlchemyContentPackState.totemAlchemyEnabled();
+        require(helper, MultiOutcomeBrewing.outcomeCount(redMushroom, awkward)
+                        == (totemExtensionsEnabled ? 2 : 1),
+                "Red mushroom outcome count did not follow Totem extension pack state");
         require(helper, MultiOutcomeBrewing.chooseOutcome(redMushroom, awkward, 0.1F).potion().is(Potions.POISON),
-                "Red mushroom Minecraft-core outcome was not poison");
+                "Red mushroom primary outcome was not poison");
+        if (totemExtensionsEnabled) {
+            require(helper, MultiOutcomeBrewing.chooseOutcome(redMushroom, awkward, 0.99F)
+                            .potion().is(AlchemyPotions.SATURATION),
+                    "Enabled Totem extension did not expose red mushroom saturation");
+        }
 
-        require(helper, MultiOutcomeBrewing.outcomeCount(melon, awkward) == 1,
-                "Glistering melon Minecraft-core reaction did not expose exactly one outcome");
+        require(helper, MultiOutcomeBrewing.outcomeCount(melon, awkward)
+                        == (totemExtensionsEnabled ? 2 : 1),
+                "Glistering melon outcome count did not follow Totem extension pack state");
         require(helper, MultiOutcomeBrewing.chooseOutcome(melon, awkward, 0.1F).potion().is(Potions.HEALING),
-                "Glistering melon Minecraft-core outcome was not healing");
+                "Glistering melon primary outcome was not healing");
+        if (totemExtensionsEnabled) {
+            require(helper, MultiOutcomeBrewing.chooseOutcome(melon, awkward, 0.99F)
+                            .potion().is(AlchemyPotions.RESISTANCE),
+                    "Enabled Totem extension did not expose glistering melon resistance");
+        }
 
         ItemStack saturation = PotionContents.createItemStack(Items.POTION, AlchemyPotions.SATURATION);
         ItemStack resistance = PotionContents.createItemStack(Items.POTION, AlchemyPotions.RESISTANCE);

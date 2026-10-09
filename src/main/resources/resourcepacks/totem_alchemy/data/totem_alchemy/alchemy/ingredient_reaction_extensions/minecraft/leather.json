@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/leather",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.82,
+      "priority": 2
+    }
+  ]
+}

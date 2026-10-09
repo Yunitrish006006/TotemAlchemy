@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/wheat",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.84,
+      "priority": 2
+    }
+  ]
+}

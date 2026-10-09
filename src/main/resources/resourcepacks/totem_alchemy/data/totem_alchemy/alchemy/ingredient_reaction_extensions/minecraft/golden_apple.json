@@ -1,0 +1,15 @@
+{
+  "target": "minecraft_alchemy:vanilla/golden_apple",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.25,
+      "priority": 2
+    },
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.15,
+      "priority": 1
+    }
+  ]
+}

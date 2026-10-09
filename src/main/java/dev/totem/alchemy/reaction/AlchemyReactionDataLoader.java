@@ -314,12 +314,10 @@ public final class AlchemyReactionDataLoader {
                 .forEach(extension -> {
                     IngredientReaction target = merged.get(extension.targetReactionId());
                     if (target == null) {
-                        throw new IllegalArgumentException(
-                                "Unknown ingredient reaction extension target "
-                                        + extension.targetReactionId()
-                                        + " for "
-                                        + extension.id()
-                        );
+                        // Extensions are additive optional-pack content. Their target can legitimately be
+                        // absent when the owning core pack is disabled (for example Totem Alchemy ON while
+                        // Minecraft Alchemy is OFF). In that combination the extension is simply inactive.
+                        return;
                     }
 
                     Map<Identifier, ReactionOutcome> outcomes = new LinkedHashMap<>();

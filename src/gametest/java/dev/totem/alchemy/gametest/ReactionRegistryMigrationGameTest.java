@@ -83,29 +83,44 @@ public final class ReactionRegistryMigrationGameTest {
                 helper.getLevel(), new ItemStack(Items.SUGAR), List.of(awkward));
         require(helper, Math.abs(unstableDecision.baseChance() - 0.70D) < EPSILON,
                 "Resolver-backed Brewing Stand policy did not preserve unstable-base penalty");
-        require(helper, sugar.outcomes().size() == 2,
-                "Sugar Minecraft-core outcome set was not migrated");
+        boolean totemExtensionsEnabled = AlchemyContentPackState.totemAlchemyEnabled();
+        require(helper, sugar.outcomes().size() == (totemExtensionsEnabled ? 3 : 2),
+                "Sugar merged outcome count did not follow Totem extension pack state");
         require(helper, Math.abs(AlchemyReactionReader.outcomeProbability(
                         "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
                 "Merged reaction reader lost sugar swiftness truth");
         require(helper, Math.abs(AlchemyReactionReader.outcomeProbability(
                         "minecraft:sugar", "minecraft:slowness") - 0.03D) < EPSILON,
                 "Merged reaction reader lost sugar slowness truth");
-        require(helper, AlchemyReactionReader.outcomeProbability(
-                        "minecraft:sugar", "totem:alchemy/saturation") < 0.0D,
-                "Totem sugar extension leaked into Minecraft core chemistry before M10-T05");
+
+        double saturationChance = AlchemyReactionReader.outcomeProbability(
+                "minecraft:sugar", "totem:alchemy/saturation");
+        if (totemExtensionsEnabled) {
+            require(helper, Math.abs(saturationChance - 0.03D) < EPSILON,
+                    "Enabled Totem Alchemy did not add sugar saturation extension");
+        } else {
+            require(helper, saturationChance < 0.0D,
+                    "Disabled Totem Alchemy leaked sugar saturation extension");
+        }
+
+        double expectedNoEffect = (1.0D - 0.94D) * (1.0D - 0.03D)
+                * (totemExtensionsEnabled ? (1.0D - 0.03D) : 1.0D);
         require(helper, Math.abs(AlchemyReactionReader.noEffectProbability("minecraft:sugar")
-                        - ((1.0D - 0.94D) * (1.0D - 0.03D))) < EPSILON,
-                "Minecraft-core reaction reader no-effect truth did not reflect the core outcome set");
+                        - expectedNoEffect) < EPSILON,
+                "Merged reaction reader no-effect truth did not follow extension pack state");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:sugar", "minecraft:swiftness") - 0.94D) < EPSILON,
                 "Sugar swiftness probability did not come from migrated reaction data");
         require(helper, Math.abs(MultiOutcomeBrewing.outcomeProbability(
                         "minecraft:sugar", "minecraft:slowness") - 0.03D) < EPSILON,
                 "Sugar slowness probability did not come from migrated reaction data");
-        require(helper, MultiOutcomeBrewing.outcomeProbability(
-                        "minecraft:sugar", "totem:alchemy/saturation") < 0.0D,
-                "Totem sugar extension leaked into runtime Minecraft core chemistry before M10-T05");
+        double runtimeSaturation = MultiOutcomeBrewing.outcomeProbability(
+                "minecraft:sugar", "totem:alchemy/saturation");
+        require(helper,
+                totemExtensionsEnabled
+                        ? Math.abs(runtimeSaturation - 0.03D) < EPSILON
+                        : runtimeSaturation < 0.0D,
+                "Runtime sugar saturation extension did not follow Totem pack state");
 
         MultiOutcomeBrewing.Outcome canonicalSugar = MultiOutcomeBrewing.canonicalOutcome(sugar);
         require(helper, canonicalSugar != null && canonicalSugar.potion().is(Potions.SWIFTNESS),

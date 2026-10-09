@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/sugar_cane",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.08,
+      "priority": 1
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/honey_block",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.86,
+      "priority": 3
+    }
+  ]
+}
