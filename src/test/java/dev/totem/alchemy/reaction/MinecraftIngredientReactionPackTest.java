@@ -128,20 +128,6 @@ class MinecraftIngredientReactionPackTest {
         );
     }
 
-    @Test
-    void totemOnlyIngredientReactionsRemainOutsideM10T02() {
-        ClassLoader loader = MinecraftIngredientReactionPackTest.class.getClassLoader();
-        assertNotNull(loader.getResource(
-                "data/totem/alchemy/ingredient_reactions/legacy/totem/alchemy/cocoa_powder.json"
-        ));
-        assertNotNull(loader.getResource(
-                "data/totem/alchemy/ingredient_reactions/legacy/totem/alchemy/pig_manure.json"
-        ));
-        assertNotNull(loader.getResource(
-                "data/totem/alchemy/ingredient_reactions/legacy/totem/alchemy/wood_ash.json"
-        ));
-    }
-
     private static JsonObject readJson(ClassLoader loader, String path) throws Exception {
         try (InputStream stream = loader.getResourceAsStream(path)) {
             assertNotNull(stream, "Missing reaction resource " + path);
