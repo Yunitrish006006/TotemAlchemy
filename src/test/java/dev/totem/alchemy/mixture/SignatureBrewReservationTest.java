@@ -26,7 +26,7 @@ class SignatureBrewReservationTest {
     }
 
     private static AlchemyMixtureState pendingMixture() {
-        var state = new AlchemyMixtureState(3);
+        var state = new AlchemyMixtureState(3, 8);
         state.setLiquidComposition(LiquidComposition.single(MILK, 1.0D));
         state.addReaction(reaction("brew:sugar", SUGAR, 35));
         state.addReaction(reaction("brew:cocoa", COCOA, 12));
@@ -99,7 +99,7 @@ class SignatureBrewReservationTest {
     void mergingReservedMixturesIsConservativelyRejected() {
         var reserved = pendingMixture();
         assertTrue(reserved.replaceSignatureGroups(List.of(group("hot_cocoa", "brew:sugar", "brew:cocoa"))));
-        var incoming = new AlchemyMixtureState(1);
+        var incoming = new AlchemyMixtureState(1, 8);
         String before = reserved.encode();
 
         assertFalse(reserved.mergeFrom(incoming));
