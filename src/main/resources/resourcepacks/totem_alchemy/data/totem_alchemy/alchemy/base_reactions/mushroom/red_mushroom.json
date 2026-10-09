@@ -1,0 +1,12 @@
+{
+  "liquids": {
+    "minecraft:water": 1.0
+  },
+  "starter": "minecraft:red_mushroom",
+  "result_base": "totem:alchemy/awkward",
+  "success_chance": 0.8,
+  "activation_yield": 3.0,
+  "processing_ticks": 360,
+  "brewing_stand": true,
+  "priority": 0
+}
