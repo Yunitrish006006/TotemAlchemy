@@ -1141,6 +1141,20 @@ public final class AlchemyMixtureState {
                     group.memberReactionIds().forEach(id -> out.append('|').append(enc(id)));
                     out.append('\n');
                 });
+        signatureProcesses.values().stream()
+                .sorted(Comparator.comparing(process -> process.signatureId().toString()))
+                .forEach(process -> {
+                    SignatureBrewDefinition.Result result = process.result();
+                    out.append("Q|").append(enc(process.signatureId().toString())).append('|')
+                            .append(result.type().name()).append('|')
+                            .append(enc(result.itemId().toString())).append('|')
+                            .append(result.count()).append('|')
+                            .append(enc(result.containerItemId() == null ? "" : result.containerItemId().toString())).append('|')
+                            .append(enc(result.potionId() == null ? "" : result.potionId().toString())).append('|')
+                            .append(encodeMemberIds(process.memberReactionIds())).append('|')
+                            .append(encodeMemberIds(process.completedReactionIds().stream().sorted().toList()))
+                            .append('\n');
+                });
         completedStages.values().stream().sorted(Comparator.comparing(CompletedStage::id)).forEach(stage ->
                 out.append("T|").append(enc(stage.id())).append('|')
                         .append(enc(stage.ingredientId())).append('|')
@@ -1148,6 +1162,24 @@ public final class AlchemyMixtureState {
                         .append(stage.perfectWindowTicks()).append('\n'));
         provenance.stream().sorted().forEach(value -> out.append("P|").append(enc(value)).append('\n'));
         return out.toString();
+    }
+
+    private static String encodeMemberIds(Collection<String> ids) {
+        return String.join(",", ids.stream().map(AlchemyMixtureState::enc).toList());
+    }
+
+    private static List<String> decodeMemberIds(String encoded) {
+        if (encoded == null || encoded.isEmpty()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String part : encoded.split(",", -1)) {
+            if (part.isEmpty()) {
+                throw new IllegalArgumentException("Malformed signature member list");
+            }
+            result.add(dec(part));
+        }
+        return List.copyOf(result);
     }
 
     public static AlchemyMixtureState decode(String encoded) {
@@ -1237,6 +1269,26 @@ public final class AlchemyMixtureState {
                                 new SignatureBrewResolver.ReactionGroup(id, members);
                         state.signatureGroups.putIfAbsent(id, group);
                     }
+                    case "Q" -> {
+                        if (part.length != 9) {
+                            throw new IllegalArgumentException("Malformed committed signature record");
+                        }
+                        Identifier id = Identifier.parse(dec(part[1]));
+                        SignatureBrewDefinition.Type type =
+                                SignatureBrewDefinition.Type.valueOf(part[2]);
+                        Identifier itemId = Identifier.parse(dec(part[3]));
+                        int count = Integer.parseInt(part[4]);
+                        String containerId = dec(part[5]);
+                        String potionId = dec(part[6]);
+                        SignatureBrewDefinition.Result result = new SignatureBrewDefinition.Result(
+                                type, itemId, count,
+                                containerId.isEmpty() ? null : Identifier.parse(containerId),
+                                potionId.isEmpty() ? null : Identifier.parse(potionId));
+                        SignatureBrewProcess process = new SignatureBrewProcess(
+                                id, result, decodeMemberIds(part[7]),
+                                new LinkedHashSet<>(decodeMemberIds(part[8])));
+                        state.signatureProcesses.putIfAbsent(id, process);
+                    }
                     case "T" -> state.completedStages.put(dec(part[1]), new CompletedStage(
                             dec(part[1]), dec(part[2]), Integer.parseInt(part[3]), Integer.parseInt(part[4])));
                     case "P" -> state.provenance.add(dec(part[1]));
@@ -1266,8 +1318,24 @@ public final class AlchemyMixtureState {
                     ActivatedBaseComposition.single(LEGACY_ACTIVATED_BASE_ID, state.volumeUnits);
         }
         rewriteLegacyIds(state);
+        // Validate committed groups before uncommitted reservations so active
+        // ownership wins in any malformed/contradictory input.
+        Set<String> committedMembers = new LinkedHashSet<>();
+        state.signatureProcesses.values().removeIf(process -> {
+            boolean invalid = process.memberReactionIds().stream().anyMatch(id -> {
+                Reaction reaction = state.reactions.get(id);
+                if (committedMembers.contains(id)) return true;
+                return process.completedReactionIds().contains(id)
+                        ? reaction != null
+                        : reaction == null || reaction.complete();
+            });
+            if (!invalid) {
+                committedMembers.addAll(process.memberReactionIds());
+            }
+            return invalid;
+        });
         // Corrupt, overlapping or no-longer-pending reservations must not survive reload.
-        Set<String> decodedReserved = new LinkedHashSet<>();
+        Set<String> decodedReserved = new LinkedHashSet<>(committedMembers);
         state.signatureGroups.values().removeIf(group -> {
             boolean invalid = group.memberReactionIds().stream().anyMatch(id -> {
                 Reaction reaction = state.reactions.get(id);
