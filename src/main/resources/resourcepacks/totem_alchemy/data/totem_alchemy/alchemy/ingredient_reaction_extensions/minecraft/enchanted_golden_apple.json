@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/enchanted_golden_apple",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.5,
+      "priority": 2
+    }
+  ]
+}

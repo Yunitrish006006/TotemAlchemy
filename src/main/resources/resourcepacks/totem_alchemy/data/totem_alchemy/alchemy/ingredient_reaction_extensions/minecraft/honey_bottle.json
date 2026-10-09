@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/honey_bottle",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.9,
+      "priority": 3
+    }
+  ]
+}

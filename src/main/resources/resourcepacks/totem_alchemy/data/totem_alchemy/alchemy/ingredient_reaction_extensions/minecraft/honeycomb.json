@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/honeycomb",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.8,
+      "priority": 3
+    }
+  ]
+}

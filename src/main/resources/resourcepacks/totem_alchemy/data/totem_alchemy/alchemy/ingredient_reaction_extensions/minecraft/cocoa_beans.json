@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/cocoa_beans",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.12,
+      "priority": 2
+    }
+  ]
+}

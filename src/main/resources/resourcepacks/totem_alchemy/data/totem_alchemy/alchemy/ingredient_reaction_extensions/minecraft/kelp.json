@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/kelp",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/saturation",
+      "chance": 0.1,
+      "priority": 1
+    }
+  ]
+}

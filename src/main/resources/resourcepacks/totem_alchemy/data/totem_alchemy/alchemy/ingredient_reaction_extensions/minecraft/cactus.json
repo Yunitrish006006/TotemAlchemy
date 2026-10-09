@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/cactus",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.07,
+      "priority": 2
+    }
+  ]
+}

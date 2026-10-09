@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/shulker_shell",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.84,
+      "priority": 2
+    }
+  ]
+}

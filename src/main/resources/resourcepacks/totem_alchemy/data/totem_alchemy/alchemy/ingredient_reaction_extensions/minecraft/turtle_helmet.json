@@ -1,0 +1,10 @@
+{
+  "target": "minecraft_alchemy:vanilla/turtle_helmet",
+  "outcomes": [
+    {
+      "potion": "totem:alchemy/resistance",
+      "chance": 0.03,
+      "priority": 1
+    }
+  ]
+}
