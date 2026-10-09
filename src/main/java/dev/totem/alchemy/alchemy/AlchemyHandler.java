@@ -212,12 +212,13 @@ public final class AlchemyHandler {
         if (!dropped && stack.is(Items.GLASS_BOTTLE) && state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             return blockEntity instanceof AlchemyCauldronBlockEntity cauldron
-                    && cauldron.hasMixture()
+                    && cauldron.canExtractMixtureBottle()
                     && !AlchemyCompoundBrewing.isSolidProcess(cauldron.mixtureSnapshot());
         }
 
         AlchemyMixtureState preview = previewMixture(level, pos);
         return !preview.isEmpty()
+                && !preview.hasCommittedSignatureProcess()
                 && !AlchemyCompoundBrewing.hasActiveRecipe(preview)
                 && AlchemyMixtureBrewing.canReact(level, preview, stack);
     }
@@ -331,7 +332,7 @@ public final class AlchemyHandler {
         if (!dropped && stack.is(Items.GLASS_BOTTLE) && state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (!(blockEntity instanceof AlchemyCauldronBlockEntity cauldron)
-                    || !cauldron.hasMixture()
+                    || !cauldron.canExtractMixtureBottle()
                     || AlchemyCompoundBrewing.isSolidProcess(cauldron.mixtureSnapshot())) {
                 return null;
             }
@@ -351,7 +352,8 @@ public final class AlchemyHandler {
         }
 
         AlchemyMixtureState preview = previewMixture(level, pos);
-        if (preview.isEmpty() || !AlchemyMixtureBrewing.canReact(level, preview, stack)) {
+        if (preview.isEmpty() || preview.hasCommittedSignatureProcess()
+                || !AlchemyMixtureBrewing.canReact(level, preview, stack)) {
             return null;
         }
         AlchemyCauldronBlockEntity cauldron = ensureMixtureCauldronForReaction(level, pos);
