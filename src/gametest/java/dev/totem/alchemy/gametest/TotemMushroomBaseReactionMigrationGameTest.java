@@ -52,7 +52,7 @@ public final class TotemMushroomBaseReactionMigrationGameTest {
         require(helper, AlchemyMixtureBrewing.schedule(helper.getLevel(), water, mushroom),
                 "Red Mushroom did not schedule the Totem-owned water base reaction");
         require(helper, water.reactions().size() == 1, "Missing pending mushroom base reaction");
-        require(helper, water.reactions().getFirst().requiredTicks() == 360,
+        require(helper, water.reactions().iterator().next().requiredTicks() == 360,
                 "Mushroom base reaction did not use its datapack processing duration");
 
         water.tickReactions(360);
