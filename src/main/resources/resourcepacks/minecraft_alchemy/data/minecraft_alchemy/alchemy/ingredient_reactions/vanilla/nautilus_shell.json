@@ -11,11 +11,6 @@
       "potion": "minecraft:water_breathing",
       "chance": 0.88,
       "priority": 2
-    },
-    {
-      "potion": "totem:alchemy/resistance",
-      "chance": 0.06,
-      "priority": 1
     }
   ]
 }

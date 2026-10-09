@@ -16,11 +16,6 @@
       "potion": "minecraft:slowness",
       "chance": 0.03,
       "priority": 2
-    },
-    {
-      "potion": "totem:alchemy/saturation",
-      "chance": 0.03,
-      "priority": 1
     }
   ]
 }

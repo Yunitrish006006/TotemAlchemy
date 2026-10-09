@@ -1,6 +1,6 @@
 {
   "base": "totem:alchemy/awkward",
-  "ingredient": "minecraft:wheat",
+  "ingredient": "minecraft:sugar_cane",
   "success_chance": 0.8,
   "effect_yield": 1,
   "processing_ticks": 300,
@@ -8,14 +8,9 @@
   "brewing_stand": true,
   "outcomes": [
     {
-      "potion": "totem:alchemy/saturation",
+      "potion": "minecraft:swiftness",
       "chance": 0.84,
       "priority": 2
-    },
-    {
-      "potion": "minecraft:regeneration",
-      "chance": 0.06,
-      "priority": 1
     }
   ]
 }
