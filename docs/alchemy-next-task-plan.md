@@ -154,8 +154,10 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 ## M11 — Signature brews
 
-- [ ] M11-T01 Define `SignatureBrewResolver`.
-- [ ] M11-T02 Define data schema for signature conditions.
+Design contract (2026-10-10): SignatureBrew is a scheduling-time **reaction group**, not an after-the-fact potion conversion or a second ticking engine. The resolver matches the present liquid composition and **pending** individual material reactions; it returns a deterministic, non-overlapping reservation plan referencing existing reaction IDs. An ingredient reaction can belong to at most one chosen signature group. A completed ordinary reaction cannot be retrospectively stolen. Matching candidates sort by explicit priority, then stable resource ID; unmatched reactions continue normally. Scheduling must commit group membership before any owned member finishes, and group output must be settled **once** after all owned reactions finish, without also applying the owned ordinary outputs. Replanning after adding a material is permitted only for unfinished/uncommitted work and must preserve elapsed processing progress; incompatible or already-committed groups must not be silently displaced. Liquid components act as conditions, not consumed reaction IDs. Full group persistence, atomic settlement, pause/resume, split/merge and datapack schema are separate follow-up tasks and must precede gameplay activation.
+
+- [ ] M11-T01 Define `SignatureBrewResolver` as a pure scheduling-time planner with tests for pending-only matching, liquid requirements, deterministic ties, and non-overlap. Do not activate special outputs yet.
+- [ ] M11-T02 Define data schema for signature conditions and group ownership/settlement metadata.
 - [ ] M11-T03 Rebuild Hot Cocoa using Milk + Cocoa + Sugar + Heat.
 - [ ] M11-T04 Preserve full Hot Cocoa mixture state through bottling/pouring.
 - [ ] M11-T05 Rebuild Cherry Brew on generic mixture state.
