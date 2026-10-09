@@ -58,7 +58,7 @@ public final class SignatureBrewDataLoader {
 
                     @Override
                     public void onResourceManagerReload(ResourceManager resourceManager) {
-                        reload(resourceManager);
+                        SignatureBrewDataLoader.reload(resourceManager);
                     }
                 });
     }
