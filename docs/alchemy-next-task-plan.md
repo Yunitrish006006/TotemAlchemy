@@ -143,7 +143,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
 ## M10 — Datapack content migration
 
-- [ ] M10-T01 Move Minecraft base reactions into `Minecraft Alchemy`.
+- [x] M10-T01 Move Minecraft base reactions into `Minecraft Alchemy`.
 - [ ] M10-T02 Move vanilla ingredient chemistry into `Minecraft Alchemy`.
 - [ ] M10-T03 Move Totem mushroom starter/base reactions into `Totem Alchemy`.
 - [ ] M10-T04 Move Totem-only ingredients into `Totem Alchemy`.
