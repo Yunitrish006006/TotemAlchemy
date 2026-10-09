@@ -84,7 +84,7 @@ class SignatureBrewDataLoaderTest {
     @Test
     void rejectsDuplicateIngredientsOrMissingInputs() {
         var repeated = json(HOT_COCOA);
-        repeated.add("ingredients", json("[\"minecraft:sugar\",\"minecraft:sugar\"]"));
+        repeated.add("ingredients", JsonParser.parseString("[\"minecraft:sugar\",\"minecraft:sugar\"]"));
         assertThrows(IllegalArgumentException.class, () -> SignatureBrewDataLoader.parse(ID, repeated));
 
         var empty = json(HOT_COCOA);
