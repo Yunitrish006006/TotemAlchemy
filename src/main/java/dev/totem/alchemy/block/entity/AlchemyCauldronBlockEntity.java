@@ -111,7 +111,8 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean scheduleMixtureReaction(Level level, ItemStack ingredient) {
-        if (!hasMixture() || recipeId != null || readyForExtraction) {
+        if (!hasMixture() || recipeId != null || readyForExtraction
+                || mixture.hasCommittedSignatureProcess()) {
             return false;
         }
         AlchemyMixtureBrewing.ScheduleResult scheduled =
@@ -135,6 +136,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
             ItemStack actualIngredient
     ) {
         if (!hasMixture() || recipeId != null || readyForExtraction
+                || mixture.hasCommittedSignatureProcess()
                 || !AlchemyCompoundBrewing.schedule(mixture, recipe, ingredient, actualIngredient)) {
             return false;
         }
@@ -142,7 +144,18 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         return true;
     }
 
+    /**
+     * The ordinary potion bottle route must not consume part of a committed
+     * signature group; its output is reserved for a separate item transaction.
+     */
+    public boolean canExtractMixtureBottle() {
+        return hasMixture() && !mixture.hasCommittedSignatureProcess();
+    }
+
     public AlchemyMixtureState extractMixtureBottle() {
+        if (!canExtractMixtureBottle()) {
+            return AlchemyMixtureState.empty();
+        }
         return extractMixtureUnits(1);
     }
 
@@ -285,7 +298,8 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
                 continue;
             }
             PendingDiscovery pending = pendingDiscoveries.remove(reaction.id());
-            if (pending == null) {
+            // Claimed material completion is NOT an ordinary potion discovery.
+            if (mixture.isCommittedSignatureMember(reaction.id()) || pending == null) {
                 continue;
             }
             Identifier ingredientId = Identifier.tryParse(reaction.ingredientId());
