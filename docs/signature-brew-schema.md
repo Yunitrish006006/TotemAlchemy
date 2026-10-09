@@ -46,6 +46,16 @@ All root fields are required. `result.count` defaults to 1. `result.potion` is o
 - On legacy completion, inactive reservations are cleared and the ordinary output remains unchanged. This is intentional: schema loading does not silently alter existing gameplay.
 - No new signature definitions are bundled into gameplay data yet, preventing conflict with `alchemy/cauldron_recipes/hot_cocoa.json` and `cherry_brew.json`.
 
+## Committed-group core (M11-T02a, pending CI)
+
+An inactive reservation is saved as `G|` metadata and still allows ordinary brewing to resolve. It has **no settlement authority**.
+
+A signature group may instead be explicitly committed with `AlchemyMixtureState.commitSignatureGroup(signatureId, result)` **before any member finishes**. The committed group uses the `Q|` save marker, storing its immutable result descriptor, member reaction IDs, and completed-member IDs. Existing reaction timers continue unchanged. When a committed member finishes, its ordinary effect/potion output and completed-stage bookkeeping are skipped; other unclaimed reactions retain normal behavior.
+
+The committed process becomes ready only after **all** members finish. `claimSignatureResult(id)` removes a ready claim from the mixture and returns its output descriptor once. This does not itself create an item. The future cauldron/inventory adapter must persist the state change and grant the item in a single server-side transaction, or retry/restart could otherwise duplicate or lose an output. Runtime scheduler integration and atomic external item grant remain **not implemented**.
+
+Partial extraction and mixing of mixtures containing committed processes are refused until safe allocation/reconciliation rules are defined. Full extraction moves the committed process intact.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
