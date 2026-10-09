@@ -131,6 +131,39 @@ class SignatureBrewSettlementTest {
     }
 
     @Test
+    void claimedReactionOwnershipSurvivesCompletionAndProtectsReadyResultFromOvercook() {
+        var state = state();
+        state.setBaseActivated(true);
+        assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
+        assertTrue(state.isCommittedSignatureMember(SUGAR));
+        assertTrue(state.isCommittedSignatureMember(COCOA));
+        assertFalse(state.isCommittedSignatureMember("brew:unrelated"));
+
+        state.tickReactions(40);
+        assertTrue(state.hasCommittedSignatureProcess());
+        assertFalse(state.canOvercook());
+        var restored = AlchemyMixtureState.decode(state.encode(), 8);
+        assertTrue(restored.isCommittedSignatureMember(SUGAR));
+        assertTrue(restored.isCommittedSignatureMember(COCOA));
+        assertFalse(restored.canOvercook());
+        assertTrue(restored.claimSignatureResult(SIGNATURE).isPresent());
+        assertFalse(restored.hasCommittedSignatureProcess());
+        assertFalse(restored.isCommittedSignatureMember(SUGAR));
+    }
+
+    @Test
+    void inertReservationNeverSuppressesOrdinaryReactionCompletion() {
+        var state = state();
+        assertFalse(state.hasCommittedSignatureProcess());
+        assertFalse(state.isCommittedSignatureMember(SUGAR));
+        state.tickReactions(40);
+        assertTrue(state.signatureGroups().isEmpty());
+        assertTrue(state.signatureProcesses().isEmpty());
+        assertTrue(state.effects().containsKey("minecraft:speed"));
+        assertTrue(state.effects().containsKey("minecraft:strength"));
+    }
+
+    @Test
     void malformedCommittedRecordDoesNotDestroyOrdinaryReactions() {
         var state = state();
         assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
