@@ -18,24 +18,40 @@ public final class AlchemyBuiltinPacks {
     }
 
     private static final String OFF_OFF_FIXTURE_ENV = "TOTEM_ALCHEMY_GAMETEST_OFF_OFF";
+    private static final String PACK_MATRIX_FIXTURE_ENV = "TOTEM_ALCHEMY_GAMETEST_PACKS";
 
     public static void register() {
-        // Explicit CI-only fixture: production pack registration remains unchanged.
+        // Development-only fixture. Values: ON_ON, ON_OFF, OFF_ON, OFF_OFF.
+        // Legacy OFF/OFF switch remains supported for the M10-T07 CI lane.
+        String fixture = System.getenv(PACK_MATRIX_FIXTURE_ENV);
+        if (FabricLoader.getInstance().isDevelopmentEnvironment()
+                && fixture != null && !fixture.isBlank()) {
+            if (!java.util.Set.of("ON_ON", "ON_OFF", "OFF_ON", "OFF_OFF").contains(fixture)) {
+                throw new IllegalArgumentException("Invalid " + PACK_MATRIX_FIXTURE_ENV + ": " + fixture);
+            }
+            TotemAlchemy.LOGGER.info("[M10-T08] GameTest pack matrix fixture: {}", fixture);
+            registerSelected(fixture);
+            return;
+        }
         if (FabricLoader.getInstance().isDevelopmentEnvironment()
                 && "true".equalsIgnoreCase(System.getenv(OFF_OFF_FIXTURE_ENV))) {
             TotemAlchemy.LOGGER.info("[M10-T07] OFF/OFF GameTest fixture: optional builtin packs not registered");
             return;
         }
+        registerSelected("ON_ON");
+    }
+
+    private static void registerSelected(String fixture) {
         ModContainer container = FabricLoader.getInstance()
                 .getModContainer("totem-alchemy")
                 .orElseThrow(() -> new IllegalStateException("TotemAlchemy mod container is unavailable"));
 
-        register(
+        if (fixture.startsWith("ON_")) register(
                 TOTEM_ALCHEMY,
                 container,
                 Component.literal("TotemAlchemy — Totem Alchemy")
         );
-        register(
+        if (fixture.endsWith("_ON")) register(
                 MINECRAFT_ALCHEMY,
                 container,
                 Component.literal("TotemAlchemy — Minecraft Alchemy")
