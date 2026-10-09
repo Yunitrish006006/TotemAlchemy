@@ -58,6 +58,9 @@ public final class AlchemyCompoundBrewing {
                 return null;
             }
             AlchemyMixtureState mixture = cauldron.mixtureSnapshot();
+            if (mixture.hasCommittedSignatureProcess()) {
+                return null;
+            }
             AlchemyCauldronRecipe recipe = activeRecipe(mixture);
             if (recipe == null || isReady(mixture)) {
                 return null;
