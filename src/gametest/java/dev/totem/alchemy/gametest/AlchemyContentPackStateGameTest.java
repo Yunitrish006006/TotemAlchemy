@@ -1,6 +1,7 @@
 package dev.totem.alchemy.gametest;
 
 import dev.totem.alchemy.resource.AlchemyContentPackState;
+import dev.totem.alchemy.reaction.AlchemyReactionDataLoader;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -41,6 +42,23 @@ public final class AlchemyContentPackStateGameTest {
         require(helper, leaked == 0,
                 "Disabled Totem Alchemy leaked " + leaked
                         + " fixed Brewing recipes (first: " + firstLeakedId + ")");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void disabledAlchemyPacksDoNotLeakReactionRegistry(GameTestHelper helper) {
+        AlchemyContentPackState.Snapshot snapshot = AlchemyContentPackState.snapshot();
+        if (snapshot.totemAlchemyEnabled() || snapshot.minecraftAlchemyEnabled()) {
+            // This assertion applies only to a verified OFF/OFF runtime.
+            helper.succeed();
+            return;
+        }
+
+        int baseCount = AlchemyReactionDataLoader.baseReactions().size();
+        int ingredientCount = AlchemyReactionDataLoader.ingredientReactions().size();
+        require(helper, baseCount == 0 && ingredientCount == 0,
+                "OFF/OFF leaked reaction definitions: base=" + baseCount
+                        + ", ingredient=" + ingredientCount);
         helper.succeed();
     }
 
