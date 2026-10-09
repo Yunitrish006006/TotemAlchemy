@@ -48,6 +48,26 @@ dependencies {
 
 tasks.withType(Test).configureEach { useJUnitPlatform() }
 
+tasks.register('verifyOptionalAlchemyPackIsolation') {
+    group = 'verification'
+    description = 'Checks optional brewing recipes and reactions are absent from the always-on base pack.'
+    def root = file('src/main/resources/data')
+    inputs.dir(root)
+    doLast {
+        def leaked = fileTree(root).matching {
+            include '**/recipe/brewing/**'
+            include '**/alchemy/base_reactions/**'
+            include '**/alchemy/ingredient_reactions/**'
+        }.files.findAll { it.isFile() }.collect { root.toPath().relativize(it.toPath()).toString() }
+        if (!leaked.isEmpty()) {
+            throw new GradleException("Optional Alchemy content leaked into base datapack: " + leaked.join(', '))
+        }
+        logger.lifecycle('Optional Alchemy base-pack source isolation verified.')
+    }
+}
+tasks.named('check') { dependsOn('verifyOptionalAlchemyPackIsolation') }
+
+
 def namedRuntimeSources = new LinkedHashSet<File>()
 def namedRuntimeCopies = [:]
 def namedRuntimeCopyFor = { File source ->
