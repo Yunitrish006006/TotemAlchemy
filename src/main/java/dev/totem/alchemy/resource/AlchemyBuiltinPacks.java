@@ -17,7 +17,15 @@ public final class AlchemyBuiltinPacks {
     private AlchemyBuiltinPacks() {
     }
 
+    private static final String OFF_OFF_FIXTURE_ENV = "TOTEM_ALCHEMY_GAMETEST_OFF_OFF";
+
     public static void register() {
+        // Explicit CI-only fixture: production pack registration remains unchanged.
+        if (FabricLoader.getInstance().isDevelopmentEnvironment()
+                && "true".equalsIgnoreCase(System.getenv(OFF_OFF_FIXTURE_ENV))) {
+            TotemAlchemy.LOGGER.info("[M10-T07] OFF/OFF GameTest fixture: optional builtin packs not registered");
+            return;
+        }
         ModContainer container = FabricLoader.getInstance()
                 .getModContainer("totem-alchemy")
                 .orElseThrow(() -> new IllegalStateException("TotemAlchemy mod container is unavailable"));

@@ -62,7 +62,31 @@ jobs:
           chmod +x gradlew
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
-          ./gradlew -PtotemCoreJar="$core_jar" build --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
+          ./gradlew -PtotemCoreJar="$core_jar" build --continue --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
+
+      - name: Upload test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/test-results/test/
+            build/reports/tests/test/
+            build/reports/
+            build/run/gameTest/logs/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Run OFF/OFF isolation GameTests
+        if: always()
+        env:
+          TOTEM_ALCHEMY_GAMETEST_OFF_OFF: 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" runGameTest -PoffOffGameTests=true --rerun-tasks --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
       - name: Run server GameTests
         shell: bash
