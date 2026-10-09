@@ -1,0 +1,142 @@
+package dev.totem.alchemy.mixture;
+
+import net.minecraft.resources.Identifier;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class SignatureBrewSettlementTest {
+    private static final Identifier SIGNATURE = Identifier.fromNamespaceAndPath("totem", "alchemy/hot_cocoa");
+    private static final String SUGAR = "brew:sugar";
+    private static final String COCOA = "brew:cocoa";
+
+    private static SignatureBrewDefinition.Result result() {
+        return new SignatureBrewDefinition.Result(
+                SignatureBrewDefinition.Type.BOTTLED_ITEM,
+                Identifier.fromNamespaceAndPath("totem", "alchemy/hot_cocoa"),
+                1,
+                Identifier.fromNamespaceAndPath("minecraft", "glass_bottle"),
+                Identifier.fromNamespaceAndPath("totem", "alchemy/saturation"));
+    }
+
+    private static AlchemyMixtureState.Reaction reaction(
+            String id, String ingredient, int elapsed, int required, String ordinaryEffect
+    ) {
+        return new AlchemyMixtureState.Reaction(
+                id, ingredient, elapsed, required, 3, null, null,
+                Map.of(), Map.of(ordinaryEffect, new AlchemyMixtureState.EffectDose(400.0D, 0)));
+    }
+
+    private static AlchemyMixtureState state() {
+        var state = new AlchemyMixtureState(3, 8);
+        state.addReaction(reaction(SUGAR, "minecraft:sugar", 0, 20, "minecraft:speed"));
+        state.addReaction(reaction(COCOA, "totem:alchemy/cocoa_powder", 0, 40, "minecraft:strength"));
+        assertTrue(state.replaceSignatureGroups(List.of(
+                new SignatureBrewResolver.ReactionGroup(SIGNATURE, List.of(SUGAR, COCOA)))));
+        return state;
+    }
+
+    @Test
+    void committedGroupHoldsOrdinaryOutputsUntilEveryMemberFinishes() {
+        var state = state();
+        assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
+        assertTrue(state.signatureGroups().isEmpty());
+        assertFalse(state.commitSignatureGroup(SIGNATURE, result()));
+
+        state.tickReactions(20);
+        assertEquals(1, state.reactions().size());
+        assertTrue(state.effects().isEmpty());
+        assertFalse(state.hasProvenance("reaction:minecraft:sugar"));
+        assertTrue(state.completedStages().isEmpty());
+        assertTrue(state.claimSignatureResult(SIGNATURE).isEmpty());
+
+        state.tickReactions(20);
+        assertTrue(state.reactions().isEmpty());
+        assertTrue(state.effects().isEmpty());
+        assertTrue(state.completedStages().isEmpty());
+        assertTrue(state.signatureProcesses().iterator().next().ready());
+        assertEquals(result(), state.claimSignatureResult(SIGNATURE).orElseThrow());
+        assertTrue(state.claimSignatureResult(SIGNATURE).isEmpty());
+        assertTrue(state.signatureProcesses().isEmpty());
+    }
+
+    @Test
+    void partCompletedGroupSurvivesCodecAndCompletesWithoutDoubleEffect() {
+        var state = state();
+        assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
+        state.tickReactions(20);
+        var restored = AlchemyMixtureState.decode(state.encode(), 8);
+
+        assertEquals(state.encode(), restored.encode());
+        assertEquals(1, restored.signatureProcesses().size());
+        assertEquals(1, restored.signatureProcesses().iterator().next().completedReactionIds().size());
+        assertEquals(20, restored.pendingReactionForIngredient("totem:alchemy/cocoa_powder").elapsedTicks());
+        restored.tickReactions(20);
+        assertTrue(restored.effects().isEmpty());
+        assertEquals(result(), restored.claimSignatureResult(SIGNATURE).orElseThrow());
+        assertTrue(restored.claimSignatureResult(SIGNATURE).isEmpty());
+    }
+
+    @Test
+    void fullyReadyResultSurvivesSaveLoadAndCanOnlyBeClaimedOnce() {
+        var state = state();
+        assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
+        state.tickReactions(40);
+        var restored = AlchemyMixtureState.decode(state.encode(), 8);
+        assertTrue(restored.signatureProcesses().iterator().next().ready());
+        assertEquals(result(), restored.claimSignatureResult(SIGNATURE).orElseThrow());
+        assertTrue(AlchemyMixtureState.decode(restored.encode(), 8).claimSignatureResult(SIGNATURE).isEmpty());
+    }
+
+    @Test
+    void activeGroupRejectsPartialExtractionButAllowsWholeTransfer() {
+        var state = state();
+        assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
+        String before = state.encode();
+        assertTrue(state.extractUnits(1).isEmpty());
+        assertEquals(before, state.encode());
+
+        var all = state.extractUnits(3);
+        assertTrue(state.isEmpty());
+        assertEquals(1, all.signatureProcesses().size());
+        all.tickReactions(40);
+        assertEquals(result(), all.claimSignatureResult(SIGNATURE).orElseThrow());
+    }
+
+    @Test
+    void activeGroupRejectsMergeAndReplanWithoutMutatingProgress() {
+        var state = state();
+        assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
+        String before = state.encode();
+        assertFalse(state.mergeFrom(new AlchemyMixtureState(1, 8)));
+        assertFalse(new AlchemyMixtureState(1, 8).mergeFrom(state));
+        assertFalse(state.replaceSignatureGroups(List.of()));
+        assertEquals(before, state.encode());
+    }
+
+    @Test
+    void committedGroupRequiresValidPendingReservation() {
+        var state = state();
+        var another = Identifier.fromNamespaceAndPath("totem", "alchemy/other");
+        assertFalse(state.commitSignatureGroup(another, result()));
+        assertFalse(state.commitSignatureGroup(SIGNATURE, null));
+        assertEquals(1, state.signatureGroups().size());
+        assertTrue(state.signatureProcesses().isEmpty());
+    }
+
+    @Test
+    void malformedCommittedRecordDoesNotDestroyOrdinaryReactions() {
+        var state = state();
+        assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
+        String serialized = state.encode().replaceAll("(?m)^Q\\|[^\\n]*", "Q|invalid|garbage");
+        var decoded = AlchemyMixtureState.decode(serialized, 8);
+        assertTrue(decoded.signatureProcesses().isEmpty());
+        assertEquals(2, decoded.reactions().size());
+    }
+}
