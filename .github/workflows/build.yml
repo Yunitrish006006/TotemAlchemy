@@ -77,6 +77,21 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Probe OFF/OFF GameTest server configuration
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/run/gameTest
+          printf '%s\n' \
+            'initial-enabled-packs=vanilla' \
+            'initial-disabled-packs=totem-alchemy:totem_alchemy,totem-alchemy:minecraft_alchemy' \
+            > build/run/gameTest/server.properties
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" runGameTest --rerun-tasks --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
+
       - name: Run server GameTests
         shell: bash
         run: |
