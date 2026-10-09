@@ -137,7 +137,7 @@ Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 - [x] M9-T03 Water Bucket adapter.
 - [x] M9-T04 Milk Bucket adapter.
 - [x] M9-T05 Honey Bottle adapter.
-- [ ] M9-T06 Large Flask full-mixture adapter.
+- [x] M9-T06 Large Flask full-mixture adapter.
 - [ ] M9-T07 Potion bottle import/export compatibility.
 - [ ] M9-T08 Mixed-liquid cauldron fill/extract tests.
 
