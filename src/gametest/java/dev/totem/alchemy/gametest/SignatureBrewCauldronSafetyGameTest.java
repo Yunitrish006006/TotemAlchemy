@@ -83,6 +83,7 @@ public final class SignatureBrewCauldronSafetyGameTest {
 
     private static AlchemyMixtureState committedMixture() {
         AlchemyMixtureState state = new AlchemyMixtureState(3);
+        state.setBaseActivated(true);
         state.addReaction(new AlchemyMixtureState.Reaction(
                 "signature:sugar", "minecraft:sugar", 0, 20, 3, null, null, Map.of(),
                 Map.of("minecraft:speed", new AlchemyMixtureState.EffectDose(400, 0))));
