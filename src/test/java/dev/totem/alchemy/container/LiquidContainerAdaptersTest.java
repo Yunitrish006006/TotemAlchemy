@@ -4,8 +4,11 @@ import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.LiquidComposition;
 import dev.totem.alchemy.registry.AlchemyItems;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -19,11 +22,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LiquidContainerAdaptersTest {
     @Test
     void unsupportedContainersStillFallThroughBuiltInDispatcher() {
-        ItemStack flask = new ItemStack(AlchemyItems.LARGE_POTION_FLASK);
-        assertTrue(LiquidContainerAdapters.drain(flask, 1).isEmpty());
+        ItemStack splashWater = PotionContents.createItemStack(Items.SPLASH_POTION, Potions.WATER);
+        assertTrue(LiquidContainerAdapters.drain(splashWater, 1).isEmpty());
+
+        AlchemyMixtureState effectful = water(1);
+        effectful.putEffect("minecraft:speed", 200.0D, 0);
         assertTrue(LiquidContainerAdapters.fill(
-                flask,
-                water(1),
+                new ItemStack(Items.GLASS_BOTTLE),
+                effectful,
                 1
         ).isEmpty());
     }
