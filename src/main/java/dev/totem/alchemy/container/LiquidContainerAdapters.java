@@ -17,7 +17,8 @@ public final class LiquidContainerAdapters {
             WaterBottleContainerAdapter.INSTANCE,
             WaterBucketContainerAdapter.INSTANCE,
             MilkBucketContainerAdapter.INSTANCE,
-            HoneyBottleContainerAdapter.INSTANCE
+            HoneyBottleContainerAdapter.INSTANCE,
+            LargeFlaskContainerAdapter.INSTANCE
     );
 
     private LiquidContainerAdapters() {
