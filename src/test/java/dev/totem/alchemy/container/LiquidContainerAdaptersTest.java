@@ -22,14 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LiquidContainerAdaptersTest {
     @Test
     void unsupportedContainersStillFallThroughBuiltInDispatcher() {
-        ItemStack splashWater = PotionContents.createItemStack(Items.SPLASH_POTION, Potions.WATER);
-        assertTrue(LiquidContainerAdapters.drain(splashWater, 1).isEmpty());
-
-        AlchemyMixtureState effectful = water(1);
-        effectful.putEffect("minecraft:speed", 200.0D, 0);
-        assertTrue(LiquidContainerAdapters.fill(
-                new ItemStack(Items.GLASS_BOTTLE),
-                effectful,
+        assertTrue(LiquidContainerAdapters.drain(
+                new ItemStack(AlchemyItems.HOT_COCOA),
+                1
+        ).isEmpty());
+        assertTrue(LiquidContainerAdapters.drain(
+                new ItemStack(Items.APPLE),
                 1
         ).isEmpty());
     }
