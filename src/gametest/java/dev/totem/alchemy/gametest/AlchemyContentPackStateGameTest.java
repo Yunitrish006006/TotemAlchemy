@@ -78,9 +78,12 @@ public final class AlchemyContentPackStateGameTest {
     @GameTest(maxTicks = 20)
     public void selectedPackMatrixMatchesRuntimeState(GameTestHelper helper) {
         String fixture = System.getenv("TOTEM_ALCHEMY_GAMETEST_PACKS");
-        require(helper, fixture != null && java.util.Set.of(
-                        "ON_ON", "ON_OFF", "OFF_ON", "OFF_OFF").contains(fixture),
-                "M10-T08 requires an explicit four-state pack fixture");
+        if (fixture == null || fixture.isBlank()) {
+            // Legacy M10-T07 OFF/OFF lane has no matrix environment variable.
+            fixture = "OFF_OFF";
+        }
+        require(helper, java.util.Set.of("ON_ON", "ON_OFF", "OFF_ON", "OFF_OFF").contains(fixture),
+                "Invalid M10-T08 pack fixture: " + fixture);
 
         boolean expectedTotem = fixture.startsWith("ON_");
         boolean expectedMinecraft = fixture.endsWith("_ON");
