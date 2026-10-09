@@ -1,6 +1,6 @@
 {
   "ingredients": [
-    {"ingredient":"minecraft:nether_wart","processing_ticks":400,"starter":true},
+    {"ingredient":"minecraft:nether_wart","processing_ticks":400},
     {"ingredient":"minecraft:red_mushroom","processing_ticks":360,"starter":true},
     {"ingredient":"minecraft:brown_mushroom","processing_ticks":340},
     {"ingredient":"minecraft:spider_eye","processing_ticks":380},
