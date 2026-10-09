@@ -7,6 +7,7 @@ import dev.totem.alchemy.alchemy.BrewingStationPolicy;
 import dev.totem.alchemy.alchemy.VanillaBrewingChance;
 import dev.totem.alchemy.mixin.BrewingStandBlockEntityAccessor;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.mixture.EffectDoseStandards;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
@@ -260,8 +261,15 @@ public final class PotionBrewingRegressionGameTest {
     ) {
         BrewingStandBlockEntity stand =
                 completeNativeVanillaAtLegacyFailureRoll(helper, potion(inputPotion), ingredient);
+        var expectedEffects = EffectDoseStandards.forPotion(expectedPotion);
         for (int slot = 0; slot < 3; slot++) {
-            assertPotion(helper, stand.getItem(slot), expectedPotion, message);
+            ItemStack output = stand.getItem(slot);
+            require(helper, output.is(Items.POTION), message + " (container changed)");
+            require(helper, AlchemyMixtureBottle.hasStoredMixture(output),
+                    message + " (alchemy mixture state missing)");
+            AlchemyMixtureState state = AlchemyMixtureBottle.fromPotion(output);
+            require(helper, state.effects().equals(expectedEffects),
+                    message + " (effect data mismatch: " + state.effects() + ")");
         }
     }
 
