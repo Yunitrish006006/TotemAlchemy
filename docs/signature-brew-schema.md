@@ -187,6 +187,22 @@ Every decision exposes `mayReleaseSource() == false`, `mayPayOut() == false` and
 
 **Still required:** an authoritative independently durable *recipient-owned* grant or mail/claim record, a verified single-writer ordering/fence for chunk debit and grant persistence, and an immutable terminal tombstone with generation numbers before a source position is reused. Current A1/C1 registry and all signed ticket APIs remain disconnected from the live right-click path; do not switch automatic signature recipes on.
 
+## F1 source-generation genesis anchor (M11-T02a-durability-02b-02b-02d-02b-01)
+
+`SignatureBrewSourceFence` introduces an immutable **first-generation (F1)** origin identity in the same world SavedData file as the A1 escrow. Its persisted representation is:
+
+```text
+F1|dimension_id|packed_block_pos|1|transaction_uuid|sha256(original_S2_ticket)
+```
+
+The `source_fences` field is optional for backward compatibility. New experimental `SignatureBrewTransactionRegistry.register(...)` writes **both A1 and the generation-one F1 anchor in one in-memory mutation of the same SavedData object**. A repeated identical A1 registration remains idempotent and does not create an additional fence. The fence binds the entire original S2 payload, not just a transaction UUID, and is available through `SignatureBrewTransactionSavedData.inspectFence(...)`.
+
+A pre-existing A1 file without `source_fences` is classified `LEGACY_UNFENCED` and **never promoted automatically** to a trusted F1. A mismatched source, transaction UUID, ticket fingerprint, future generation, invalid dimension or unknown serialized version causes fail-closed quarantine while retaining the original raw record for investigation. The actual SavedData codec is tested across a destroyed last-dose cauldron and an older A1-only serialized fixture.
+
+**F1 is not a payout receipt, journal acknowledgment, settled tombstone, or permission to reuse a source.** The *only supported generation is 1*. No method can increment it, delete A1, free its source position, award an item, or transform C1 review into finalization. A1 and F1 are saved together in the world data domain, but that save remains independent of player inventory and cauldron chunk persistence.
+
+Before enabling second-generation F2 or a terminal source-release API, implement an authoritative recipient-owned durable grant/mailbox, a transaction coordinator that can atomically commit or safely reconcile the complete debit and grant, and process-kill/rollback/chunk-unload tests proving no duplication or loss at each independently persisted boundary.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
