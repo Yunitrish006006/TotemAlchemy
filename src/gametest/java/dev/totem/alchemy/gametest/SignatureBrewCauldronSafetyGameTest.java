@@ -261,9 +261,10 @@ public final class SignatureBrewCauldronSafetyGameTest {
         require(helper, cauldron.initializeMixture(ready), "Could not initialize ready signature batch");
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.getAbilities().instabuild = false;
-        BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
-        for (int remaining = 2; remaining >= 0; remaining--) {
+        try {
+            player.getAbilities().instabuild = false;
+            BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
+            for (int remaining = 2; remaining >= 0; remaining--) {
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GLASS_BOTTLE));
             InteractionResult response = UseBlockCallback.EVENT.invoker().interact(
                     player, helper.getLevel(), InteractionHand.MAIN_HAND,
@@ -284,8 +285,13 @@ public final class SignatureBrewCauldronSafetyGameTest {
                 "Last signature bottle did not restore an empty cauldron");
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GLASS_BOTTLE));
         ItemStack extra = cauldron.extractSignatureBottle(player.getItemInHand(InteractionHand.MAIN_HAND));
-        require(helper, extra.isEmpty(), "A fourth bottle was issued from an already exhausted batch");
-        helper.succeed();
+            require(helper, extra.isEmpty(), "A fourth bottle was issued from an already exhausted batch");
+            helper.succeed();
+        } finally {
+            // All GameTests run in the same server/world: leaving a mock player
+            // behind can steal the nearest-player discovery from unrelated tests.
+            player.discard();
+        }
     }
 
     @GameTest(maxTicks = 30)
