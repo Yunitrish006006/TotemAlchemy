@@ -1,3 +1,7 @@
+## JUnit baseline recovery (priority override)
+
+The 43 remaining JUnit failures are tracked in [junit-recovery-task-plan.md](junit-recovery-task-plan.md) as **JUNIT-00 through JUNIT-09**, with a single focused stage per turn. Build #419 confirmed 259 JUnit / 43 failures from unbound item components, while 111 main server GameTests, OFF/OFF and all four pack states passed. **Pause new M11 delivery features until JUNIT-09 is green.** JUNIT-00 smoke fixture has been added; bootstrap repair and focused CI validation are pending.
+
 # TotemAlchemy Next — GPT Implementation Task Plan
 
 Status: implementation baseline for the 26.3 chemistry rewrite.
