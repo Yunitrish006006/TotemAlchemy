@@ -170,6 +170,23 @@ The origin world SavedData now contains an optional `closure_reviews` array inde
 
 Future `M11-T02a-durability-02b-02b-02d-02` must introduce a **separate, verified terminal protocol** with recipient-owned durable grant evidence and fencing/generation rules for safe reuse of the same cauldron position. The current experimental world ledger remains disconnected from live signature-brew interactions until then.
 
+## A1/C1/J1/R1 terminal preflight (M11-T02a-durability-02b-02b-02d-02a)
+
+`SignatureBrewClosurePreflight` introduces a **read-only terminal safety check**. Its input is the canonical A1 world-registered reward and source, a matching C1 review intent, the cauldron's J1 delivery journal and the independent per-player R1 observation. `SignatureBrewTransactionSavedData.assessClosure(...)` provides the integrated SavedData entrypoint without exposing mutable internal indexes or modifying any saved state.
+
+Before even considering a source release, the preflight requires that all immutable transaction details agree: transaction UUID, original source dimension and position, S2 output/recipient details, C1 SHA-256 fingerprint and J1 owner. It also compares R1 recipe/output identity, not merely the transaction ID. Rejected states include missing world registry or transaction, wrong origin, missing/tampered C1 review, mismatched or absent J1, absent/corrupt/conflicting R1 ledger, and a purported ACKNOWLEDGED journal without authoritative player storage proof.
+
+| Matched A1 + C1 | J1 | R1 observation | Preflight outcome |
+| --- | --- | --- | --- |
+| Yes | PREPARED | Absent or present | **Block**: not an authoritative payout |
+| Yes | ISSUANCE_UNCERTAIN | Absent or present | **Block**: payout may already have happened |
+| Yes | ACKNOWLEDGED | Absent or present | **Block**: this enum is not durable recipient proof |
+| No or inconsistent | Any | Any | **Block**: recover or audit damaged/foreign evidence |
+
+Every decision exposes `mayReleaseSource() == false`, `mayPayOut() == false` and `mayAcknowledge() == false`; the preflight cannot be used as a convenient shortcut to mint rewards or recycle a cauldron. Java tests and GameTests validate all four A1/C1/J1/R1 join paths, saved-world and saved-player codec round trips, and a missing final-dose block. This is not a real process-kill/fault-injection test.
+
+**Still required:** an authoritative independently durable *recipient-owned* grant or mail/claim record, a verified single-writer ordering/fence for chunk debit and grant persistence, and an immutable terminal tombstone with generation numbers before a source position is reused. Current A1/C1 registry and all signed ticket APIs remain disconnected from the live right-click path; do not switch automatic signature recipes on.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
