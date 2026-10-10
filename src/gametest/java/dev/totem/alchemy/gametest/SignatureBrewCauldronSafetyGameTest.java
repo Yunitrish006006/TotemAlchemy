@@ -106,6 +106,25 @@ public final class SignatureBrewCauldronSafetyGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 30)
+    public void uncommittedSignatureReservationStillAllowsOrdinaryCompletion(GameTestHelper helper) {
+        AlchemyMixtureState mixture = new AlchemyMixtureState(3);
+        mixture.addReaction(new AlchemyMixtureState.Reaction(
+                "signature:sugar", "minecraft:sugar", 0, 20, 3, null, null,
+                Map.of(), Map.of("minecraft:speed",
+                        new AlchemyMixtureState.EffectDose(400.0D, 0))));
+        require(helper, mixture.replaceSignatureGroups(List.of(
+                new SignatureBrewResolver.ReactionGroup(
+                        HOT_COCOA, List.of("signature:sugar")))),
+                "Could not create uncommitted reservation");
+        mixture.tickReactions(20);
+        require(helper, mixture.signatureGroups().isEmpty() && mixture.signatureProcesses().isEmpty(),
+                "Inactive reservation improperly committed after a material finished");
+        require(helper, mixture.effects().containsKey("minecraft:speed"),
+                "Inactive reservation wrongly suppressed ordinary ingredient result");
+        helper.succeed();
+    }
+
     private static AlchemyCauldronBlockEntity createCauldron(GameTestHelper helper) {
         BlockPos relative = new BlockPos(2, 2, 2);
         BlockState block = AlchemyBlocks.ALCHEMY_CAULDRON.defaultBlockState()
