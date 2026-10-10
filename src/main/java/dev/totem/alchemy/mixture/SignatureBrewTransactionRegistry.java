@@ -117,7 +117,7 @@ public final class SignatureBrewTransactionRegistry {
             }
             Entry candidate = entry.get();
             Entry previous = byTransaction.putIfAbsent(candidate.transactionId(), candidate);
-            if (previous != null && !previous.equals(candidate)) {
+            if (previous != null && !previous.encode().equals(candidate.encode())) {
                 conflictedTransactions.add(candidate.transactionId());
                 conflictedSources.add(previous.source());
                 conflictedSources.add(candidate.source());
@@ -157,7 +157,7 @@ public final class SignatureBrewTransactionRegistry {
         Entry incoming = new Entry(source, ticket);
         Entry previous = byTransaction.get(ticket.transactionId());
         if (previous != null) {
-            return previous.equals(incoming) ? RegisterResult.ALREADY_REGISTERED
+            return previous.encode().equals(incoming.encode()) ? RegisterResult.ALREADY_REGISTERED
                     : RegisterResult.CONFLICT_TRANSACTION;
         }
         UUID sourceOwner = bySource.get(source);
