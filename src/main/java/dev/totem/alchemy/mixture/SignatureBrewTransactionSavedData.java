@@ -25,7 +25,9 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
     public static final Codec<SignatureBrewTransactionSavedData> CODEC =
             RecordCodecBuilder.create(instance -> instance.group(
                     Codec.STRING.listOf().optionalFieldOf("transactions", List.of())
-                            .forGetter(SignatureBrewTransactionSavedData::encodedTransactions)
+                            .forGetter(SignatureBrewTransactionSavedData::encodedTransactions),
+                    Codec.STRING.listOf().optionalFieldOf("closure_reviews", List.of())
+                            .forGetter(SignatureBrewTransactionSavedData::encodedClosureReviews)
             ).apply(instance, SignatureBrewTransactionSavedData::new));
 
     public static final SavedDataType<SignatureBrewTransactionSavedData> TYPE =
@@ -41,8 +43,10 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
         registry = new SignatureBrewTransactionRegistry();
     }
 
-    private SignatureBrewTransactionSavedData(List<String> raw) {
-        registry = new SignatureBrewTransactionRegistry(raw);
+    private SignatureBrewTransactionSavedData(
+            List<String> raw, List<String> closureReviews
+    ) {
+        registry = new SignatureBrewTransactionRegistry(raw, closureReviews);
     }
 
     public static SignatureBrewTransactionSavedData get(MinecraftServer server) {
@@ -85,11 +89,37 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
                 ticket);
     }
 
+    /**
+     * Durable-intent metadata only. Does not release this cauldron origin,
+     * acknowledge recipient payout or authorize an automatic retry.
+     */
+    public SignatureBrewTransactionRegistry.ClosureResult requestClosureReview(
+            Identifier dimensionId, BlockPos sourcePos, SignatureBrewDeliveryTicket ticket
+    ) {
+        if (dimensionId == null || sourcePos == null) {
+            return SignatureBrewTransactionRegistry.ClosureResult.INVALID_SOURCE_OR_TICKET;
+        }
+        var result = registry.requestClosureReview(
+                new SignatureBrewTransactionRegistry.Source(dimensionId, sourcePos.asLong()), ticket);
+        if (result == SignatureBrewTransactionRegistry.ClosureResult.REVIEW_REQUESTED) {
+            setDirty();
+        }
+        return result;
+    }
+
+    public SignatureBrewTransactionRegistry.ClosureState closureState(UUID transactionId) {
+        return registry.closureState(transactionId);
+    }
+
     public boolean needsManualRecovery() {
         return registry.needsManualRecovery();
     }
 
     private List<String> encodedTransactions() {
         return registry.encodedEntries();
+    }
+
+    private List<String> encodedClosureReviews() {
+        return registry.encodedClosureIntents();
     }
 }
