@@ -102,6 +102,16 @@ The only new transition method is `markSignatureDeliveryAttempt(transactionId, r
 
 This is deliberately **not** crash-safe delivery: `setChanged()` is only an in-memory dirty flag, not a guarantee that the journal was durably flushed to disk before a future inventory mutation. In addition to matching the player receipt, production must define an ordering / recovery protocol that handles write reordering, chunk unload/destruction, save rollback, server kill at each transition, and the final-dose block replacement. No runtime right-click route currently invokes this journal; the existing delivery path stays unchanged.
 
+## Prepared reward item receipt (M11-T02a-durability-02b-02a, isolated)
+
+A future payout will need independent evidence of *which* prepared transaction reached the player. `SignatureBrewRewardReceipt` defines `R1|transaction_uuid|recipient_uuid|signature_id|output_item_id`, embedded in the detached output ItemStack's `CUSTOM_DATA.totem_alchemy_signature_receipt`. `SignatureBrewBottleOutput.createWithReceipt(ticket)` builds the prepared drink and stamps this marker without touching the cauldron or a player inventory. The returned item still carries its existing one-dose `totem_alchemy_mixture_state` and potion presentation.
+
+Validation rejects wrong item IDs, missing or mismatched signature provenance, pending or claimed group metadata in the dose, stacked rewards, invalid records, and restamping an item that already has a receipt. An ownerless legacy S1 ticket cannot produce an R1-marked drink. The receipt ID must exactly match the pending S2 ticket, but this comparison is **read-only** and does not grant a second item.
+
+**Security limitation:** an ItemStack tag is *not* a tamper-proof or permanent delivery receipt. Players may consume, move, delete or duplicate item stacks; a missing matching item does not mean no payout happened. The R1 marker is therefore only an audit aid for future player-ledger reconciliation, **not** authorization to release the escrow, retry an uncertain attempt, or declare ACKNOWLEDGED. No current live right-click path uses signed output.
+
+Next checkpoint: design and persist an independent player-side receipt ledger that survives item consumption and restart; reconcile with the cauldron's J1 state while testing all crash/order windows, including when a chunk no longer exists.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
