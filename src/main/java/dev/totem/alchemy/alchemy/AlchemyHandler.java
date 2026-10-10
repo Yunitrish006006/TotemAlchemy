@@ -209,6 +209,14 @@ public final class AlchemyHandler {
             return false;
         }
 
+        if (!dropped && state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity instanceof AlchemyCauldronBlockEntity cauldron
+                    && cauldron.canExtractSignatureBottle(stack)) {
+                return true;
+            }
+        }
+
         if (!dropped && stack.is(Items.GLASS_BOTTLE) && state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             return blockEntity instanceof AlchemyCauldronBlockEntity cauldron
@@ -327,6 +335,27 @@ public final class AlchemyHandler {
                     new ItemStack(Items.GLASS_BOTTLE),
                     Component.translatable("message.totem.alchemy.mixture_poured")
             );
+        }
+
+        if (!dropped && state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
+            BlockEntity entity = level.getBlockEntity(pos);
+            if (entity instanceof AlchemyCauldronBlockEntity cauldron
+                    && cauldron.canExtractSignatureBottle(stack)) {
+                ItemStack output = cauldron.extractSignatureBottle(stack);
+                if (output.isEmpty()) {
+                    return null;
+                }
+                int remaining = cauldron.mixtureSnapshot().volumeUnits();
+                if (remaining <= 0) {
+                    level.setBlock(pos, Blocks.CAULDRON.defaultBlockState(), 3);
+                } else {
+                    level.setBlock(pos, level.getBlockState(pos).setValue(
+                            LayeredCauldronBlock.LEVEL, remaining), 3);
+                }
+                level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
+                return new CauldronAction(output,
+                        Component.translatable("message.totem.alchemy.mixture_bottled"));
+            }
         }
 
         if (!dropped && stack.is(Items.GLASS_BOTTLE) && state.is(AlchemyBlocks.ALCHEMY_CAULDRON)) {
