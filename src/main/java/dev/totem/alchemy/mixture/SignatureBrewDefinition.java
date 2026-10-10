@@ -42,6 +42,11 @@ public record SignatureBrewDefinition(
             if (type == Type.BOTTLED_ITEM && containerItemId == null) {
                 throw new IllegalArgumentException("Bottled signature result needs a container item");
             }
+            // A bottled recipe describes exactly one drink per unit of liquid; the
+            // batch volume determines the number of available drinks, not item count.
+            if (type == Type.BOTTLED_ITEM && count != 1) {
+                throw new IllegalArgumentException("Bottled signature results must have count=1");
+            }
             if (type == Type.DROP_ITEM && (containerItemId != null || potionId != null)) {
                 throw new IllegalArgumentException("Drop-item signature result cannot specify a container or potion");
             }
