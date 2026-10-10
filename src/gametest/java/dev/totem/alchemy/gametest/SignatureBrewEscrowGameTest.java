@@ -8,10 +8,15 @@ import dev.totem.alchemy.mixture.SignatureBrewDeliveryTicket;
 import dev.totem.alchemy.mixture.SignatureBrewDeliveryProgress;
 import dev.totem.alchemy.mixture.SignatureBrewBottleOutput;
 import dev.totem.alchemy.mixture.SignatureBrewRewardReceipt;
+import dev.totem.alchemy.mixture.SignatureBrewReceiptIndex;
+import dev.totem.alchemy.mixture.SignatureBrewPlayerReceiptSavedData;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.registry.AlchemyItems;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -317,6 +322,96 @@ public final class SignatureBrewEscrowGameTest {
                 ticket.transactionId(), ticket.signatureId(), ticket.result(), ticket.dose());
         require(helper, SignatureBrewBottleOutput.createWithReceipt(legacy).isEmpty(),
                 "Old S1 unbound ticket unexpectedly generated a payable reward");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void playerReceiptLedgerPersistsObservationIndependentOfConsumedItem(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize signature mix");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        ItemStack marked = SignatureBrewBottleOutput.createWithReceipt(ticket);
+        require(helper, !marked.isEmpty(), "Could not create receipt-tagged output");
+
+        var ledger = new SignatureBrewPlayerReceiptSavedData();
+        require(helper, ledger.observe(RECIPIENT, ticket, marked)
+                        == SignatureBrewReceiptIndex.RecordResult.RECORDED,
+                "Initial observation was not recorded");
+        require(helper, ledger.observe(RECIPIENT, ticket, marked)
+                        == SignatureBrewReceiptIndex.RecordResult.ALREADY_RECORDED,
+                "Repeated observation was recorded twice");
+        require(helper, ledger.lookup(INTRUDER, ticket.transactionId())
+                        == SignatureBrewReceiptIndex.Lookup.WRONG_RECIPIENT,
+                "Different recipient was allowed to read another player's transaction");
+
+        // Serialize with the actual SavedData Codec, then simulate destruction
+        // of the one-dose item before deserializing the independent ledger.
+        var serialized = SignatureBrewPlayerReceiptSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, ledger).getOrThrow();
+        marked = ItemStack.EMPTY;
+        var restored = SignatureBrewPlayerReceiptSavedData.CODEC
+                .parse(JsonOps.INSTANCE, serialized).getOrThrow();
+        require(helper, restored.lookup(RECIPIENT, ticket.transactionId())
+                        == SignatureBrewReceiptIndex.Lookup.OBSERVED,
+                "Item removal caused the persisted observation to disappear");
+        require(helper, restored.lookup(RECIPIENT, INTRUDER)
+                        == SignatureBrewReceiptIndex.Lookup.NOT_OBSERVED,
+                "Unknown transaction was misinterpreted as already observed");
+        // Neither OBSERVED nor NOT_OBSERVED authorizes a payout.
+        require(helper, cauldron.signatureDeliveryProgress().orElseThrow().phase()
+                        == SignatureBrewDeliveryProgress.Phase.PREPARED,
+                "Observing a receipt unexpectedly advanced the cauldron journal");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void playerReceiptLedgerRejectsWrongOwnerAndDifferentTicketWithoutChange(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize signature mix");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        ItemStack marked = SignatureBrewBottleOutput.createWithReceipt(ticket);
+        var ledger = new SignatureBrewPlayerReceiptSavedData();
+        require(helper, ledger.observe(INTRUDER, ticket, marked)
+                        == SignatureBrewReceiptIndex.RecordResult.WRONG_RECIPIENT,
+                "Wrong receiver was allowed to record a reward observation");
+        var unrelated = new SignatureBrewDeliveryTicket(
+                INTRUDER, RECIPIENT, ticket.signatureId(), ticket.result(), ticket.dose());
+        require(helper, ledger.observe(RECIPIENT, unrelated, marked)
+                        == SignatureBrewReceiptIndex.RecordResult.WRONG_RECIPIENT,
+                "A different transaction used this item as its receipt");
+        require(helper, ledger.lookup(RECIPIENT, ticket.transactionId())
+                        == SignatureBrewReceiptIndex.Lookup.NOT_OBSERVED,
+                "Rejected observation silently entered the ledger");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void corruptedOrConflictedPlayerReceiptLedgerRetainsEvidenceAndFailsClosed(GameTestHelper helper) {
+        var first = new SignatureBrewRewardReceipt(
+                RECIPIENT, RECIPIENT, SIGNATURE, SIGNATURE);
+        var otherOwner = new SignatureBrewRewardReceipt(
+                RECIPIENT, INTRUDER, SIGNATURE, SIGNATURE);
+        JsonObject serialized = new JsonObject();
+        JsonArray receipts = new JsonArray();
+        receipts.add(first.encode());
+        receipts.add(otherOwner.encode());
+        receipts.add("R2|unknown-format");
+        serialized.add("observations", receipts);
+
+        var ledger = SignatureBrewPlayerReceiptSavedData.CODEC
+                .parse(JsonOps.INSTANCE, serialized).getOrThrow();
+        require(helper, ledger.needsManualRecovery(), "Corrupted/contradictory records were trusted");
+        require(helper, ledger.lookup(RECIPIENT, RECIPIENT)
+                        == SignatureBrewReceiptIndex.Lookup.UNTRUSTED_LEDGER,
+                "Untrusted ledger lookup was treated as verified receipt");
+        var roundTrip = SignatureBrewPlayerReceiptSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, ledger).getOrThrow();
+        require(helper, roundTrip.toString().contains("R2|unknown-format")
+                        && roundTrip.toString().contains(first.encode())
+                        && roundTrip.toString().contains(otherOwner.encode()),
+                "Untrusted receipt evidence was deleted during serialization");
         helper.succeed();
     }
 
