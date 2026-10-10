@@ -11,6 +11,8 @@ import dev.totem.alchemy.mixture.SignatureBrewRewardReceipt;
 import dev.totem.alchemy.mixture.SignatureBrewReceiptIndex;
 import dev.totem.alchemy.mixture.SignatureBrewPlayerReceiptSavedData;
 import dev.totem.alchemy.mixture.SignatureBrewRecoveryAssessment;
+import dev.totem.alchemy.mixture.SignatureBrewTransactionRegistry;
+import dev.totem.alchemy.mixture.SignatureBrewTransactionSavedData;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.registry.AlchemyItems;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
@@ -527,6 +529,108 @@ public final class SignatureBrewEscrowGameTest {
         require(helper, decision.requiresIndependentRecovery()
                         && !decision.allowsAutomaticPayout(),
                 "Corrupt ledger authorized duplicate reward");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void globalTransactionIndexRetainsLastDoseEscrowAfterCauldronRemoval(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(1)), "Could not initialize last signature dose");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        BlockPos position = helper.absolutePos(new BlockPos(2, 2, 2));
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+
+        var registry = new SignatureBrewTransactionSavedData();
+        require(helper, registry.register(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.REGISTERED,
+                "Could not store immutable original transaction in world registry");
+        require(helper, registry.verify(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.Verification.EXACT_SNAPSHOT,
+                "World registry changed original escrow content");
+        var saved = SignatureBrewTransactionSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, registry).getOrThrow();
+
+        helper.getLevel().setBlock(position, net.minecraft.world.level.block.Blocks.CAULDRON.defaultBlockState(), 3);
+        var recovered = SignatureBrewTransactionSavedData.CODEC
+                .parse(JsonOps.INSTANCE, saved).getOrThrow();
+        require(helper, recovered.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.PRESENT,
+                "Removing the last-dose block deleted the separate transaction record");
+        var original = recovered.inspect(ticket.transactionId()).orElseThrow();
+        require(helper, original.ticket().encode().equals(ticket.encode())
+                        && original.source().packedBlockPos() == position.asLong(),
+                "World registry lost canonical source and one-dose reward after reload");
+        require(helper, recovered.register(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.ALREADY_REGISTERED,
+                "Repeated registration did not deduplicate saved transaction");
+        // A saved original reward is NOT evidence of inventory payout.
+        var decision = SignatureBrewRecoveryAssessment.assess(
+                ticket.transactionId(), RECIPIENT, null, null, new SignatureBrewReceiptIndex());
+        require(helper, decision.finding() == SignatureBrewRecoveryAssessment.Finding.ESCROW_MISSING
+                        && !decision.allowsAutomaticPayout(),
+                "Retained world reward unexpectedly authorized payout after block destruction");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void sourceAndTransactionConflictsDoNotOverwriteCanonicalReward(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize ready batch");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        var registry = new SignatureBrewTransactionSavedData();
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+        BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        require(helper, registry.register(dimension, pos, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.REGISTERED,
+                "Could not register first escrow");
+        var newIdSameSource = new SignatureBrewDeliveryTicket(
+                INTRUDER, RECIPIENT, ticket.signatureId(), ticket.result(), ticket.dose());
+        require(helper, registry.register(dimension, pos, newIdSameSource)
+                        == SignatureBrewTransactionRegistry.RegisterResult.CONFLICT_SOURCE,
+                "Same cauldron registered a second unresolved transaction");
+        require(helper, registry.register(dimension, pos.offset(1, 0, 0), ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.CONFLICT_TRANSACTION,
+                "Same transaction ID registered a different cauldron");
+        require(helper, registry.verify(dimension, pos, newIdSameSource)
+                        == SignatureBrewTransactionRegistry.Verification.ABSENT_UNVERIFIED,
+                "Rejected transaction was accidentally recorded");
+        require(helper, registry.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.PRESENT,
+                "Rejected collision erased canonical transaction");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void worldTransactionIndexPreservesUnknownAndConflictingEntries(GameTestHelper helper) {
+        JsonObject saved = new JsonObject();
+        JsonArray entries = new JsonArray();
+        var ticket = new SignatureBrewDeliveryTicket(
+                RECIPIENT, RECIPIENT, SIGNATURE,
+                new SignatureBrewDefinition.Result(
+                        SignatureBrewDefinition.Type.BOTTLED_ITEM, SIGNATURE, 1,
+                        Identifier.fromNamespaceAndPath("minecraft", "glass_bottle"), null),
+                readyMixture(1).claimSignatureBottle(SIGNATURE).orElseThrow().mixture());
+        var dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+        var origin = new SignatureBrewTransactionRegistry.Source(dimension, 123L);
+        entries.add(new SignatureBrewTransactionRegistry.Entry(origin, ticket).encode());
+        entries.add("A2|unsupported-version");
+        saved.add("transactions", entries);
+        var restored = SignatureBrewTransactionSavedData.CODEC
+                .parse(JsonOps.INSTANCE, saved).getOrThrow();
+        require(helper, restored.needsManualRecovery(),
+                "Unknown world transaction format was silently discarded");
+        require(helper, restored.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.UNTRUSTED_REGISTRY,
+                "Unknown entry allowed canonical payout lookup");
+        require(helper, restored.register(dimension, new BlockPos(1, 1, 1), ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.UNTRUSTED_REGISTRY,
+                "Unknown transaction data allowed a ledger write");
+        String reserialized = SignatureBrewTransactionSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, restored).getOrThrow().toString();
+        require(helper, reserialized.contains("A2|unsupported-version"),
+                "Unknown entry was lost on SavedData round-trip");
         helper.succeed();
     }
 
