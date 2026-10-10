@@ -5,7 +5,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Use this alone via --tests *MinecraftRegistryBootstrapTest before retrying
  * all of the failing container classes.
  */
-@ExtendWith(MinecraftRegistryBootstrapExtension.class)
+@WithMinecraftItemComponents
 class MinecraftRegistryBootstrapTest {
     @Test
     void globalJupiterExtensionRunsBeforeRegistryDependentTests() {
