@@ -82,6 +82,17 @@ public final class LiquidComposition {
             return EMPTY;
         }
 
+        // A composition which is already normalized can sum to
+        // 0.9999999999999999 because of binary floating-point rounding
+        // (for example, 1/3 + 2/3). Dividing again changes both component
+        // doubles and violates normalized().normalized() == normalized().
+        // Only preserve it if every component survives epsilon pruning and
+        // the sum differs from one by at most a few machine ULPs.
+        if (Math.abs(total - 1.0D) <= 4.0D * Math.ulp(1.0D)
+                && components.values().stream().allMatch(amount -> amount > epsilon)) {
+            return this;
+        }
+
         Map<Identifier, Double> normalized = new LinkedHashMap<>();
         components.forEach((liquidId, amount) -> {
             if (amount > epsilon) {
