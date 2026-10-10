@@ -144,6 +144,18 @@ Every decision exposes explicit `allowsAutomaticPayout() = false`, `allowsAutoma
 
 **Next gate:** choose an authoritative, durable, recipient-owned receipt/transaction mechanism, implement correct save ordering or a provable replayable single-source-of-truth transaction, and exercise real process kills, incomplete writes, chunk removal, player logout and rollback before changing production right-click behavior.
 
+## World escrow origin registry (M11-T02a-durability-02b-02b-02c; experimental only)
+
+`SignatureBrewTransactionRegistry` and `SignatureBrewTransactionSavedData` introduce a fourth independent, persistent audit domain, held in overworld SavedData under `totem:alchemy/signature_transactions`. The entry `A1|dimension_id|packed_block_pos|base64(S2_ticket)` contains the exact one-dose reward and recipient UUID, plus the origin dimension and block position. Its immutable snapshot survives removal of the original last-dose cauldron when the registry file has been saved.
+
+The registry enforces uniqueness: a repeated identical transaction and source is idempotent; the same transaction UUID from a different cauldron or changed reward is rejected; a different unresolved transaction from the same origin is rejected. Loaded duplicate/colliding source records, invalid future-version records and malformed payloads are quarantined without deleting the serialized evidence. Verification checks the **full canonical S2 payload**, not only the UUID, against the alleged source. No registration method releases or pays out an item.
+
+**Important lifecycle limitation:** the source position remains locked until a separately designed, persisted finalization/tombstone mechanism is available. This experimental registry MUST NOT be wired to normal gameplay without it, or future brewing at the same cauldron would be blocked indefinitely.
+
+**This is not yet a true source of truth for exactly-once delivery.** While registration and liquid debit remain different persistence boundaries, a crash may save only one of them. Even if the registry has an original escrow snapshot after chunk removal, paying it out without reconciliation can duplicate an item already written in player.dat. Conversely, an absent registry entry does not prove the item was not delivered. No delivery, acknowledgment, automatic retry or chunk destruction compensation is authorized. The registry currently participates only in isolated Java/server tests.
+
+The production design must converge on an authoritative single-writer transaction coordinator with a verifiable debit/credit commit order or a durable idempotent grant at the recipient side. It must account for registry rollback, lost/unloaded chunks, repeated source positions, disconnection, and partial or reordered saves, with real process-kill fault injection before SignatureBrew recipes are enabled.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
