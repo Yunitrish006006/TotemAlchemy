@@ -58,6 +58,9 @@ public final class AlchemyCompoundBrewing {
                 return null;
             }
             AlchemyMixtureState mixture = cauldron.mixtureSnapshot();
+            if (mixture.hasCommittedSignatureProcess()) {
+                return null;
+            }
             AlchemyCauldronRecipe recipe = activeRecipe(mixture);
             if (recipe == null || isReady(mixture)) {
                 return null;
@@ -156,6 +159,11 @@ public final class AlchemyCompoundBrewing {
 
     /** Applies a named bottled result once every captured reaction has completed. */
     public static AlchemyCauldronRecipe completeIfReady(AlchemyMixtureState state) {
+        // An active signature owns its member outcomes. Do not also finalize
+        // a legacy named cauldron recipe from the same in-flight materials.
+        if (state == null || state.hasCommittedSignatureProcess()) {
+            return null;
+        }
         AlchemyCauldronRecipe recipe = activeRecipe(state);
         if (recipe == null || isReady(state) || !hasAllInputs(state, recipe) || hasRecipeReaction(state, recipe)) {
             return null;
@@ -232,6 +240,9 @@ public final class AlchemyCompoundBrewing {
 
     /** Returns the old custom drink item for a completed named recipe; unfinished states stay vanilla bottles. */
     public static ItemStack bottledResult(AlchemyMixtureState state) {
+        if (state == null || state.hasCommittedSignatureProcess()) {
+            return ItemStack.EMPTY;
+        }
         AlchemyCauldronRecipe recipe = activeRecipe(state);
         if (!isReady(state) || recipe == null
                 || recipe.result().type() != AlchemyCauldronRecipe.ResultType.BOTTLED_ITEM) {

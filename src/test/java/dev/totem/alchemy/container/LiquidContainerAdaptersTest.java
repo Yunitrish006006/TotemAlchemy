@@ -1,5 +1,7 @@
 package dev.totem.alchemy.container;
 
+import dev.totem.alchemy.testing.WithMinecraftItemComponents;
+
 import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.LiquidComposition;
@@ -19,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithMinecraftItemComponents
 class LiquidContainerAdaptersTest {
     @Test
     void unsupportedContainersStillFallThroughBuiltInDispatcher() {

@@ -1,5 +1,7 @@
 package dev.totem.alchemy.container;
 
+import dev.totem.alchemy.testing.WithMinecraftItemComponents;
+
 import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
@@ -14,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithMinecraftItemComponents
 class MilkBucketContainerAdapterTest {
     @Test
     void milkBucketDrainsToThreeMilkUnitsAndEmptyBucket() {

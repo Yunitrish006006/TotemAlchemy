@@ -1,5 +1,7 @@
 package dev.totem.alchemy.mixture;
 
+import dev.totem.alchemy.testing.WithMinecraftItemComponents;
+
 import net.minecraft.util.RandomSource;
 import org.junit.jupiter.api.Test;
 
@@ -9,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithMinecraftItemComponents
 class AlchemyMixtureTimingTest {
     @Test
     void emptyMixtureHasNoTimingHint() {

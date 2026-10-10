@@ -1,5 +1,7 @@
 package dev.totem.alchemy.container;
 
+import dev.totem.alchemy.testing.WithMinecraftItemComponents;
+
 import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
@@ -18,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithMinecraftItemComponents
 class PotionContainerAdapterTest {
     private static final double EPSILON = 1.0E-9D;
 
