@@ -156,6 +156,20 @@ The registry enforces uniqueness: a repeated identical transaction and source is
 
 The production design must converge on an authoritative single-writer transaction coordinator with a verifiable debit/credit commit order or a durable idempotent grant at the recipient side. It must account for registry rollback, lost/unloaded chunks, repeated source positions, disconnection, and partial or reordered saves, with real process-kill fault injection before SignatureBrew recipes are enabled.
 
+## Review-only closure intents (M11-T02a-durability-02b-02b-02d-01)
+
+A `SignatureBrewClosureIntent` is a **C1 review request**, not a `CLOSED` or `ACKNOWLEDGED` transaction. Its stable payload is:
+
+```text
+C1|transaction_uuid|recipient_uuid|origin_dimension|packed_block_pos|sha256(original_S2_ticket)
+```
+
+The origin world SavedData now contains an optional `closure_reviews` array independent of the immutable `transactions` entries. Old A1-only snapshots load with an empty review list. `requestClosureReview(source, originalTicket)` compares the *entire original S2 ticket*, owner and source against A1 before creating a new C1 record; repeated requests are idempotent. Reload validates every saved review against its canonical original; unknown versions, tampered fingerprints, conflicting or mismatched metadata are retained for manual recovery and prevent automatic registration changes.
+
+**A review does not change the payout state, mark J1 as ACKNOWLEDGED, erase the A1 snapshot, or release a source lease.** All origins remain locked against registering a different ticket, even after review. The C1 record does not attest that the player received an item, and a matching fingerprint is not authentication or a durable inventory receipt.
+
+Future `M11-T02a-durability-02b-02b-02d-02` must introduce a **separate, verified terminal protocol** with recipient-owned durable grant evidence and fencing/generation rules for safe reuse of the same cauldron position. The current experimental world ledger remains disconnected from live signature-brew interactions until then.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
