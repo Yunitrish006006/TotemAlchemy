@@ -191,6 +191,8 @@ class SignatureBrewSettlementTest {
     void threeUnitBottlingConservesExistingChemistryAcrossAllClaims() {
         var state = state();
         state.putEffect("minecraft:regeneration", 900.0D, 0);
+        state.addProvenance("compound:recipe:totem:alchemy/hot_cocoa");
+        state.addProvenance("compound:ready:totem:alchemy/hot_cocoa");
         assertTrue(state.commitSignatureGroup(SIGNATURE, result()));
         state.tickReactions(40);
 
@@ -200,6 +202,8 @@ class SignatureBrewSettlementTest {
             extracted += claim.mixture().effects().get("minecraft:regeneration").quantity();
             assertEquals(expectedRemaining, state.volumeUnits());
             assertTrue(claim.mixture().hasProvenance("signature:result:" + SIGNATURE));
+            assertTrue(claim.mixture().provenance().stream().noneMatch(marker -> marker.startsWith("compound:")),
+                    "Claimed signature drink must never retain the old recipe's completion markers");
             assertFalse(claim.mixture().hasCommittedSignatureProcess());
             assertTrue(claim.mixture().isHeatLockedAfterBottling());
         }
