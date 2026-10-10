@@ -10,6 +10,8 @@ import dev.totem.alchemy.mixture.AlchemyMixtureColor;
 import dev.totem.alchemy.mixture.AlchemyCompoundBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
+import dev.totem.alchemy.mixture.SignatureBrewBottleOutput;
+import dev.totem.alchemy.mixture.SignatureBrewProcess;
 import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -157,6 +159,55 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
             return AlchemyMixtureState.empty();
         }
         return extractMixtureUnits(1);
+    }
+
+    /**
+     * Ready signature drinks are bottled only through their explicitly
+     * configured container item, never through ordinary mixture extraction.
+     */
+    public boolean canExtractSignatureBottle(ItemStack container) {
+        return readySignatureBottle(container) != null;
+    }
+
+    private SignatureBrewProcess readySignatureBottle(ItemStack container) {
+        if (!hasMixture() || recipeId != null || readyForExtraction
+                || !mixture.hasCommittedSignatureProcess()) {
+            return null;
+        }
+        for (SignatureBrewProcess process : mixture.signatureProcesses()) {
+            if (process.ready() && SignatureBrewBottleOutput.supports(container, process.result())) {
+                return process;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Validate and construct an output from a working copy before consuming a
+     * single source unit. Rejected output never changes the cauldron. A successful
+     * call commits the one-unit state claim on the server thread, leaving the
+     * caller to exchange its container and update the visible cauldron level.
+     *
+     * <p>Inventory delivery and chunk persistence are not a durable cross-object
+     * transaction yet. No signature recipes are auto-scheduled by this path.</p>
+     */
+    public ItemStack extractSignatureBottle(ItemStack container) {
+        SignatureBrewProcess process = readySignatureBottle(container);
+        if (process == null) {
+            return ItemStack.EMPTY;
+        }
+        AlchemyMixtureState updated = mixture.copy();
+        var claim = updated.claimSignatureBottle(process.signatureId());
+        if (claim.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack output = SignatureBrewBottleOutput.create(claim.get());
+        if (output.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        mixture = updated;
+        setChanged();
+        return output;
     }
 
     public AlchemyMixtureState extractMixtureUnits(int units) {
