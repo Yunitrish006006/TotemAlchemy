@@ -5,6 +5,7 @@ import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.SignatureBrewDefinition;
 import dev.totem.alchemy.mixture.SignatureBrewDeliveryTicket;
+import dev.totem.alchemy.mixture.SignatureBrewDeliveryProgress;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
@@ -172,6 +173,79 @@ public final class SignatureBrewEscrowGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 30)
+    public void deliveryAttemptIsPersistedAndNeverAutomaticallyRepeated(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize ready batch");
+        var staged = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        require(helper, cauldron.signatureDeliveryProgress().orElseThrow().phase()
+                        == SignatureBrewDeliveryProgress.Phase.PREPARED,
+                "New ticket has no prepared journal state");
+        require(helper, !cauldron.markSignatureDeliveryAttempt(staged.transactionId(), INTRUDER),
+                "Wrong recipient advanced the delivery journal");
+        require(helper, !cauldron.markSignatureDeliveryAttempt(INTRUDER, RECIPIENT),
+                "Wrong transaction advanced the delivery journal");
+        require(helper, cauldron.markSignatureDeliveryAttempt(staged.transactionId(), RECIPIENT),
+                "Expected first delivery attempt to mark the escrow uncertain");
+        require(helper, !cauldron.markSignatureDeliveryAttempt(staged.transactionId(), RECIPIENT),
+                "Repeated attempt was incorrectly authorized");
+
+        AlchemyCauldronBlockEntity restored = restore(helper, cauldron);
+        require(helper, restored.signatureDeliveryProgress().orElseThrow().needsReconciliation(),
+                "Reload forgot that an item may already have been delivered");
+        require(helper, !restored.markSignatureDeliveryAttempt(staged.transactionId(), RECIPIENT)
+                        && restored.prepareSignatureBottleDelivery(
+                                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).isEmpty(),
+                "Restart made uncertain item issuance retryable");
+        require(helper, restored.pendingSignatureDelivery().orElseThrow()
+                        .transactionId().equals(staged.transactionId()),
+                "Uncertain journal lost original ticket identity");
+        require(helper, restored.mixtureSnapshot().volumeUnits() == 2,
+                "Reloaded uncertain journal changed spent liquid volume");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void unjournaledS2TicketIsQuarantinedAsUncertainOnReload(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize ready batch");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        CompoundTag saved = cauldron.saveWithFullMetadata(helper.getLevel().registryAccess());
+        saved.remove("signature_delivery_progress");
+        AlchemyCauldronBlockEntity restored = load(helper, saved);
+        require(helper, restored.signatureDeliveryProgress().orElseThrow().needsReconciliation(),
+                "Missing journal granted an unsafe fresh delivery attempt");
+        require(helper, !restored.markSignatureDeliveryAttempt(ticket.transactionId(), RECIPIENT),
+                "Unjournaled old ticket was made automatically retryable");
+        require(helper, restored.pendingSignatureDeliveryFor(RECIPIENT).isPresent(),
+                "The recoverable original ticket itself was discarded");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void foreignOrCorruptDeliveryJournalIsRetainedAndFailsClosed(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize ready batch");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        CompoundTag saved = cauldron.saveWithFullMetadata(helper.getLevel().registryAccess());
+        String foreign = "J1|" + INTRUDER + "|" + RECIPIENT + "|PREPARED";
+        saved.putString("signature_delivery_progress", foreign);
+        AlchemyCauldronBlockEntity quarantined = load(helper, saved);
+        require(helper, quarantined.signatureDeliveryProgress().isEmpty(),
+                "Contradictory journal was trusted");
+        require(helper, !quarantined.markSignatureDeliveryAttempt(ticket.transactionId(), RECIPIENT)
+                        && quarantined.hasPendingSignatureDelivery()
+                        && quarantined.extractMixtureUnits(1).isEmpty(),
+                "Contradictory journal unlocked an escrow");
+        CompoundTag reserialized = quarantined.saveWithFullMetadata(helper.getLevel().registryAccess());
+        require(helper, foreign.equals(reserialized.getStringOr("signature_delivery_progress", "")),
+                "Contradictory journal was deleted or rewritten during reload");
+        helper.succeed();
+    }
+
     private static AlchemyCauldronBlockEntity createCauldron(GameTestHelper helper) {
         BlockPos relative = new BlockPos(2, 2, 2);
         BlockState block = AlchemyBlocks.ALCHEMY_CAULDRON.defaultBlockState()
@@ -187,9 +261,13 @@ public final class SignatureBrewEscrowGameTest {
     private static AlchemyCauldronBlockEntity restore(
             GameTestHelper helper, AlchemyCauldronBlockEntity source
     ) {
+        CompoundTag saved = source.saveWithFullMetadata(helper.getLevel().registryAccess());
+        return load(helper, saved);
+    }
+
+    private static AlchemyCauldronBlockEntity load(GameTestHelper helper, CompoundTag saved) {
         BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
         BlockState block = helper.getLevel().getBlockState(pos);
-        CompoundTag saved = source.saveWithFullMetadata(helper.getLevel().registryAccess());
         BlockEntity loaded = BlockEntity.loadStatic(pos, block, saved, helper.getLevel().registryAccess());
         if (!(loaded instanceof AlchemyCauldronBlockEntity cauldron)) {
             throw helper.assertionException("Escrow cauldron failed to deserialize");
