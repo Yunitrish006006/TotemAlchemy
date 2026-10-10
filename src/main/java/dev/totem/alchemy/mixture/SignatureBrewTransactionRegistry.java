@@ -187,6 +187,41 @@ public final class SignatureBrewTransactionRegistry {
         return entry == null ? LookupResult.ABSENT_UNVERIFIED : LookupResult.PRESENT;
     }
 
+    public enum Verification {
+        EXACT_SNAPSHOT, ABSENT_UNVERIFIED, SOURCE_MISMATCH,
+        ESCROW_PAYLOAD_MISMATCH, CONFLICT, UNTRUSTED_REGISTRY, UNBOUND_TICKET
+    }
+
+    /**
+     * Compare a cauldron's candidate escrow against the separately saved world
+     * registry. EXACT_SNAPSHOT proves matching serialized identity only, never
+     * that a player item was saved or a disk write was flushed successfully.
+     */
+    public Verification verify(Source expectedSource, SignatureBrewDeliveryTicket ticket) {
+        if (unknownRecords) {
+            return Verification.UNTRUSTED_REGISTRY;
+        }
+        if (expectedSource == null || ticket == null || ticket.isLegacyUnbound()) {
+            return Verification.UNBOUND_TICKET;
+        }
+        if (conflictedTransactions.contains(ticket.transactionId())
+                || conflictedSources.contains(expectedSource)) {
+            return Verification.CONFLICT;
+        }
+        Entry original = byTransaction.get(ticket.transactionId());
+        if (original == null) {
+            return Verification.ABSENT_UNVERIFIED;
+        }
+        if (conflictedSources.contains(original.source())) {
+            return Verification.CONFLICT;
+        }
+        if (!original.source().equals(expectedSource)) {
+            return Verification.SOURCE_MISMATCH;
+        }
+        return original.ticket().encode().equals(ticket.encode())
+                ? Verification.EXACT_SNAPSHOT : Verification.ESCROW_PAYLOAD_MISMATCH;
+    }
+
     /** Original complete ticket can support human recovery after chunk loss. */
     public Optional<Entry> inspect(UUID transactionId) {
         return lookup(transactionId) == LookupResult.PRESENT
