@@ -13,6 +13,7 @@ import dev.totem.alchemy.mixture.SignatureBrewPlayerReceiptSavedData;
 import dev.totem.alchemy.mixture.SignatureBrewRecoveryAssessment;
 import dev.totem.alchemy.mixture.SignatureBrewTransactionRegistry;
 import dev.totem.alchemy.mixture.SignatureBrewTransactionSavedData;
+import dev.totem.alchemy.mixture.SignatureBrewClosurePreflight;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.registry.AlchemyItems;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
@@ -705,6 +706,100 @@ public final class SignatureBrewEscrowGameTest {
                 ticket.transactionId(), RECIPIENT, null, null, new SignatureBrewReceiptIndex());
         require(helper, !result.allowsAutomaticPayout() && !result.allowsAutomaticEscrowDeletion(),
                 "Closure review accidentally authorized recovery payout");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void closurePreflightAcrossSavedWorldAndPlayerDataNeverUnlocksSource(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Cannot initialize signature group");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        BlockPos position = helper.absolutePos(new BlockPos(2, 2, 2));
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+        var world = new SignatureBrewTransactionSavedData();
+        require(helper, world.register(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.REGISTERED,
+                "Original world transaction was not registered");
+        require(helper, world.requestClosureReview(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.ClosureResult.REVIEW_REQUESTED,
+                "C1 review intent could not be persisted");
+        var worldReload = SignatureBrewTransactionSavedData.CODEC.parse(JsonOps.INSTANCE,
+                SignatureBrewTransactionSavedData.CODEC
+                        .encodeStart(JsonOps.INSTANCE, world).getOrThrow()).getOrThrow();
+
+        var observed = new SignatureBrewPlayerReceiptSavedData();
+        ItemStack item = SignatureBrewBottleOutput.createWithReceipt(ticket);
+        require(helper, observed.observe(RECIPIENT, ticket, item)
+                        == SignatureBrewReceiptIndex.RecordResult.RECORDED,
+                "Could not record the signed reward as R1 observation");
+        var observedReload = SignatureBrewPlayerReceiptSavedData.CODEC.parse(JsonOps.INSTANCE,
+                SignatureBrewPlayerReceiptSavedData.CODEC
+                        .encodeStart(JsonOps.INSTANCE, observed).getOrThrow()).getOrThrow();
+
+        var prepared = worldReload.assessClosure(dimension, position, ticket.transactionId(),
+                restore(helper, cauldron).signatureDeliveryProgress().orElseThrow(), observedReload);
+        require(helper, prepared.blocker()
+                        == SignatureBrewClosurePreflight.Blocker.PREPARED_WITH_OBSERVATION,
+                "Prepared J1 with observed item was misidentified as a confirmed payout");
+        require(helper, !prepared.mayReleaseSource() && !prepared.mayPayOut()
+                        && !prepared.mayAcknowledge(),
+                "Observed item unlocked a source without durable inventory proof");
+
+        require(helper, cauldron.markSignatureDeliveryAttempt(ticket.transactionId(), RECIPIENT),
+                "Could not mark first delivery attempt");
+        var uncertain = worldReload.assessClosure(dimension, position, ticket.transactionId(),
+                restore(helper, cauldron).signatureDeliveryProgress().orElseThrow(), observedReload);
+        require(helper, uncertain.blocker()
+                        == SignatureBrewClosurePreflight.Blocker.ISSUANCE_UNCERTAIN_WITH_OBSERVATION,
+                "Attempted delivery with observed R1 was treated as terminal");
+        require(helper, uncertain.requiresAuthoritativeReconciliation()
+                        && !uncertain.mayReleaseSource(),
+                "Unverified payout improperly released the original cauldron");
+        require(helper, worldReload.register(dimension, position, new SignatureBrewDeliveryTicket(
+                            INTRUDER, RECIPIENT, ticket.signatureId(), ticket.result(), ticket.dose()))
+                        == SignatureBrewTransactionRegistry.RegisterResult.CONFLICT_SOURCE,
+                "Same source accepted a new transaction without terminal fencing");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void closurePreflightRejectsMissingRecipientJournalAndWrongOrigin(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(1)), "Cannot initialize one-dose batch");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+        BlockPos position = helper.absolutePos(new BlockPos(2, 2, 2));
+        var world = new SignatureBrewTransactionSavedData();
+        world.register(dimension, position, ticket);
+        world.requestClosureReview(dimension, position, ticket);
+        var journal = cauldron.signatureDeliveryProgress().orElseThrow();
+
+        var wrongOrigin = world.assessClosure(dimension, position.offset(1, 0, 0),
+                ticket.transactionId(), journal, new SignatureBrewPlayerReceiptSavedData());
+        require(helper, wrongOrigin.blocker() == SignatureBrewClosurePreflight.Blocker.SOURCE_MISMATCH,
+                "Wrong origin incorrectly matched reviewed escrow");
+
+        var absentReceipt = world.assessClosure(dimension, position,
+                ticket.transactionId(), journal, null);
+        require(helper, absentReceipt.blocker() == SignatureBrewClosurePreflight.Blocker.LEDGER_UNAVAILABLE,
+                "Absent observation ledger was treated as missing reward authorization");
+
+        var absentJournal = world.assessClosure(dimension, position,
+                ticket.transactionId(), null, new SignatureBrewPlayerReceiptSavedData());
+        require(helper, absentJournal.blocker()
+                        == SignatureBrewClosurePreflight.Blocker.JOURNAL_MISSING_OR_MISMATCHED,
+                "Missing delivery progress was treated as a new grant opportunity");
+
+        helper.getLevel().setBlock(position,
+                net.minecraft.world.level.block.Blocks.CAULDRON.defaultBlockState(), 3);
+        require(helper, world.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.PRESENT
+                        && !absentJournal.mayReleaseSource()
+                        && !absentReceipt.mayReleaseSource()
+                        && !wrongOrigin.mayReleaseSource(),
+                "Destroying final-dose block bypassed review-only origin fencing");
         helper.succeed();
     }
 
