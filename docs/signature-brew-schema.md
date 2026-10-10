@@ -88,6 +88,20 @@ This deliberately differs from the old one-time **whole-batch** claim behavior f
 
 Next durability gate: add idempotent payout acknowledgment and independent chunk/player save recovery to the now recipient-bound ticket. Test crashes *before staging*, *after staging but before item issuance*, *after item issuance but before acknowledgment*, *after acknowledgment*, last-dose block replacement, retries, transfer/disconnect, and chunk unload. A simple ticket alone cannot make two independent save files atomic.
 
+## Delivery attempt journal (M11-T02a-durability-02b-01, isolated checkpoint)
+
+`SignatureBrewDeliveryProgress` is an additional `J1|transaction_uuid|recipient_uuid|phase` record in the **same cauldron block entity** as its prepared `S2` ticket and debited liquid. The journal's IDs must exactly match the prepared ticket.
+
+| State | Meaning | Safe automatic replay? |
+| --- | --- | --- |
+| `PREPARED` | Reward was escrowed, but item issuance has not been attempted | **No automatic payout enabled** |
+| `ISSUANCE_UNCERTAIN` | A delivery attempt may already have transferred the item | **Never**; compare an independently persisted player receipt |
+| `ACKNOWLEDGED` | Reserved future terminal state after receipt reconciliation | No implementation yet |
+
+The only new transition method is `markSignatureDeliveryAttempt(transactionId, recipientId)`. It requires a matching ticket and **PREPARED** journal, changes the state to **ISSUANCE_UNCERTAIN** once, and rejects subsequent attempts. It does **not** grant a drink. A missing progress record on an older `S2` prepared ticket is treated as **ISSUANCE_UNCERTAIN**, not as a fresh reward. Malformed or mismatched journals are preserved in the original serialized form and lock the cauldron. Older `S1` ownerless tickets remain quarantined without an active journal.
+
+This is deliberately **not** crash-safe delivery: `setChanged()` is only an in-memory dirty flag, not a guarantee that the journal was durably flushed to disk before a future inventory mutation. In addition to matching the player receipt, production must define an ordering / recovery protocol that handles write reordering, chunk unload/destruction, save rollback, server kill at each transition, and the final-dose block replacement. No runtime right-click route currently invokes this journal; the existing delivery path stays unchanged.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
