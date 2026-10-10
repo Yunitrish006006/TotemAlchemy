@@ -13,6 +13,8 @@ Each task should:
 
 Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 
+**Current priority (JUnit recovery):** Suspend new M11 work until the JUnit baseline is fixed. Execute one checkpoint at a time from [`junit-failure-recovery-plan.md`](junit-failure-recovery-plan.md) (JR-01 in progress; JR-02 through JR-10 queued). The last confirmed baseline is Build #419: 259 JUnit / 43 failing, main server GameTests 111/111 passed.
+
 ## M0 — Prerequisites and Vanilla safety
 
 - [x] M0-T00 Repair `feature/all-mushrooms-starter` CI without dropping `#c:mushrooms` starter support. (separate PR #29)
