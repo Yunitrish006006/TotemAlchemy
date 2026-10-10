@@ -24,6 +24,11 @@ import java.util.LinkedHashMap;
 public final class MinecraftRegistryBootstrapExtension implements BeforeAllCallback {
     private static boolean bootstrapped;
 
+    /** Diagnostic handshake proving Jupiter discovered this global callback. */
+    static boolean hasBootstrappedForTests() {
+        return bootstrapped;
+    }
+
     @Override
     public void beforeAll(ExtensionContext context) {
         synchronized (MinecraftRegistryBootstrapExtension.class) {
