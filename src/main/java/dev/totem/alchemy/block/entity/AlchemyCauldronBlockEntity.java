@@ -91,6 +91,15 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         return Optional.ofNullable(pendingSignatureDelivery);
     }
 
+    /**
+     * Read-only, recipient-bound lookup for the future acknowledgment layer.
+     * Old S1 tickets never match anyone; this method does not pay out an item.
+     */
+    public Optional<SignatureBrewDeliveryTicket> pendingSignatureDeliveryFor(UUID recipientId) {
+        return pendingSignatureDelivery != null && pendingSignatureDelivery.belongsTo(recipientId)
+                ? Optional.of(pendingSignatureDelivery) : Optional.empty();
+    }
+
     public AlchemyMixtureState mixtureSnapshot() {
         return mixture == null ? AlchemyMixtureState.empty() : mixture.copy();
     }
@@ -235,7 +244,13 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
      * <p>This deliberately runs separately from the existing live bottle path
      * until an inventory receipt and cross-save reconciliation strategy is tested.</p>
      */
-    public Optional<SignatureBrewDeliveryTicket> prepareSignatureBottleDelivery(ItemStack container) {
+    public Optional<SignatureBrewDeliveryTicket> prepareSignatureBottleDelivery(
+            ItemStack container, UUID recipientId
+    ) {
+        // A future payout must never be created without a concrete receiver.
+        if (recipientId == null) {
+            return Optional.empty();
+        }
         SignatureBrewProcess process = readySignatureBottle(container);
         if (process == null) {
             return Optional.empty();
@@ -246,7 +261,8 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
             return Optional.empty();
         }
         SignatureBrewDeliveryTicket ticket = new SignatureBrewDeliveryTicket(
-                UUID.randomUUID(), process.signatureId(), claim.get().result(), claim.get().mixture());
+                UUID.randomUUID(), recipientId, process.signatureId(),
+                claim.get().result(), claim.get().mixture());
         // One atomic block-entity mutation: reserved output and depleted liquid
         // are saved together, including when the last dose empties the mixture.
         mixture = updated;
