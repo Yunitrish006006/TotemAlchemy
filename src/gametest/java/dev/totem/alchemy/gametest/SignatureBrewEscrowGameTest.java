@@ -803,6 +803,118 @@ public final class SignatureBrewEscrowGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 30)
+    public void genesisFencePersistsWithOneDoseGlobalEscrowAfterBlockReplacement(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(1)), "Cannot initialize one-dose brew");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        BlockPos position = helper.absolutePos(new BlockPos(2, 2, 2));
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+
+        var ledger = new SignatureBrewTransactionSavedData();
+        require(helper, ledger.register(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.REGISTERED,
+                "Could not register original S2 escrow");
+        require(helper, ledger.inspectFence(dimension, position, ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.FenceState.GENESIS_MATCH,
+                "New A1 escrow did not create an F1 source fence");
+
+        var saved = SignatureBrewTransactionSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, ledger).getOrThrow();
+        require(helper, saved.toString().contains("source_fences")
+                        && saved.toString().contains("F1|"),
+                "Initial source fence was not serialized in world SavedData");
+
+        helper.getLevel().setBlock(position,
+                net.minecraft.world.level.block.Blocks.CAULDRON.defaultBlockState(), 3);
+        var restored = SignatureBrewTransactionSavedData.CODEC
+                .parse(JsonOps.INSTANCE, saved).getOrThrow();
+        require(helper, restored.inspectFence(dimension, position, ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.FenceState.GENESIS_MATCH,
+                "Source fence was lost after SavedData round trip and last-dose block removal");
+        require(helper, restored.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.PRESENT,
+                "F1 source fence lost its original pending A1 transaction");
+        require(helper, restored.register(dimension, position, new SignatureBrewDeliveryTicket(
+                        INTRUDER, RECIPIENT, ticket.signatureId(), ticket.result(), ticket.dose()))
+                        == SignatureBrewTransactionRegistry.RegisterResult.CONFLICT_SOURCE,
+                "F1 genesis mistakenly allowed a second reward from the same origin");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void legacyA1WorldSaveWithoutF1NeverAutoCreatesSourceGeneration(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Cannot initialize pending brew");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        BlockPos position = helper.absolutePos(new BlockPos(2, 2, 2));
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+        var ledger = new SignatureBrewTransactionSavedData();
+        ledger.register(dimension, position, ticket);
+
+        JsonObject legacy = ((JsonObject) SignatureBrewTransactionSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, ledger).getOrThrow()).deepCopy();
+        legacy.remove("source_fences");
+        var restored = SignatureBrewTransactionSavedData.CODEC
+                .parse(JsonOps.INSTANCE, legacy).getOrThrow();
+        require(helper, restored.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.PRESENT,
+                "Missing new F1 field made existing A1 snapshot unreadable");
+        require(helper, restored.inspectFence(dimension, position, ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.FenceState.LEGACY_UNFENCED,
+                "Old world save silently fabricated a new source generation");
+        require(helper, restored.register(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.ALREADY_REGISTERED,
+                "Legacy A1 cannot be read idempotently");
+        require(helper, restored.inspectFence(dimension, position, ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.FenceState.LEGACY_UNFENCED,
+                "Idempotent legacy registration illegally created a new F1 fence");
+        require(helper, restored.register(dimension, position, new SignatureBrewDeliveryTicket(
+                        INTRUDER, RECIPIENT, ticket.signatureId(), ticket.result(), ticket.dose()))
+                        == SignatureBrewTransactionRegistry.RegisterResult.CONFLICT_SOURCE,
+                "Old A1 was permitted to reissue from a missing F1");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void damagedF1WorldGenerationPreservesBytesAndBlocksRegistryAccess(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Cannot initialize ready brew");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        BlockPos position = helper.absolutePos(new BlockPos(2, 2, 2));
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+        var ledger = new SignatureBrewTransactionSavedData();
+        ledger.register(dimension, position, ticket);
+
+        JsonObject damaged = ((JsonObject) SignatureBrewTransactionSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, ledger).getOrThrow()).deepCopy();
+        JsonArray corruptFences = new JsonArray();
+        corruptFences.add("F2|unsupported-generation");
+        damaged.add("source_fences", corruptFences);
+        var restored = SignatureBrewTransactionSavedData.CODEC
+                .parse(JsonOps.INSTANCE, damaged).getOrThrow();
+
+        require(helper, restored.needsManualRecovery(),
+                "Corrupt future F1 data was silently treated as a valid source generation");
+        require(helper, restored.inspectFence(dimension, position, ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.FenceState.CONFLICT_OR_UNTRUSTED,
+                "Unknown generation made original reward claimable");
+        require(helper, restored.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.UNTRUSTED_REGISTRY,
+                "Corrupt fence did not quarantine global registry");
+        require(helper, restored.register(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.UNTRUSTED_REGISTRY,
+                "Corrupt fence allowed another registration");
+        String roundTrip = SignatureBrewTransactionSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, restored).getOrThrow().toString();
+        require(helper, roundTrip.contains("F2|unsupported-generation"),
+                "Invalid fence bytes were deleted when world SaveData was serialized");
+        helper.succeed();
+    }
+
     private static AlchemyCauldronBlockEntity createCauldron(GameTestHelper helper) {
         BlockPos relative = new BlockPos(2, 2, 2);
         BlockState block = AlchemyBlocks.ALCHEMY_CAULDRON.defaultBlockState()
