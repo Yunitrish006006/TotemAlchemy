@@ -11,6 +11,7 @@ import dev.totem.alchemy.mixture.AlchemyCompoundBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
 import dev.totem.alchemy.mixture.SignatureBrewBottleOutput;
+import dev.totem.alchemy.mixture.SignatureBrewDeliveryTicket;
 import dev.totem.alchemy.mixture.SignatureBrewProcess;
 import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import net.minecraft.core.BlockPos;
@@ -47,6 +48,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -58,6 +60,10 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     private boolean readyForExtraction;
     private int cookTime;
     private AlchemyMixtureState mixture = AlchemyMixtureState.empty();
+    /** Prepared reward and spent unit persisted together in the same block entity. */
+    private SignatureBrewDeliveryTicket pendingSignatureDelivery;
+    /** Preserve unknown/corrupt ticket bytes and fail closed rather than losing a spent reward. */
+    private String unreadableSignatureDelivery = "";
     private int lastSyncedColor = -1;
     private int lastSyncedVolume = -1;
     private int lastSyncedTimingSignature = Integer.MIN_VALUE;
@@ -75,6 +81,16 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         return mixture != null && !mixture.isEmpty();
     }
 
+    /** True for an escrowed reward OR a corrupt ticket requiring administrator recovery. */
+    public boolean hasPendingSignatureDelivery() {
+        return pendingSignatureDelivery != null || !unreadableSignatureDelivery.isEmpty();
+    }
+
+    /** Read-only inspection; no item is granted by accessing a prepared ticket. */
+    public Optional<SignatureBrewDeliveryTicket> pendingSignatureDelivery() {
+        return Optional.ofNullable(pendingSignatureDelivery);
+    }
+
     public AlchemyMixtureState mixtureSnapshot() {
         return mixture == null ? AlchemyMixtureState.empty() : mixture.copy();
     }
@@ -84,7 +100,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean initializeMixture(AlchemyMixtureState initial) {
-        if (initial == null || initial.isEmpty() || initial.volumeUnits() > AlchemyMixtureState.MAX_VOLUME_UNITS || recipeId != null || readyForExtraction || hasMixture()) {
+        if (hasPendingSignatureDelivery() || initial == null || initial.isEmpty() || initial.volumeUnits() > AlchemyMixtureState.MAX_VOLUME_UNITS || recipeId != null || readyForExtraction || hasMixture()) {
             return false;
         }
         mixture = initial.copy(AlchemyMixtureState.MAX_VOLUME_UNITS);
@@ -94,7 +110,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean mergeMixture(AlchemyMixtureState incoming) {
-        if (incoming == null || incoming.isEmpty() || incoming.volumeUnits() > AlchemyMixtureState.MAX_VOLUME_UNITS || recipeId != null || readyForExtraction) {
+        if (hasPendingSignatureDelivery() || incoming == null || incoming.isEmpty() || incoming.volumeUnits() > AlchemyMixtureState.MAX_VOLUME_UNITS || recipeId != null || readyForExtraction) {
             return false;
         }
         if (!hasMixture()) {
@@ -113,7 +129,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean scheduleMixtureReaction(Level level, ItemStack ingredient) {
-        if (!hasMixture() || recipeId != null || readyForExtraction
+        if (hasPendingSignatureDelivery() || !hasMixture() || recipeId != null || readyForExtraction
                 || mixture.hasCommittedSignatureProcess()) {
             return false;
         }
@@ -137,7 +153,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
             AlchemyCauldronRecipe.IngredientStep ingredient,
             ItemStack actualIngredient
     ) {
-        if (!hasMixture() || recipeId != null || readyForExtraction
+        if (hasPendingSignatureDelivery() || !hasMixture() || recipeId != null || readyForExtraction
                 || mixture.hasCommittedSignatureProcess()
                 || !AlchemyCompoundBrewing.schedule(mixture, recipe, ingredient, actualIngredient)) {
             return false;
@@ -151,7 +167,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
      * signature group; its output is reserved for a separate item transaction.
      */
     public boolean canExtractMixtureBottle() {
-        return hasMixture() && !mixture.hasCommittedSignatureProcess();
+        return !hasPendingSignatureDelivery() && hasMixture() && !mixture.hasCommittedSignatureProcess();
     }
 
     public AlchemyMixtureState extractMixtureBottle() {
@@ -170,7 +186,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     private SignatureBrewProcess readySignatureBottle(ItemStack container) {
-        if (!hasMixture() || recipeId != null || readyForExtraction
+        if (hasPendingSignatureDelivery() || !hasMixture() || recipeId != null || readyForExtraction
                 || mixture.signatureProcesses().size() != 1
                 || !mixture.signatureGroups().isEmpty() || mixture.hasPendingReactions()) {
             return null;
@@ -211,8 +227,36 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         return output;
     }
 
+    /**
+     * PREPARE only: debit one liquid unit and place its complete output descriptor
+     * into the same block-entity save record. No player item is granted, and no
+     * delivery acknowledgment or retry is exposed yet.
+     *
+     * <p>This deliberately runs separately from the existing live bottle path
+     * until an inventory receipt and cross-save reconciliation strategy is tested.</p>
+     */
+    public Optional<SignatureBrewDeliveryTicket> prepareSignatureBottleDelivery(ItemStack container) {
+        SignatureBrewProcess process = readySignatureBottle(container);
+        if (process == null) {
+            return Optional.empty();
+        }
+        AlchemyMixtureState updated = mixture.copy();
+        var claim = updated.claimSignatureBottle(process.signatureId());
+        if (claim.isEmpty() || SignatureBrewBottleOutput.create(claim.get()).isEmpty()) {
+            return Optional.empty();
+        }
+        SignatureBrewDeliveryTicket ticket = new SignatureBrewDeliveryTicket(
+                UUID.randomUUID(), process.signatureId(), claim.get().result(), claim.get().mixture());
+        // One atomic block-entity mutation: reserved output and depleted liquid
+        // are saved together, including when the last dose empties the mixture.
+        mixture = updated;
+        pendingSignatureDelivery = ticket;
+        setChanged();
+        return Optional.of(ticket);
+    }
+
     public AlchemyMixtureState extractMixtureUnits(int units) {
-        if (!hasMixture() || units <= 0) {
+        if (hasPendingSignatureDelivery() || !hasMixture() || units <= 0) {
             return AlchemyMixtureState.empty();
         }
         AlchemyMixtureState extracted = mixture.extractUnits(units);
@@ -221,7 +265,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean canAddIngredient(AlchemyCauldronRecipe recipe, AlchemyCauldronRecipe.IngredientStep ingredient) {
-        if (recipe == null || ingredient == null || readyForExtraction || hasMixture()) {
+        if (hasPendingSignatureDelivery() || recipe == null || ingredient == null || readyForExtraction || hasMixture()) {
             return false;
         }
         if (recipeId != null && !recipeId.equals(recipe.id())) {
@@ -241,7 +285,8 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean canExtractBottledResult(AlchemyCauldronRecipe recipe, ItemStack stack) {
-        return !hasMixture()
+        return !hasPendingSignatureDelivery()
+                && !hasMixture()
                 && recipe != null
                 && recipeId != null
                 && recipeId.equals(recipe.id())
@@ -629,6 +674,11 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         if (hasMixture()) {
             output.putString("mixture_state", mixture.encode());
         }
+        if (pendingSignatureDelivery != null) {
+            output.putString("signature_delivery_ticket", pendingSignatureDelivery.encode());
+        } else if (!unreadableSignatureDelivery.isEmpty()) {
+            output.putString("signature_delivery_ticket", unreadableSignatureDelivery);
+        }
         if (!pendingDiscoveries.isEmpty()) {
             output.putString("pending_discoveries", encodePendingDiscoveries());
         }
@@ -647,6 +697,12 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         readyForExtraction = input.getBooleanOr("ready_for_extraction", false);
         cookTime = input.getIntOr("cook_time", 0);
         mixture = AlchemyMixtureState.decode(input.getStringOr("mixture_state", ""));
+        String encodedTicket = input.getStringOr("signature_delivery_ticket", "");
+        pendingSignatureDelivery = SignatureBrewDeliveryTicket.decode(encodedTicket).orElse(null);
+        // Invalid ticket data can represent a previously spent dose. Keep the
+        // original bytes on future saves and block all brewing interactions.
+        unreadableSignatureDelivery = !encodedTicket.isBlank() && pendingSignatureDelivery == null
+                ? encodedTicket : "";
 
         if (hasMixture()) {
             recipeId = null;
