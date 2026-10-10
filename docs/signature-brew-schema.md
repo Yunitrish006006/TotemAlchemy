@@ -122,6 +122,28 @@ The server-only `observe(playerUuid, pendingTicket, actualRewardItem)` verifies 
 
 Next durability gate: introduce a transaction coordinator with a **durable write ordering/recovery contract**, plus a recipient-owned independent receipt acknowledged through the inventory-save lifecycle; test save-file rollback, process kill before/after each write, last-dose block replacement, chunks unloaded or destroyed, player logoff/transfer, and repeated interactions. Until then, fail closed rather than issuing a second drink.
 
+## Three-store crash assessment (M11-T02a-durability-02b-02b-02a)
+
+`SignatureBrewRecoveryAssessment` is a **pure, read-only, non-authoritative** evaluation of three independently serialized objects: (1) an S2 cauldron delivery ticket, (2) its J1 journal, and (3) an R1 player receipt *observation* from `SignatureBrewPlayerReceiptSavedData`. The caller supplies the independently expected transaction UUID and recipient UUID, rather than guessing identity from item contents.
+
+The R1 comparison now checks the **entire** recipe/recipient/output payload, not just matching transaction UUID. Different recipients, contradictory entries, unexpected item or recipe IDs, future/invalid records and missing data yield distinct risk findings.
+
+Independent restart boundaries that must remain blocked include:
+
+| Loaded cauldron/J1 | Loaded player observation | Risk classification |
+| --- | --- | --- |
+| PREPARED | Absent | Prepared, no evidence of payout |
+| PREPARED | Present and matching | Prepared but item previously observed; journal might have rolled back |
+| ISSUANCE_UNCERTAIN | Absent | Delivery may already have occurred before ledger save |
+| ISSUANCE_UNCERTAIN | Present and matching | Delivery was observed but independently persisted inventory is unproven |
+| Missing/removed last-dose cauldron | Either | Escrow missing; no safe reconstruction from R1 |
+| Mismatched/absent J1, wrong recipient, conflicting or unknown ledger | Either | Manual investigation required |
+| ACKNOWLEDGED label without authoritative inventory proof | Either | Still unverified; never trusted for settlement |
+
+Every decision exposes explicit `allowsAutomaticPayout() = false`, `allowsAutomaticAcknowledgment() = false`, and `allowsAutomaticEscrowDeletion() = false`. This checkpoint classifies snapshots only and **never edits player inventory, chunks, ledgers, or escrow**. Unit and server GameTests simulate different saved snapshots by serializing the cauldron and receipt ledger separately, including a removed last-dose cauldron. This is *not* fault injection into the filesystem and does not establish crash-atomic exactly-once delivery.
+
+**Next gate:** choose an authoritative, durable, recipient-owned receipt/transaction mechanism, implement correct save ordering or a provable replayable single-source-of-truth transaction, and exercise real process kills, incomplete writes, chunk removal, player logout and rollback before changing production right-click behavior.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
