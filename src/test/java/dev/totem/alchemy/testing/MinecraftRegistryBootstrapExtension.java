@@ -1,5 +1,6 @@
 package dev.totem.alchemy.testing;
 
+import dev.totem.alchemy.registry.AlchemyItems;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
@@ -35,6 +36,13 @@ public final class MinecraftRegistryBootstrapExtension implements BeforeAllCallb
             if (!bootstrapped) {
                 SharedConstants.tryDetectVersion();
                 Bootstrap.bootStrap();
+
+                // The first annotated test might only use vanilla containers.
+                // Force Totem's static item registration *before* building the
+                // deferred component prototypes. Otherwise the first test
+                // binds vanilla holders, the extension marks itself complete,
+                // and a later flask/hot-cocoa test registers unbound holders.
+                AlchemyItems.register();
 
                 RegistryAccess.Frozen builtins =
                         RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
