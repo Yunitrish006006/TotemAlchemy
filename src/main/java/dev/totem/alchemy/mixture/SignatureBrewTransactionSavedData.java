@@ -27,7 +27,9 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
                     Codec.STRING.listOf().optionalFieldOf("transactions", List.of())
                             .forGetter(SignatureBrewTransactionSavedData::encodedTransactions),
                     Codec.STRING.listOf().optionalFieldOf("closure_reviews", List.of())
-                            .forGetter(SignatureBrewTransactionSavedData::encodedClosureReviews)
+                            .forGetter(SignatureBrewTransactionSavedData::encodedClosureReviews),
+                    Codec.STRING.listOf().optionalFieldOf("source_fences", List.of())
+                            .forGetter(SignatureBrewTransactionSavedData::encodedSourceFences)
             ).apply(instance, SignatureBrewTransactionSavedData::new));
 
     public static final SavedDataType<SignatureBrewTransactionSavedData> TYPE =
@@ -44,9 +46,10 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
     }
 
     private SignatureBrewTransactionSavedData(
-            List<String> raw, List<String> closureReviews
+            List<String> raw, List<String> closureReviews,
+            List<String> sourceFences
     ) {
-        registry = new SignatureBrewTransactionRegistry(raw, closureReviews);
+        registry = new SignatureBrewTransactionRegistry(raw, closureReviews, sourceFences);
     }
 
     public static SignatureBrewTransactionSavedData get(MinecraftServer server) {
@@ -111,6 +114,17 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
         return registry.closureState(transactionId);
     }
 
+    /** Identity fence only. GENESIS_MATCH never authorizes a grant or source reuse. */
+    public SignatureBrewTransactionRegistry.FenceState inspectFence(
+            Identifier dimensionId, BlockPos sourcePos, UUID transactionId
+    ) {
+        return registry.inspectFence(
+                dimensionId == null || sourcePos == null ? null
+                        : new SignatureBrewTransactionRegistry.Source(
+                                dimensionId, sourcePos.asLong()),
+                transactionId);
+    }
+
     /**
      * Audit the A1/C1/J1/R1 records from their independently persisted
      * owners. No returned decision grants an item, clears an escrow or
@@ -145,5 +159,9 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
 
     private List<String> encodedClosureReviews() {
         return registry.encodedClosureIntents();
+    }
+
+    private List<String> encodedSourceFences() {
+        return registry.encodedSourceFences();
     }
 }
