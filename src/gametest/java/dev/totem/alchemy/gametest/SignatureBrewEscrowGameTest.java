@@ -634,6 +634,80 @@ public final class SignatureBrewEscrowGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 30)
+    public void closureReviewPersistsButCannotUnlockSameCauldronAfterRestart(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize escrow source");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        var ledger = new SignatureBrewTransactionSavedData();
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+        BlockPos position = helper.absolutePos(new BlockPos(2, 2, 2));
+        require(helper, ledger.register(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.REGISTERED,
+                "Original transaction could not be registered");
+        require(helper, ledger.requestClosureReview(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.ClosureResult.REVIEW_REQUESTED,
+                "Could not store the closure review request");
+        require(helper, ledger.requestClosureReview(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.ClosureResult.ALREADY_REQUESTED,
+                "Repeated review request was not idempotent");
+
+        var stored = SignatureBrewTransactionSavedData.CODEC
+                .encodeStart(JsonOps.INSTANCE, ledger).getOrThrow();
+        var restored = SignatureBrewTransactionSavedData.CODEC
+                .parse(JsonOps.INSTANCE, stored).getOrThrow();
+        require(helper, restored.closureState(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.ClosureState.REVIEW_REQUESTED,
+                "Restart lost pending closure review request");
+        require(helper, restored.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.PRESENT,
+                "Review improperly erased the original escrow");
+        var newTicket = new SignatureBrewDeliveryTicket(
+                INTRUDER, RECIPIENT, ticket.signatureId(), ticket.result(), ticket.dose());
+        require(helper, restored.register(dimension, position, newTicket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.CONFLICT_SOURCE,
+                "Review request improperly unlocked source before durable acknowledgment");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void lastDoseClosureReviewNeverGrantsPayoutAfterBlockReplacement(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(1)), "Could not initialize one-dose brew");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        var ledger = new SignatureBrewTransactionSavedData();
+        Identifier dimension = Identifier.fromNamespaceAndPath("minecraft", "overworld");
+        BlockPos position = helper.absolutePos(new BlockPos(2, 2, 2));
+        require(helper, ledger.register(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.RegisterResult.REGISTERED,
+                "Original transaction could not be registered");
+        require(helper, ledger.requestClosureReview(dimension, position, ticket)
+                        == SignatureBrewTransactionRegistry.ClosureResult.REVIEW_REQUESTED,
+                "Could not store review request");
+
+        helper.getLevel().setBlock(position,
+                net.minecraft.world.level.block.Blocks.CAULDRON.defaultBlockState(), 3);
+        var restored = SignatureBrewTransactionSavedData.CODEC.parse(JsonOps.INSTANCE,
+                SignatureBrewTransactionSavedData.CODEC
+                        .encodeStart(JsonOps.INSTANCE, ledger).getOrThrow()).getOrThrow();
+        require(helper, restored.lookup(ticket.transactionId())
+                        == SignatureBrewTransactionRegistry.LookupResult.PRESENT
+                        && restored.closureState(ticket.transactionId())
+                            == SignatureBrewTransactionRegistry.ClosureState.REVIEW_REQUESTED,
+                "Review request lost original escrow after block replacement");
+        require(helper, restored.register(dimension, position, new SignatureBrewDeliveryTicket(
+                            INTRUDER, RECIPIENT, ticket.signatureId(), ticket.result(), ticket.dose()))
+                        == SignatureBrewTransactionRegistry.RegisterResult.CONFLICT_SOURCE,
+                "Missing source block made reviewed escrow re-issuable");
+        var result = SignatureBrewRecoveryAssessment.assess(
+                ticket.transactionId(), RECIPIENT, null, null, new SignatureBrewReceiptIndex());
+        require(helper, !result.allowsAutomaticPayout() && !result.allowsAutomaticEscrowDeletion(),
+                "Closure review accidentally authorized recovery payout");
+        helper.succeed();
+    }
+
     private static AlchemyCauldronBlockEntity createCauldron(GameTestHelper helper) {
         BlockPos relative = new BlockPos(2, 2, 2);
         BlockState block = AlchemyBlocks.ALCHEMY_CAULDRON.defaultBlockState()
