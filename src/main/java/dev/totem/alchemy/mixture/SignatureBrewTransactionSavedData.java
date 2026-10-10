@@ -111,6 +111,30 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
         return registry.closureState(transactionId);
     }
 
+    /**
+     * Audit the A1/C1/J1/R1 records from their independently persisted
+     * owners. No returned decision grants an item, clears an escrow or
+     * releases a source; player.dat durability remains unproven.
+     */
+    public SignatureBrewClosurePreflight.Decision assessClosure(
+            Identifier dimensionId,
+            BlockPos sourcePos,
+            UUID transactionId,
+            SignatureBrewDeliveryProgress journal,
+            SignatureBrewPlayerReceiptSavedData playerObservations
+    ) {
+        var original = registry.inspect(transactionId).orElse(null);
+        SignatureBrewReceiptIndex.Evidence evidence = playerObservations == null
+                ? null : playerObservations.compareTicket(
+                        original == null ? null : original.ticket());
+        return SignatureBrewClosurePreflight.assessEvidence(
+                registry,
+                dimensionId == null || sourcePos == null ? null
+                        : new SignatureBrewTransactionRegistry.Source(
+                                dimensionId, sourcePos.asLong()),
+                transactionId, journal, evidence);
+    }
+
     public boolean needsManualRecovery() {
         return registry.needsManualRecovery();
     }
