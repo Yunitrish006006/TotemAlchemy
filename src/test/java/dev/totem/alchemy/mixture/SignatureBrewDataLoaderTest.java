@@ -115,6 +115,11 @@ class SignatureBrewDataLoaderTest {
         assertThrows(IllegalArgumentException.class,
                 () -> SignatureBrewDataLoader.parse(ID, tooMany));
 
+        var multipleBottlesPerDose = json(HOT_COCOA);
+        multipleBottlesPerDose.getAsJsonObject("result").addProperty("count", 2);
+        assertThrows(IllegalArgumentException.class,
+                () -> SignatureBrewDataLoader.parse(ID, multipleBottlesPerDose));
+
         var dropWithPotion = json(HOT_COCOA);
         dropWithPotion.getAsJsonObject("result").addProperty("type", "drop_item");
         assertThrows(IllegalArgumentException.class,
