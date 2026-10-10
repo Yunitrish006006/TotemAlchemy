@@ -67,8 +67,17 @@ public final class SignatureBrewCauldronSafetyGameTest {
                 "Signature was not ready when all members completed");
         require(helper, ticking.effects().isEmpty(), "Ordinary effects leaked from claimed members");
         require(helper, !ticking.canOvercook(), "Unclaimed signature result became overcookable");
-        require(helper, ticking.claimSignatureResult(HOT_COCOA).isPresent(),
-                "Completed signature could not be claimed");
+        require(helper, ticking.claimSignatureResult(HOT_COCOA).isEmpty(),
+                "Bottled signature bypassed per-dose extraction");
+        for (int remaining = 2; remaining >= 0; remaining--) {
+            var claim = ticking.claimSignatureBottle(HOT_COCOA);
+            require(helper, claim.isPresent() && claim.get().mixture().volumeUnits() == 1,
+                    "Completed signature could not produce a detached one-unit bottle");
+            require(helper, ticking.volumeUnits() == remaining,
+                    "Signature result did not consume one liquid unit");
+        }
+        require(helper, ticking.claimSignatureBottle(HOT_COCOA).isEmpty(),
+                "Completed signature generated more bottles than its liquid volume");
         helper.succeed();
     }
 
