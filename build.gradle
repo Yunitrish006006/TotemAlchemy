@@ -184,6 +184,25 @@ afterEvaluate {
         }
         setClasspath(files(copies))
     }
+
+    // Fabric Loader JUnit launches Knot in the same named development
+    // namespace as runGameTest. Without these normalized runtime copies,
+    // its launcher fails before discovering any tests because Fabric API's
+    // bundled classTweakers still declare the official namespace.
+    tasks.withType(Test).all { testTask ->
+        dependsOn('normalizeFabricApiTweakersForNamedDevRuntime')
+        def classpathProducers = classpath.buildDependencies.getDependencies(testTask).toList()
+        dependsOn(classpathProducers)
+        def originals = classpath.files.toList()
+        def copies = originals.collect { file ->
+            if (file.absolutePath.contains('/net.fabricmc.fabric-api/') && file.name.endsWith('.jar')) {
+                namedRuntimeSources.add(file)
+                return namedRuntimeCopyFor(file)
+            }
+            return file
+        }
+        setClasspath(files(copies))
+    }
 }
 
 tasks.matching { task -> task.name == "runClientGameTest" }.configureEach {
