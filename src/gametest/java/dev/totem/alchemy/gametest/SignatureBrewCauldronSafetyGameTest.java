@@ -11,15 +11,23 @@ import dev.totem.alchemy.mixture.SignatureBrewDefinition;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
 import dev.totem.alchemy.registry.AlchemyItems;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.Blocks;
 
 import java.util.List;
 import java.util.Map;
@@ -242,6 +250,60 @@ public final class SignatureBrewCauldronSafetyGameTest {
                 "Configured signature potion effects were omitted from the drink");
         require(helper, oneDose.volumeUnits() == 1 && !oneDose.hasCommittedSignatureProcess(),
                 "Signature potion output retained an outstanding claim");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void playerRightClickExchangesExactlyThreeSignatureBottles(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        AlchemyMixtureState ready = committedMixture();
+        ready.tickReactions(40);
+        require(helper, cauldron.initializeMixture(ready), "Could not initialize ready signature batch");
+
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.getAbilities().instabuild = false;
+        BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        for (int remaining = 2; remaining >= 0; remaining--) {
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GLASS_BOTTLE));
+            InteractionResult response = UseBlockCallback.EVENT.invoker().interact(
+                    player, helper.getLevel(), InteractionHand.MAIN_HAND,
+                    new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
+            require(helper, response == InteractionResult.SUCCESS,
+                    "Real server interaction did not accept signature bottle extraction");
+            ItemStack output = player.getItemInHand(InteractionHand.MAIN_HAND);
+            require(helper, output.is(AlchemyItems.HOT_COCOA) && output.getCount() == 1,
+                    "Right-click failed to exchange the glass bottle for exactly one drink");
+            require(helper, AlchemyMixtureBottle.fromPotion(output).volumeUnits() == 1,
+                    "Delivered drink did not retain one-volume-unit chemistry");
+            if (remaining > 0) {
+                require(helper, cauldron.mixtureSnapshot().volumeUnits() == remaining,
+                        "Cauldron display state lost the expected remaining volume");
+            }
+        }
+        require(helper, helper.getLevel().getBlockState(pos).is(Blocks.CAULDRON),
+                "Last signature bottle did not restore an empty cauldron");
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.GLASS_BOTTLE));
+        ItemStack extra = cauldron.extractSignatureBottle(player.getItemInHand(InteractionHand.MAIN_HAND));
+        require(helper, extra.isEmpty(), "A fourth bottle was issued from an already exhausted batch");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void unsupportedSignatureDrinkResultNeverConsumesCauldronVolume(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        AlchemyMixtureState ready = committedMixtureWithResult(
+                new SignatureBrewDefinition.Result(
+                        SignatureBrewDefinition.Type.BOTTLED_ITEM,
+                        Identifier.fromNamespaceAndPath("minecraft", "dirt"),
+                        1, Identifier.fromNamespaceAndPath("minecraft", "glass_bottle"), null));
+        ready.tickReactions(40);
+        require(helper, cauldron.initializeMixture(ready), "Could not initialize unsupported result batch");
+        String before = cauldron.mixtureSnapshot().encode();
+        require(helper, !cauldron.canExtractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE))
+                        && cauldron.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE)).isEmpty(),
+                "Non-drink item incorrectly accepted as a signature drink output");
+        require(helper, before.equals(cauldron.mixtureSnapshot().encode()),
+                "Unsupported output caused permanent loss of a signature liquid unit");
         helper.succeed();
     }
 
