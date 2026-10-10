@@ -10,6 +10,7 @@ import dev.totem.alchemy.mixture.SignatureBrewBottleOutput;
 import dev.totem.alchemy.mixture.SignatureBrewRewardReceipt;
 import dev.totem.alchemy.mixture.SignatureBrewReceiptIndex;
 import dev.totem.alchemy.mixture.SignatureBrewPlayerReceiptSavedData;
+import dev.totem.alchemy.mixture.SignatureBrewRecoveryAssessment;
 import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.registry.AlchemyItems;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
@@ -412,6 +413,120 @@ public final class SignatureBrewEscrowGameTest {
                         && roundTrip.toString().contains(first.encode())
                         && roundTrip.toString().contains(otherOwner.encode()),
                 "Untrusted receipt evidence was deleted during serialization");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void independentChunkAndAuditSavesCannotAuthorizeAutomaticPayout(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize signature mix");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        // Snapshot one independent persistence boundary before the attempt.
+        AlchemyCauldronBlockEntity preparedReload = restore(helper, cauldron);
+        require(helper, cauldron.markSignatureDeliveryAttempt(ticket.transactionId(), RECIPIENT),
+                "Could not record delivery attempt");
+        AlchemyCauldronBlockEntity attemptedReload = restore(helper, cauldron);
+
+        var audit = new SignatureBrewPlayerReceiptSavedData();
+        var emptyAuditReload = SignatureBrewPlayerReceiptSavedData.CODEC
+                .parse(JsonOps.INSTANCE, SignatureBrewPlayerReceiptSavedData.CODEC
+                        .encodeStart(JsonOps.INSTANCE, audit).getOrThrow()).getOrThrow();
+        ItemStack signedDrink = SignatureBrewBottleOutput.createWithReceipt(ticket);
+        require(helper, audit.observe(RECIPIENT, ticket, signedDrink)
+                        == SignatureBrewReceiptIndex.RecordResult.RECORDED,
+                "Could not observe signed drink");
+        var observedAuditReload = SignatureBrewPlayerReceiptSavedData.CODEC
+                .parse(JsonOps.INSTANCE, SignatureBrewPlayerReceiptSavedData.CODEC
+                        .encodeStart(JsonOps.INSTANCE, audit).getOrThrow()).getOrThrow();
+
+        // Four possible independently saved states, *not* atomic ordering.
+        var preparedEmpty = SignatureBrewRecoveryAssessment.assessEvidence(
+                ticket.transactionId(), RECIPIENT, preparedReload.pendingSignatureDelivery().orElseThrow(),
+                preparedReload.signatureDeliveryProgress().orElseThrow(),
+                emptyAuditReload.compareTicket(ticket));
+        var preparedObserved = SignatureBrewRecoveryAssessment.assessEvidence(
+                ticket.transactionId(), RECIPIENT, preparedReload.pendingSignatureDelivery().orElseThrow(),
+                preparedReload.signatureDeliveryProgress().orElseThrow(),
+                observedAuditReload.compareTicket(ticket));
+        var attemptedEmpty = SignatureBrewRecoveryAssessment.assessEvidence(
+                ticket.transactionId(), RECIPIENT, attemptedReload.pendingSignatureDelivery().orElseThrow(),
+                attemptedReload.signatureDeliveryProgress().orElseThrow(),
+                emptyAuditReload.compareTicket(ticket));
+        var attemptedObserved = SignatureBrewRecoveryAssessment.assessEvidence(
+                ticket.transactionId(), RECIPIENT, attemptedReload.pendingSignatureDelivery().orElseThrow(),
+                attemptedReload.signatureDeliveryProgress().orElseThrow(),
+                observedAuditReload.compareTicket(ticket));
+
+        require(helper, preparedEmpty.finding()
+                        == SignatureBrewRecoveryAssessment.Finding.PREPARED_WITH_NO_OBSERVATION,
+                "Prepared + no receipt should remain unresolved");
+        require(helper, preparedObserved.finding()
+                        == SignatureBrewRecoveryAssessment.Finding.PREPARED_WITH_OBSERVATION,
+                "Prepared + observed item incorrectly implied delivery");
+        require(helper, attemptedEmpty.finding()
+                        == SignatureBrewRecoveryAssessment.Finding.ISSUANCE_UNCERTAIN_WITH_NO_OBSERVATION,
+                "Attempt + no receipt incorrectly implied missed payout");
+        require(helper, attemptedObserved.finding()
+                        == SignatureBrewRecoveryAssessment.Finding.ISSUANCE_UNCERTAIN_WITH_OBSERVATION,
+                "Attempt + observed item incorrectly implied confirmed payout");
+        for (var decision : List.of(preparedEmpty, preparedObserved, attemptedEmpty, attemptedObserved)) {
+            require(helper, decision.requiresIndependentRecovery()
+                            && !decision.allowsAutomaticPayout()
+                            && !decision.allowsAutomaticAcknowledgment()
+                            && !decision.allowsAutomaticEscrowDeletion(),
+                    "A split-save state authorized unsafe automatic settlement");
+        }
+        require(helper, attemptedReload.mixtureSnapshot().volumeUnits() == 2,
+                "Split save changed the debited liquid quota");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void missingLastDoseCauldronCannotBeRestoredFromObservedReceiptAlone(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(1)), "Could not initialize last dose");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        var ledger = new SignatureBrewReceiptIndex();
+        ledger.observe(RECIPIENT, SignatureBrewRewardReceipt.fromTicket(ticket).orElseThrow());
+
+        // A final-dose block may be replaced or lost before a consistent save.
+        var pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        helper.getLevel().setBlock(pos, net.minecraft.world.level.block.Blocks.CAULDRON.defaultBlockState(), 3);
+        var assessment = SignatureBrewRecoveryAssessment.assess(
+                ticket.transactionId(), RECIPIENT, null, null, ledger);
+        require(helper, assessment.finding() == SignatureBrewRecoveryAssessment.Finding.ESCROW_MISSING,
+                "Missing last-dose cauldron was inferred from a player receipt");
+        require(helper, !assessment.allowsAutomaticPayout()
+                        && !assessment.allowsAutomaticEscrowDeletion(),
+                "Destroyed cauldron triggered unauthorized reward replay");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void corruptedIndependentReceiptDoesNotResolvePreparedCauldron(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize ready batch");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        var restored = restore(helper, cauldron);
+        JsonObject serialized = new JsonObject();
+        JsonArray receipts = new JsonArray();
+        receipts.add("R9|future-ledger");
+        serialized.add("observations", receipts);
+        var invalidLedger = SignatureBrewPlayerReceiptSavedData.CODEC
+                .parse(JsonOps.INSTANCE, serialized).getOrThrow();
+        var decision = SignatureBrewRecoveryAssessment.assessEvidence(
+                ticket.transactionId(), RECIPIENT, restored.pendingSignatureDelivery().orElseThrow(),
+                restored.signatureDeliveryProgress().orElseThrow(),
+                invalidLedger.compareTicket(ticket));
+        require(helper, decision.finding()
+                        == SignatureBrewRecoveryAssessment.Finding.RECEIPT_LEDGER_UNTRUSTED,
+                "Future ledger schema accidentally became a negative delivery receipt");
+        require(helper, decision.requiresIndependentRecovery()
+                        && !decision.allowsAutomaticPayout(),
+                "Corrupt ledger authorized duplicate reward");
         helper.succeed();
     }
 
