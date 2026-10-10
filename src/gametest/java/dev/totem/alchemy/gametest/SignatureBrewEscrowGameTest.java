@@ -6,14 +6,20 @@ import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.SignatureBrewDefinition;
 import dev.totem.alchemy.mixture.SignatureBrewDeliveryTicket;
 import dev.totem.alchemy.mixture.SignatureBrewDeliveryProgress;
+import dev.totem.alchemy.mixture.SignatureBrewBottleOutput;
+import dev.totem.alchemy.mixture.SignatureBrewRewardReceipt;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
+import dev.totem.alchemy.registry.AlchemyItems;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -243,6 +249,74 @@ public final class SignatureBrewEscrowGameTest {
         CompoundTag reserialized = quarantined.saveWithFullMetadata(helper.getLevel().registryAccess());
         require(helper, foreign.equals(reserialized.getStringOr("signature_delivery_progress", "")),
                 "Contradictory journal was deleted or rewritten during reload");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void signedPreparedRewardCarriesTransactionAndChemistryWithoutPlayerPayout(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize signature mix");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        ItemStack output = SignatureBrewBottleOutput.createWithReceipt(ticket);
+        require(helper, output.is(AlchemyItems.HOT_COCOA) && output.getCount() == 1,
+                "Prepared reward was not the expected drink");
+        require(helper, AlchemyMixtureBottle.hasStoredMixture(output)
+                        && AlchemyMixtureBottle.storedMixture(output).volumeUnits() == 1,
+                "Preparing a signed reward discarded its one-unit chemistry");
+        var parsed = SignatureBrewRewardReceipt.inspect(output).orElseThrow();
+        require(helper, parsed.matches(ticket),
+                "Prepared item's transaction ID, recipient or result did not match escrow");
+        require(helper, SignatureBrewRewardReceipt.inspect(output.copy()).orElseThrow().matches(ticket),
+                "Receipt marker did not survive ItemStack copy");
+        require(helper, cauldron.signatureDeliveryProgress().orElseThrow().phase()
+                        == SignatureBrewDeliveryProgress.Phase.PREPARED,
+                "Constructing a detached item illegally marked player issuance as attempted");
+        require(helper, cauldron.mixtureSnapshot().volumeUnits() == 2,
+                "Constructing a detached item consumed a second volume unit");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void stampedRewardRejectsWrongItemAndReusedReceipt(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize signature mix");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        var receipt = SignatureBrewRewardReceipt.fromTicket(ticket).orElseThrow();
+        var output = SignatureBrewBottleOutput.createWithReceipt(ticket);
+        require(helper, !output.isEmpty(), "Could not create initial receipt-tagged output");
+
+        require(helper, receipt.stamp(output).isEmpty(),
+                "Same physical stack was allowed to acquire a second receipt");
+        ItemStack forgedItem = new ItemStack(Items.DIRT);
+        forgedItem.set(DataComponents.CUSTOM_DATA,
+                output.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY));
+        require(helper, SignatureBrewRewardReceipt.inspect(forgedItem).isEmpty(),
+                "Receipt on wrong item type was accepted");
+        ItemStack wrongDose = new ItemStack(AlchemyItems.HOT_COCOA);
+        wrongDose.set(DataComponents.CUSTOM_DATA,
+                output.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY));
+        AlchemyMixtureBottle.writeState(wrongDose, new AlchemyMixtureState(1));
+        require(helper, SignatureBrewRewardReceipt.inspect(wrongDose).isEmpty(),
+                "Item with wrong signature chemistry was accepted");
+        ItemStack stacked = output.copy();
+        stacked.setCount(2);
+        require(helper, SignatureBrewRewardReceipt.inspect(stacked).isEmpty(),
+                "Multiple physical bottles claimed a single transaction receipt");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void unboundLegacyTicketCannotBeTurnedIntoSignedReward(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        require(helper, cauldron.initializeMixture(readyMixture(3)), "Could not initialize signature mix");
+        var ticket = cauldron.prepareSignatureBottleDelivery(
+                new ItemStack(Items.GLASS_BOTTLE), RECIPIENT).orElseThrow();
+        var legacy = new SignatureBrewDeliveryTicket(
+                ticket.transactionId(), ticket.signatureId(), ticket.result(), ticket.dose());
+        require(helper, SignatureBrewBottleOutput.createWithReceipt(legacy).isEmpty(),
+                "Old S1 unbound ticket unexpectedly generated a payable reward");
         helper.succeed();
     }
 
