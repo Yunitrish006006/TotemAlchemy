@@ -35,15 +35,17 @@ public final class MinecraftRegistryBootstrapExtension implements BeforeAllCallb
         synchronized (MinecraftRegistryBootstrapExtension.class) {
             if (!bootstrapped) {
                 SharedConstants.tryDetectVersion();
+
+                // 26.3 vanilla Bootstrap freezes creation of intrusive item
+                // holders. Fabric Loader JUnit does not run the mod entrypoint,
+                // so initialize our static items before Bootstrap freezes the
+                // registry; otherwise Item.<init> throws "can't create intrusive
+                // holders" and poisons AlchemyItems for every later test.
+                AlchemyItems.register();
                 Bootstrap.bootStrap();
 
-                // The first annotated test might only use vanilla containers.
-                // Force Totem's static item registration *before* building the
-                // deferred component prototypes. Otherwise the first test
-                // binds vanilla holders, the extension marks itself complete,
-                // and a later flask/hot-cocoa test registers unbound holders.
-                AlchemyItems.register();
-
+                // Resolve the delayed component maps only after *both*
+                // vanilla and Totem items have registered their initializers.
                 RegistryAccess.Frozen builtins =
                         RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
                 HolderLookup.Provider world = VanillaRegistries.createWorldLookup();
