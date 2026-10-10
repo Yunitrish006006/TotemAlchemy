@@ -311,17 +311,73 @@ public final class AlchemyMixtureState {
     }
 
     /**
-     * Claim a ready group's output at most once. The caller must persist the
-     * updated mixture and grant the corresponding output as one server-side transaction.
-     * No item is emitted from this method.
+     * Claim a ready solid-result batch, consuming its entire liquid volume once.
+     *
+     * <p>Bottled signatures are deliberately excluded: their output quota is
+     * determined by liquid units and must use {@link #claimSignatureBottle}.</p>
      */
     public java.util.Optional<SignatureBrewDefinition.Result> claimSignatureResult(Identifier signatureId) {
         SignatureBrewProcess process = signatureProcesses.get(signatureId);
-        if (process == null || !process.ready()) {
+        if (process == null || !process.ready() || process.result().type() != SignatureBrewDefinition.Type.DROP_ITEM
+                || signatureProcesses.size() != 1 || !signatureGroups.isEmpty() || hasPendingReactions()) {
             return java.util.Optional.empty();
         }
-        signatureProcesses.remove(signatureId);
-        return java.util.Optional.of(process.result());
+        SignatureBrewDefinition.Result result = process.result();
+        resetEmpty();
+        return java.util.Optional.of(result);
+    }
+
+    /**
+     * Redeem exactly one liquid unit from a ready bottled signature process.
+     *
+     * <p>The returned one-unit snapshot is detached and carries no process or
+     * outstanding claim. Remaining units retain the ready process, allowing
+     * repeated one-unit redemption up to the original volume. The final claim
+     * empties the mixture. This is an internal at-most-once claim transition,
+     * NOT yet a crash-atomic player inventory hand-off.</p>
+     */
+    public java.util.Optional<SignatureBottleClaim> claimSignatureBottle(Identifier signatureId) {
+        SignatureBrewProcess process = signatureProcesses.get(signatureId);
+        if (process == null || !process.ready() || process.result().type() != SignatureBrewDefinition.Type.BOTTLED_ITEM
+                || signatureProcesses.size() != 1 || !signatureGroups.isEmpty()
+                || hasPendingReactions() || volumeUnits <= 0) {
+            return java.util.Optional.empty();
+        }
+        int previousVolume = volumeUnits;
+        AlchemyMixtureState portion = scaledCopy(1.0D / previousVolume, 1);
+        // Never copy an outstanding claim into a filled bottle. Otherwise the
+        // same signature could be redeemed again after pouring that bottle back.
+        portion.signatureGroups.clear();
+        portion.signatureProcesses.clear();
+        portion.reactions.clear();
+        portion.completedStages.clear();
+        portion.canonicalPotionId = null;
+        portion.addProvenance("signature:result:" + process.signatureId());
+        portion.lockHeatIfFinished();
+
+        if (previousVolume == 1) {
+            resetEmpty();
+        } else {
+            int remaining = previousVolume - 1;
+            scaleInPlace(remaining / (double) previousVolume, remaining);
+            volumeUnits = remaining;
+        }
+        return java.util.Optional.of(new SignatureBottleClaim(process.result(), portion));
+    }
+
+    /** Detached one-dose chemistry with its immutable bottled item descriptor. */
+    public record SignatureBottleClaim(
+            SignatureBrewDefinition.Result result,
+            AlchemyMixtureState mixture
+    ) {
+        public SignatureBottleClaim {
+            java.util.Objects.requireNonNull(result, "result");
+            java.util.Objects.requireNonNull(mixture, "mixture");
+            if (result.type() != SignatureBrewDefinition.Type.BOTTLED_ITEM
+                    || mixture.volumeUnits() != 1 || mixture.hasCommittedSignatureProcess()) {
+                throw new IllegalArgumentException("Invalid signature bottle claim");
+            }
+        }
     }
 
     public Collection<SignatureBrewResolver.ReactionGroup> signatureGroups() {
