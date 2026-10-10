@@ -77,6 +77,22 @@ public final class SignatureBrewRecoveryAssessment {
             SignatureBrewDeliveryProgress progress,
             SignatureBrewReceiptIndex ledger
     ) {
+        return assessEvidence(transactionId, recipientId, ticket, progress,
+                ledger == null ? null : ledger.compareTicket(ticket));
+    }
+
+    /**
+     * Evaluate a fully decoded SavedData observation without requiring callers
+     * to reconstruct its underlying audit index. Null represents a missing or
+     * unreadable ledger, never a negative receipt.
+     */
+    public static Decision assessEvidence(
+            UUID transactionId,
+            UUID recipientId,
+            SignatureBrewDeliveryTicket ticket,
+            SignatureBrewDeliveryProgress progress,
+            SignatureBrewReceiptIndex.Evidence evidence
+    ) {
         if (transactionId == null || recipientId == null) {
             return new Decision(Finding.INVALID_REQUEST);
         }
@@ -96,10 +112,9 @@ public final class SignatureBrewRecoveryAssessment {
             // have been issued by an older server version before it crashed.
             return new Decision(Finding.JOURNAL_MISSING_OR_MISMATCHED);
         }
-        if (ledger == null) {
+        if (evidence == null) {
             return new Decision(Finding.RECEIPT_LEDGER_UNAVAILABLE);
         }
-        SignatureBrewReceiptIndex.Evidence evidence = ledger.compareTicket(ticket);
         switch (evidence) {
             case UNTRUSTED_LEDGER:
                 return new Decision(Finding.RECEIPT_LEDGER_UNTRUSTED);
