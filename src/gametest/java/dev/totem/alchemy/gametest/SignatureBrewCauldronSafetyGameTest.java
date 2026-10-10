@@ -5,17 +5,21 @@ import dev.totem.alchemy.alchemy.AlchemyCauldronRecipes;
 import dev.totem.alchemy.block.AlchemyBlocks;
 import dev.totem.alchemy.block.entity.AlchemyCauldronBlockEntity;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyCompoundBrewing;
 import dev.totem.alchemy.mixture.SignatureBrewDefinition;
 import dev.totem.alchemy.mixture.SignatureBrewResolver;
+import dev.totem.alchemy.registry.AlchemyItems;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.List;
 import java.util.Map;
@@ -137,6 +141,106 @@ public final class SignatureBrewCauldronSafetyGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 30)
+    public void threeSignatureBottlesCarryOneDoseStateAndCannotBeClaimedFourTimes(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        AlchemyMixtureState ready = committedMixture();
+        ready.tickReactions(40);
+        require(helper, cauldron.initializeMixture(ready), "Could not initialize completed signature batch");
+
+        for (int remaining = 2; remaining >= 0; remaining--) {
+            ItemStack bottle = new ItemStack(Items.GLASS_BOTTLE);
+            require(helper, cauldron.canExtractSignatureBottle(bottle), "Ready result did not accept glass bottle");
+            ItemStack output = cauldron.extractSignatureBottle(bottle);
+            require(helper, output.is(AlchemyItems.HOT_COCOA) && output.getCount() == 1,
+                    "Signature did not issue one hot cocoa item");
+            require(helper, AlchemyMixtureBottle.hasStoredMixture(output),
+                    "Signature output lost its stored chemistry");
+            AlchemyMixtureState dose = AlchemyMixtureBottle.fromPotion(output);
+            require(helper, dose.volumeUnits() == 1 && !dose.hasCommittedSignatureProcess(),
+                    "Output still contained an outstanding signature claim");
+            require(helper, dose.hasProvenance("signature:result:" + HOT_COCOA),
+                    "Signature output lost its recipe identity");
+            require(helper, cauldron.mixtureSnapshot().volumeUnits() == remaining,
+                    "Signature output did not consume exactly one volume unit");
+        }
+        require(helper, !cauldron.canExtractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE))
+                        && cauldron.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE)).isEmpty(),
+                "Empty batch still issued another signature item");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void signatureBottleClaimSurvivesCauldronSaveAndLoad(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        AlchemyMixtureState ready = committedMixture();
+        ready.tickReactions(40);
+        require(helper, cauldron.initializeMixture(ready), "Could not initialize signature batch");
+        require(helper, cauldron.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE))
+                        .is(AlchemyItems.HOT_COCOA), "Could not claim the first signature bottle");
+
+        BlockPos relative = new BlockPos(2, 2, 2);
+        BlockPos pos = helper.absolutePos(relative);
+        BlockState state = helper.getLevel().getBlockState(pos);
+        CompoundTag persisted = cauldron.saveWithFullMetadata(helper.getLevel().registryAccess());
+        BlockEntity loaded = BlockEntity.loadStatic(pos, state, persisted, helper.getLevel().registryAccess());
+        require(helper, loaded instanceof AlchemyCauldronBlockEntity,
+                "Saved signature cauldron did not deserialize");
+        AlchemyCauldronBlockEntity restored = (AlchemyCauldronBlockEntity) loaded;
+        require(helper, restored.mixtureSnapshot().volumeUnits() == 2,
+                "Save/load restored already-redeemed liquid");
+        require(helper, restored.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE))
+                        .is(AlchemyItems.HOT_COCOA), "Second bottle was lost after reload");
+        require(helper, restored.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE))
+                        .is(AlchemyItems.HOT_COCOA), "Final bottle was lost after reload");
+        require(helper, restored.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE)).isEmpty(),
+                "Save/load allowed signature bottle replay");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void signatureBottleRejectsWrongContainersAndUnknownResultItemsWithoutLoss(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        AlchemyMixtureState pending = committedMixture();
+        require(helper, cauldron.initializeMixture(pending), "Could not initialize pending signature");
+        require(helper, !cauldron.canExtractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE)),
+                "Unfinished signature was bottled");
+        require(helper, cauldron.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE)).isEmpty(),
+                "Unfinished signature issued an item");
+
+        AlchemyCauldronBlockEntity completed = createCauldron(helper);
+        AlchemyMixtureState ready = committedMixture();
+        ready.tickReactions(40);
+        require(helper, completed.initializeMixture(ready), "Could not initialize ready signature");
+        String before = completed.mixtureSnapshot().encode();
+        require(helper, !completed.canExtractSignatureBottle(new ItemStack(Items.BUCKET)),
+                "Wrong input container was accepted");
+        require(helper, completed.extractSignatureBottle(new ItemStack(Items.BUCKET)).isEmpty(),
+                "Wrong input container issued an item");
+        require(helper, before.equals(completed.mixtureSnapshot().encode()),
+                "Invalid signature bottle attempt consumed liquid");
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void signatureResultPotionEffectsAreWrittenToStoredDrink(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
+        AlchemyMixtureState state = committedMixtureWithResult(new SignatureBrewDefinition.Result(
+                SignatureBrewDefinition.Type.BOTTLED_ITEM, HOT_COCOA, 1,
+                Identifier.fromNamespaceAndPath("minecraft", "glass_bottle"),
+                Identifier.fromNamespaceAndPath("totem", "alchemy/saturation")));
+        state.tickReactions(40);
+        require(helper, cauldron.initializeMixture(state), "Could not initialize potion-result signature");
+        ItemStack output = cauldron.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE));
+        require(helper, output.is(AlchemyItems.HOT_COCOA), "Potion signature did not yield hot cocoa");
+        AlchemyMixtureState oneDose = AlchemyMixtureBottle.storedMixture(output);
+        require(helper, oneDose.effects().containsKey("minecraft:saturation"),
+                "Configured signature potion effects were omitted from the drink");
+        require(helper, oneDose.volumeUnits() == 1 && !oneDose.hasCommittedSignatureProcess(),
+                "Signature potion output retained an outstanding claim");
+        helper.succeed();
+    }
+
     private static AlchemyCauldronBlockEntity createCauldron(GameTestHelper helper) {
         BlockPos relative = new BlockPos(2, 2, 2);
         BlockState block = AlchemyBlocks.ALCHEMY_CAULDRON.defaultBlockState()
@@ -150,6 +254,12 @@ public final class SignatureBrewCauldronSafetyGameTest {
     }
 
     private static AlchemyMixtureState committedMixture() {
+        return committedMixtureWithResult(new SignatureBrewDefinition.Result(
+                SignatureBrewDefinition.Type.BOTTLED_ITEM, HOT_COCOA, 1,
+                Identifier.fromNamespaceAndPath("minecraft", "glass_bottle"), null));
+    }
+
+    private static AlchemyMixtureState committedMixtureWithResult(SignatureBrewDefinition.Result result) {
         AlchemyMixtureState state = new AlchemyMixtureState(3);
         state.setBaseActivated(true);
         state.addReaction(new AlchemyMixtureState.Reaction(
@@ -162,9 +272,7 @@ public final class SignatureBrewCauldronSafetyGameTest {
                 HOT_COCOA, List.of("signature:sugar", "signature:cocoa"))))) {
             throw new IllegalStateException("Could not reserve test signature reactions");
         }
-        if (!state.commitSignatureGroup(HOT_COCOA, new SignatureBrewDefinition.Result(
-                SignatureBrewDefinition.Type.BOTTLED_ITEM, HOT_COCOA, 1,
-                Identifier.fromNamespaceAndPath("minecraft", "glass_bottle"), null))) {
+        if (!state.commitSignatureGroup(HOT_COCOA, result)) {
             throw new IllegalStateException("Could not commit test signature group");
         }
         return state;
