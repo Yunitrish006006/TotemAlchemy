@@ -75,6 +75,11 @@ public final class SignatureBrewPlayerReceiptSavedData extends SavedData {
         return index.lookup(playerId, transactionId);
     }
 
+    /** Compare the full saved observation, not merely the UUID lookup key. */
+    public SignatureBrewReceiptIndex.Evidence compareTicket(SignatureBrewDeliveryTicket ticket) {
+        return index.compareTicket(ticket);
+    }
+
     public boolean needsManualRecovery() {
         return index.hasUntrustedData();
     }
