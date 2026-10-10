@@ -199,25 +199,29 @@ public final class SignatureBrewCauldronSafetyGameTest {
     }
 
     @GameTest(maxTicks = 30)
-    public void signatureBottleRejectsWrongContainersAndUnknownResultItemsWithoutLoss(GameTestHelper helper) {
+    public void unfinishedSignatureCannotBeBottled(GameTestHelper helper) {
         AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
-        AlchemyMixtureState pending = committedMixture();
-        require(helper, cauldron.initializeMixture(pending), "Could not initialize pending signature");
+        require(helper, cauldron.initializeMixture(committedMixture()),
+                "Could not initialize pending signature");
         require(helper, !cauldron.canExtractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE)),
                 "Unfinished signature was bottled");
         require(helper, cauldron.extractSignatureBottle(new ItemStack(Items.GLASS_BOTTLE)).isEmpty(),
                 "Unfinished signature issued an item");
+        helper.succeed();
+    }
 
-        AlchemyCauldronBlockEntity completed = createCauldron(helper);
+    @GameTest(maxTicks = 30)
+    public void signatureBottleRejectsWrongContainersWithoutLoss(GameTestHelper helper) {
+        AlchemyCauldronBlockEntity cauldron = createCauldron(helper);
         AlchemyMixtureState ready = committedMixture();
         ready.tickReactions(40);
-        require(helper, completed.initializeMixture(ready), "Could not initialize ready signature");
-        String before = completed.mixtureSnapshot().encode();
-        require(helper, !completed.canExtractSignatureBottle(new ItemStack(Items.BUCKET)),
+        require(helper, cauldron.initializeMixture(ready), "Could not initialize ready signature");
+        String before = cauldron.mixtureSnapshot().encode();
+        require(helper, !cauldron.canExtractSignatureBottle(new ItemStack(Items.BUCKET)),
                 "Wrong input container was accepted");
-        require(helper, completed.extractSignatureBottle(new ItemStack(Items.BUCKET)).isEmpty(),
+        require(helper, cauldron.extractSignatureBottle(new ItemStack(Items.BUCKET)).isEmpty(),
                 "Wrong input container issued an item");
-        require(helper, before.equals(completed.mixtureSnapshot().encode()),
+        require(helper, before.equals(cauldron.mixtureSnapshot().encode()),
                 "Invalid signature bottle attempt consumed liquid");
         helper.succeed();
     }
