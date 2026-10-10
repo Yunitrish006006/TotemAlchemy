@@ -97,6 +97,11 @@ public final class SignatureBrewTransactionRegistry {
     private final Map<UUID, SignatureBrewClosureIntent> closureIntents = new HashMap<>();
     private final Set<String> rawClosureIntents = new HashSet<>();
     private final Set<UUID> conflictedClosureIds = new HashSet<>();
+    /** Immutable F1 generation-one anchors saved with the original A1 escrow. */
+    private final Map<Source, SignatureBrewSourceFence> sourceFences = new HashMap<>();
+    private final Set<Source> conflictedFenceSources = new HashSet<>();
+    private final Set<String> rawSourceFences = new HashSet<>();
+    private boolean unknownFenceRecords;
     private boolean unknownClosureRecords;
     private boolean unknownRecords;
 
@@ -118,6 +123,17 @@ public final class SignatureBrewTransactionRegistry {
      */
     public SignatureBrewTransactionRegistry(
             List<String> serialized, List<String> serializedClosureIntents
+    ) {
+        this(serialized, serializedClosureIntents, List.of());
+    }
+
+    /**
+     * A1 and C1 migration never fabricates missing F1 generations. Old world
+     * files remain readable, but cannot pass a future terminal fencing gate.
+     */
+    public SignatureBrewTransactionRegistry(
+            List<String> serialized, List<String> serializedClosureIntents,
+            List<String> serializedSourceFences
     ) {
         if (serialized == null) {
             unknownRecords = true;
@@ -149,6 +165,42 @@ public final class SignatureBrewTransactionRegistry {
             }
         }
         loadClosureIntents(serializedClosureIntents);
+        loadSourceFences(serializedSourceFences);
+    }
+
+    private void loadSourceFences(List<String> serialized) {
+        if (serialized == null) {
+            unknownFenceRecords = true;
+            return;
+        }
+        for (String raw : serialized) {
+            if (raw == null || raw.isBlank()) {
+                unknownFenceRecords = true;
+                continue;
+            }
+            rawSourceFences.add(raw);
+            var decoded = SignatureBrewSourceFence.decode(raw);
+            if (decoded.isEmpty()) {
+                unknownFenceRecords = true;
+                continue;
+            }
+            SignatureBrewSourceFence fence = decoded.get();
+            UUID originalId = bySource.get(fence.source());
+            Entry original = originalId == null ? null : byTransaction.get(originalId);
+            if (original == null || !fence.matchesOriginal(original)
+                    || conflictedTransactions.contains(fence.transactionId())
+                    || conflictedSources.contains(fence.source())) {
+                // A fence from another owner/generation cannot acquire an old
+                // A1 source. Keep bytes and quarantine the entire world index.
+                unknownFenceRecords = true;
+                continue;
+            }
+            SignatureBrewSourceFence previous =
+                    sourceFences.putIfAbsent(fence.source(), fence);
+            if (previous != null && !previous.equals(fence)) {
+                conflictedFenceSources.add(fence.source());
+            }
+        }
     }
 
     private void loadClosureIntents(List<String> serialized) {
@@ -198,7 +250,8 @@ public final class SignatureBrewTransactionRegistry {
         if (source == null || ticket == null || ticket.isLegacyUnbound()) {
             return RegisterResult.UNBOUND_TICKET;
         }
-        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
+        if (unknownRecords || unknownClosureRecords || unknownFenceRecords
+                || !conflictedClosureIds.isEmpty() || !conflictedFenceSources.isEmpty()) {
             return RegisterResult.UNTRUSTED_REGISTRY;
         }
         if (conflictedTransactions.contains(ticket.transactionId())) {
@@ -219,15 +272,61 @@ public final class SignatureBrewTransactionRegistry {
             return RegisterResult.CONFLICT_SOURCE;
         }
 
+        // Register A1 and its first immutable source generation together in
+        // the same world SavedData mutation. This does NOT persist player.dat
+        // nor prove the cauldron's separate debit survived a server crash.
+        SignatureBrewSourceFence first = SignatureBrewSourceFence.first(incoming);
         byTransaction.put(ticket.transactionId(), incoming);
         bySource.put(source, ticket.transactionId());
         rawEntries.add(incoming.encode());
+        sourceFences.put(source, first);
+        rawSourceFences.add(first.encode());
         return RegisterResult.REGISTERED;
+    }
+
+    public enum FenceState {
+        GENESIS_MATCH, LEGACY_UNFENCED, ORIGINAL_ABSENT,
+        WRONG_SOURCE, CONFLICT_OR_UNTRUSTED
+    }
+
+    /**
+     * Verify the exact initial generation independently of A1/C1. A missing
+     * F1 on a legacy A1 save MUST NOT be reconstructed automatically.
+     * GENESIS_MATCH confirms identity only: no terminal grant proof exists.
+     */
+    public FenceState inspectFence(Source source, UUID transactionId) {
+        if (source == null || transactionId == null) {
+            return FenceState.CONFLICT_OR_UNTRUSTED;
+        }
+        if (unknownRecords || unknownClosureRecords || unknownFenceRecords
+                || !conflictedClosureIds.isEmpty() || !conflictedFenceSources.isEmpty()
+                || conflictedTransactions.contains(transactionId)
+                || conflictedSources.contains(source)) {
+            return FenceState.CONFLICT_OR_UNTRUSTED;
+        }
+        Entry original = byTransaction.get(transactionId);
+        if (original == null) {
+            return FenceState.ORIGINAL_ABSENT;
+        }
+        if (!original.source().equals(source)) {
+            return FenceState.WRONG_SOURCE;
+        }
+        SignatureBrewSourceFence fence = sourceFences.get(source);
+        if (fence == null) {
+            return FenceState.LEGACY_UNFENCED;
+        }
+        return fence.matchesOriginal(original)
+                ? FenceState.GENESIS_MATCH : FenceState.CONFLICT_OR_UNTRUSTED;
+    }
+
+    public List<String> encodedSourceFences() {
+        return rawSourceFences.stream().sorted().toList();
     }
 
     /** Read-only and fail-closed: even PRESENT never authorizes a payout. */
     public LookupResult lookup(UUID transactionId) {
-        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
+        if (unknownRecords || unknownClosureRecords || unknownFenceRecords
+                || !conflictedClosureIds.isEmpty() || !conflictedFenceSources.isEmpty()) {
             return LookupResult.UNTRUSTED_REGISTRY;
         }
         if (transactionId == null) {
@@ -252,7 +351,8 @@ public final class SignatureBrewTransactionRegistry {
      * that a player item was saved or a disk write was flushed successfully.
      */
     public Verification verify(Source expectedSource, SignatureBrewDeliveryTicket ticket) {
-        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
+        if (unknownRecords || unknownClosureRecords || unknownFenceRecords
+                || !conflictedClosureIds.isEmpty() || !conflictedFenceSources.isEmpty()) {
             return Verification.UNTRUSTED_REGISTRY;
         }
         if (expectedSource == null || ticket == null || ticket.isLegacyUnbound()) {
@@ -294,7 +394,8 @@ public final class SignatureBrewTransactionRegistry {
      * finalization protocol before source reuse is ever allowed.</p>
      */
     public ClosureResult requestClosureReview(Source source, SignatureBrewDeliveryTicket ticket) {
-        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
+        if (unknownRecords || unknownClosureRecords || unknownFenceRecords
+                || !conflictedClosureIds.isEmpty() || !conflictedFenceSources.isEmpty()) {
             return ClosureResult.UNTRUSTED_REGISTRY;
         }
         if (source == null || ticket == null || ticket.isLegacyUnbound()) {
@@ -316,7 +417,8 @@ public final class SignatureBrewTransactionRegistry {
     }
 
     public ClosureState closureState(UUID transactionId) {
-        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
+        if (unknownRecords || unknownClosureRecords || unknownFenceRecords
+                || !conflictedClosureIds.isEmpty() || !conflictedFenceSources.isEmpty()) {
             return ClosureState.CONFLICT_OR_UNTRUSTED;
         }
         return transactionId != null && closureIntents.containsKey(transactionId)
@@ -340,7 +442,8 @@ public final class SignatureBrewTransactionRegistry {
     }
 
     public boolean needsManualRecovery() {
-        return unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()
+        return unknownRecords || unknownClosureRecords || unknownFenceRecords
+                || !conflictedClosureIds.isEmpty() || !conflictedFenceSources.isEmpty()
                 || !conflictedTransactions.isEmpty() || !conflictedSources.isEmpty();
     }
 
