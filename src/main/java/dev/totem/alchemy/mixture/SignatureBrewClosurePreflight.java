@@ -69,6 +69,25 @@ public final class SignatureBrewClosurePreflight {
             SignatureBrewDeliveryProgress journal,
             SignatureBrewReceiptIndex receipts
     ) {
+        SignatureBrewTransactionRegistry.Entry original = registry == null
+                ? null : registry.inspect(transactionId).orElse(null);
+        return assessEvidence(registry, expectedSource, transactionId, journal,
+                receipts == null ? null
+                        : receipts.compareTicket(original == null ? null : original.ticket()));
+    }
+
+    /**
+     * Work with evidence decoded directly from independent world SavedData
+     * without making its mutable index visible to another storage owner.
+     * Null evidence means missing ledger, never proof of non-delivery.
+     */
+    public static Decision assessEvidence(
+            SignatureBrewTransactionRegistry registry,
+            SignatureBrewTransactionRegistry.Source expectedSource,
+            UUID transactionId,
+            SignatureBrewDeliveryProgress journal,
+            SignatureBrewReceiptIndex.Evidence evidence
+    ) {
         if (expectedSource == null || transactionId == null) {
             return new Decision(Blocker.INVALID_REQUEST);
         }
@@ -112,10 +131,9 @@ public final class SignatureBrewClosurePreflight {
         if (journal == null || !journal.matches(ticket)) {
             return new Decision(Blocker.JOURNAL_MISSING_OR_MISMATCHED);
         }
-        if (receipts == null) {
+        if (evidence == null) {
             return new Decision(Blocker.LEDGER_UNAVAILABLE);
         }
-        SignatureBrewReceiptIndex.Evidence evidence = receipts.compareTicket(ticket);
         switch (evidence) {
             case UNTRUSTED_LEDGER:
                 return new Decision(Blocker.LEDGER_UNTRUSTED);
