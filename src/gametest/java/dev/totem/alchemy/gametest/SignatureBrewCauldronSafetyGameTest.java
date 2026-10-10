@@ -118,6 +118,9 @@ public final class SignatureBrewCauldronSafetyGameTest {
     @GameTest(maxTicks = 30)
     public void uncommittedSignatureReservationStillAllowsOrdinaryCompletion(GameTestHelper helper) {
         AlchemyMixtureState mixture = new AlchemyMixtureState(3);
+        // Use a fully activated liquid so ordinary ingredient scaling does not
+        // depend on which optional content packs are enabled in this test run.
+        mixture.setBaseActivated(true);
         mixture.addReaction(new AlchemyMixtureState.Reaction(
                 "signature:sugar", "minecraft:sugar", 0, 20, 3, null, null,
                 Map.of(), Map.of("minecraft:speed",
