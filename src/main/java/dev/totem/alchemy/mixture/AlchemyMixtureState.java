@@ -352,6 +352,10 @@ public final class AlchemyMixtureState {
         portion.reactions.clear();
         portion.completedStages.clear();
         portion.canonicalPotionId = null;
+        // A redeemed signature is a new finished product, not an active or
+        // ready legacy named recipe. Keeping old compound markers here would
+        // allow legacy bottling to reinterpret and duplicate the output.
+        portion.provenance.removeIf(marker -> marker.startsWith("compound:"));
         portion.addProvenance("signature:result:" + process.signatureId());
         portion.lockHeatIfFinished();
 
