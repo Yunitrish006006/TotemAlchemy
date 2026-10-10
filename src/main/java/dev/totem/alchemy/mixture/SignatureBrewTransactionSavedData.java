@@ -75,6 +75,16 @@ public final class SignatureBrewTransactionSavedData extends SavedData {
         return registry.inspect(transactionId);
     }
 
+    /** Audit only; never authorizes an inventory reward. */
+    public SignatureBrewTransactionRegistry.Verification verify(
+            Identifier dimensionId, BlockPos sourcePos, SignatureBrewDeliveryTicket ticket
+    ) {
+        return registry.verify(
+                dimensionId == null || sourcePos == null ? null
+                        : new SignatureBrewTransactionRegistry.Source(dimensionId, sourcePos.asLong()),
+                ticket);
+    }
+
     public boolean needsManualRecovery() {
         return registry.needsManualRecovery();
     }
