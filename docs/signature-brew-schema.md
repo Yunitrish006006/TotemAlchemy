@@ -78,6 +78,16 @@ This deliberately differs from the old one-time **whole-batch** claim behavior f
 - **Durability limit:** this is a single synchronous server callback, not a distributed transaction spanning cauldron chunk data and player inventory. A crash between their independent disk writes can still duplicate or lose a reward. Final activation requires a persisted delivery receipt/escrow design and restart fault-injection tests; do not claim crash-safe exactly-once delivery yet.
 - This guarded path handles already-committed states only. No built-in Hot Cocoa or Cherry Brew recipe is yet migrated to signature scheduling.
 
+## Prepared delivery escrow (M11-T02a-durability-01; experimental, NOT live)
+
+`SignatureBrewDeliveryTicket` is a new immutable, versioned `S1` ticket, carrying a stable UUID, signature recipe ID, result descriptor and a detached one-unit completed mixture. Invalid versions or payloads cannot be parsed as deliverable receipts. A ticket is **PREPARED**, not `DELIVERED`; a matching signature result on a ticket does not itself grant a player any item.
+
+`AlchemyCauldronBlockEntity.prepareSignatureBottleDelivery(container)` is a **separate, not-yet-routed** preparation API. It validates a ready signature result and constructs a usable output from a working copy *before* simultaneously updating the cauldron's remaining liquid and retaining its one-dose pending ticket in the same block entity. Preparing another ticket or extracting ordinary/legacy mixtures while that ticket exists is refused. The receipt is saved under `signature_delivery_ticket` independent of `mixture_state`, so the final liquid unit survives even when the mixture becomes empty. A corrupt/unknown serialized ticket is preserved verbatim and locks the cauldron for explicit recovery; never silently discard a possibly spent output.
+
+**This is not an exactly-once delivery protocol.** No ticket acknowledgment, player inventory ID matching, receipt transfer, payout retry, or escrow clearing method is implemented. In particular, calling the existing live `extractSignatureBottle` path does not yet use escrow. The new staging API is only exercised by isolated server GameTests. The current live hand-off remains synchronous but crash-unsafe; do not enable automatic SignatureBrew or advertise crash consistency until its handoff is replaced and reviewed.
+
+Next durability gate: define an explicit recipient-bound delivery state machine with idempotent acknowledgment and independent chunk/player save recovery. Test crashes *before staging*, *after staging but before item issuance*, *after item issuance but before acknowledgment*, *after acknowledgment*, last-dose block replacement, retries, transfer/disconnect, and chunk unload. A simple ticket alone cannot make two independent save files atomic.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
