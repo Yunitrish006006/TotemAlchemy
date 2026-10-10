@@ -112,6 +112,16 @@ Validation rejects wrong item IDs, missing or mismatched signature provenance, p
 
 Next checkpoint: design and persist an independent player-side receipt ledger that survives item consumption and restart; reconcile with the cauldron's J1 state while testing all crash/order windows, including when a chunk no longer exists.
 
+## Independent player receipt observations (M11-T02a-durability-02b-02b-01, experimental)
+
+`SignatureBrewPlayerReceiptSavedData` is a **separate world SavedData file** (`totem:alchemy/signature_receipt_observations`) keyed internally by a player's UUID and transaction UUID. It stores `SignatureBrewRewardReceipt` R1 records independently of drink ItemStacks. It is not the player's `player.dat` inventory file and does not prove that player's inventory changes have been flushed to disk.
+
+The server-only `observe(playerUuid, pendingTicket, actualRewardItem)` verifies the physical reward's R1 marker and one-unit signature chemistry against the exact recipient-bound S2 escrow ticket. Identical repeat observations are idempotent. Wrong owners and different tickets are refused. A reused transaction UUID with conflicting owners/payloads is quarantined; corrupted/future serialized records are preserved and the ledger becomes untrusted, rather than silently discarding evidence. The SavedData codec round-trips the observations so they remain accessible even if a specific drink is consumed, deleted, or transferred.
+
+**No payouts, retries, or ACKNOWLEDGED transitions are authorized by this ledger.** An `OBSERVED` entry only means the server examined a marked item at some time. An absent record might mean crash-before-save, item never delivered, or observation never committed. A present record might predate a lost inventory write. Neither state proves the inventory and cauldron have been committed together. The API is currently used by isolated tests only, not by the live right-click handoff.
+
+Next durability gate: introduce a transaction coordinator with a **durable write ordering/recovery contract**, plus a recipient-owned independent receipt acknowledged through the inventory-save lifecycle; test save-file rollback, process kill before/after each write, last-dose block replacement, chunks unloaded or destroyed, player logoff/transfer, and repeated interactions. Until then, fail closed rather than issuing a second drink.
+
 ## Follow-up acceptance gates
 
 1. Schedule an active group with committed result metadata; reject clashes before the first member completes.
