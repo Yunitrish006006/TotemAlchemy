@@ -33,7 +33,7 @@ The parser rejects unknown fields, invalid IDs, duplicate ingredients, fractions
 }
 ```
 
-All root fields are required. `result.count` defaults to 1. `result.potion` is optional for bottled items, and `result.container_item` is mandatory for bottled items. `drop_item` results cannot specify `container_item` or `potion`.
+All root fields are required. `result.count` defaults to 1. For `bottled_item`, `result.count` **must be 1**: each bottle consumes exactly one liquid volume unit; the number of bottles is determined by the mixture's volume, not `count`. `result.potion` is optional for bottled items, and `result.container_item` is mandatory for bottled items. For `drop_item`, `count` is the number of items yielded by a single whole-batch result (1–64), and `container_item` or `potion` are invalid.
 
 ## Semantics
 
@@ -55,6 +55,19 @@ A signature group may instead be explicitly committed with `AlchemyMixtureState.
 The committed process becomes ready only after **all** members finish. `claimSignatureResult(id)` removes a ready claim from the mixture and returns its output descriptor once. This does not itself create an item. The future cauldron/inventory adapter must persist the state change and grant the item in a single server-side transaction, or retry/restart could otherwise duplicate or lose an output. Runtime scheduler integration and atomic external item grant remain **not implemented**.
 
 Partial extraction and mixing of mixtures containing committed processes are refused until safe allocation/reconciliation rules are defined. Full extraction moves the committed process intact.
+
+## Three-unit signature bottling quota (M11-T02a, state-only boundary)
+
+For a completed **bottled** signature with 3 liquid units:
+
+1. `claimSignatureBottle(signatureId)` returns one immutable item result descriptor plus a detached, one-volume-unit mixture snapshot. The snapshot contains chemistry scaled to that single unit, has no outstanding reaction/group claims, and is sealed against further cooking.
+2. The source loses exactly one liquid unit and a proportional share of conserved chemistry. It retains its ready signature process while units remain.
+3. Repeated claims produce **3 bottles total**, then empty the source. A fourth claim fails. A saved-and-reloaded source preserves its remaining volume/quota. `claimSignatureResult` does not redeem bottled signatures.
+4. No new potion/bottle items are physically handed to a player yet. The return value is an **internal claim**, not an inventory delivery. The eventual server interaction must ensure that consumption and item issuance cannot be replayed after a crash.
+5. `claimSignatureResult` for `drop_item` consumes the **whole batch** once; it never converts liquid units into multiple solid outputs.
+6. Until simultaneous process quotas are defined, claiming requires exactly one committed process and no outstanding uncommitted groups or pending reactions. A ready claim cannot bypass normal item grant using ordinary glass-bottle extraction.
+
+This deliberately differs from the old one-time **whole-batch** claim behavior for bottled items. Old 3-unit mixtures are not migrated/changed; their legacy brewing and bottling still operate normally.
 
 ## Follow-up acceptance gates
 
