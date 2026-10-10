@@ -1,6 +1,6 @@
 # M11 Signature Brew Datapack Contract (schema_version 1)
 
-Status: **definition loading only**. This contract does not switch on special outcomes or change legacy Hot Cocoa/Cherry Brew gameplay. Runtime reservation, suppressing ordinary outcomes, atomic settlement, and save/restore across partially settled groups must be proven before signature outputs are activated.
+Status: **passive recipe definition loading with a guarded manual committed-process extraction path**. A ready committed process can issue a registered drink through the server cauldron bottle interaction, but ordinary gameplay never auto-creates signature groups yet. Legacy Hot Cocoa/Cherry Brew scheduling remains unchanged. Crash-atomic inventory/cauldron persistence is a separate outstanding gate.
 
 ## Resource location
 
@@ -52,7 +52,7 @@ An inactive reservation is saved as `G|` metadata and still allows ordinary brew
 
 A signature group may instead be explicitly committed with `AlchemyMixtureState.commitSignatureGroup(signatureId, result)` **before any member finishes**. The committed group uses the `Q|` save marker, storing its immutable result descriptor, member reaction IDs, and completed-member IDs. Existing reaction timers continue unchanged. When a committed member finishes, its ordinary effect/potion output and completed-stage bookkeeping are skipped; other unclaimed reactions retain normal behavior.
 
-The committed process becomes ready only after **all** members finish. `claimSignatureResult(id)` removes a ready claim from the mixture and returns its output descriptor once. This does not itself create an item. The future cauldron/inventory adapter must persist the state change and grant the item in a single server-side transaction, or retry/restart could otherwise duplicate or lose an output. Runtime scheduler integration and atomic external item grant remain **not implemented**.
+The committed process becomes ready only after **all** members finish. `claimSignatureResult(id)` is reserved for a whole-batch solid result, whereas `claimSignatureBottle(id)` consumes exactly one liquid unit for a bottled result. The guarded cauldron interaction now creates a real drink item from a ready bottled claim; durable persistence of the player reward and cauldron mutation remains **unimplemented**. Runtime signature-group scheduling and solid-result issuance are also not activated.
 
 Partial extraction and mixing of mixtures containing committed processes are refused until safe allocation/reconciliation rules are defined. Full extraction moves the committed process intact.
 
@@ -63,11 +63,20 @@ For a completed **bottled** signature with 3 liquid units:
 1. `claimSignatureBottle(signatureId)` returns one immutable item result descriptor plus a detached, one-volume-unit mixture snapshot. The snapshot contains chemistry scaled to that single unit, has no outstanding reaction/group claims, and is sealed against further cooking.
 2. The source loses exactly one liquid unit and a proportional share of conserved chemistry. It retains its ready signature process while units remain.
 3. Repeated claims produce **3 bottles total**, then empty the source. A fourth claim fails. A saved-and-reloaded source preserves its remaining volume/quota. `claimSignatureResult` does not redeem bottled signatures.
-4. No new potion/bottle items are physically handed to a player yet. The return value is an **internal claim**, not an inventory delivery. The eventual server interaction must ensure that consumption and item issuance cannot be replayed after a crash.
+4. The internal claim now feeds the **server-side cauldron right-click bottle path**. The cauldron first validates the requested container, resolved drink item and (optional) potion; it builds an item from a copy of the mixture, then commits the one-unit claim, updates the cauldron liquid level, and hands the output to the existing same-tick inventory exchange. A failed output validation consumes nothing. This is **not crash-atomic** across player inventory and chunk storage; a durable hand-off/receipt protocol is still an activation gate.
 5. `claimSignatureResult` for `drop_item` consumes the **whole batch** once; it never converts liquid units into multiple solid outputs.
 6. Until simultaneous process quotas are defined, claiming requires exactly one committed process and no outstanding uncommitted groups or pending reactions. A ready claim cannot bypass normal item grant using ordinary glass-bottle extraction.
 
 This deliberately differs from the old one-time **whole-batch** claim behavior for bottled items. Old 3-unit mixtures are not migrated/changed; their legacy brewing and bottling still operate normally.
+
+## Guarded server-side drink delivery (M11-T02a-delivery, pending CI)
+
+- Only a **ready, committed** group with exactly one active group, no pending reactions and no other reserved groups may be bottled.
+- Client-side preview and server-side interaction both recognize the configured `container_item`; a wrong container, unfinished reaction, unregistered item, or non-drinkable output is rejected **without decrementing liquid volume**.
+- The cauldron constructs `SignatureBrewBottleOutput` using a copy of the mixture, preserving one dose of the existing liquid/effect chemistry. If `result.potion` is defined, that potion's configured effects are overlaid once onto the one-dose output without overwriting unrelated effects.
+- Once the detached drink is prepared, one source liquid unit is consumed, `setChanged()` is invoked, the block's displayed level is reduced, and `AlchemyHandler` swaps the clicked container for the drink through its existing server-side handoff.
+- **Durability limit:** this is a single synchronous server callback, not a distributed transaction spanning cauldron chunk data and player inventory. A crash between their independent disk writes can still duplicate or lose a reward. Final activation requires a persisted delivery receipt/escrow design and restart fault-injection tests; do not claim crash-safe exactly-once delivery yet.
+- This guarded path handles already-committed states only. No built-in Hot Cocoa or Cherry Brew recipe is yet migrated to signature scheduling.
 
 ## Follow-up acceptance gates
 
