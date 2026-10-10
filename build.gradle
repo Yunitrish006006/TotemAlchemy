@@ -76,7 +76,17 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.withType(Test).configureEach { useJUnitPlatform() }
+// Diagnose the JVM-only Minecraft registry failures in CI. Gradle's default
+// brief test output hides the NPE's actual registry/bootstrap frame.
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    testLogging {
+        events 'failed'
+        exceptionFormat 'full'
+        showStackTraces true
+        showCauses true
+    }
+}
 
 tasks.register('verifyOptionalAlchemyPackIsolation') {
     group = 'verification'
