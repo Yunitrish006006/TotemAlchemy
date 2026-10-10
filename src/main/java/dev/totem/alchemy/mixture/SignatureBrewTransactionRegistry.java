@@ -93,6 +93,11 @@ public final class SignatureBrewTransactionRegistry {
     private final Set<UUID> conflictedTransactions = new HashSet<>();
     private final Set<Source> conflictedSources = new HashSet<>();
     private final Set<String> rawEntries = new HashSet<>();
+    /** Review-only closure records; never unlock a source or grant a reward. */
+    private final Map<UUID, SignatureBrewClosureIntent> closureIntents = new HashMap<>();
+    private final Set<String> rawClosureIntents = new HashSet<>();
+    private final Set<UUID> conflictedClosureIds = new HashSet<>();
+    private boolean unknownClosureRecords;
     private boolean unknownRecords;
 
     public SignatureBrewTransactionRegistry() {
@@ -104,6 +109,16 @@ public final class SignatureBrewTransactionRegistry {
      * newer record or an arbitrary iteration order.
      */
     public SignatureBrewTransactionRegistry(List<String> serialized) {
+        this(serialized, List.of());
+    }
+
+    /**
+     * Decode canonical reward entries first, then reconcile closure intents
+     * against that exact immutable ticket. Old saves had no closure field.
+     */
+    public SignatureBrewTransactionRegistry(
+            List<String> serialized, List<String> serializedClosureIntents
+    ) {
         if (serialized == null) {
             unknownRecords = true;
             return;
@@ -133,6 +148,41 @@ public final class SignatureBrewTransactionRegistry {
                 conflictedTransactions.add(candidate.transactionId());
             }
         }
+        loadClosureIntents(serializedClosureIntents);
+    }
+
+    private void loadClosureIntents(List<String> serialized) {
+        if (serialized == null) {
+            unknownClosureRecords = true;
+            return;
+        }
+        for (String raw : serialized) {
+            if (raw == null || raw.isBlank()) {
+                unknownClosureRecords = true;
+                continue;
+            }
+            rawClosureIntents.add(raw);
+            var parsed = SignatureBrewClosureIntent.decode(raw);
+            if (parsed.isEmpty()) {
+                unknownClosureRecords = true;
+                continue;
+            }
+            SignatureBrewClosureIntent intent = parsed.get();
+            Entry original = byTransaction.get(intent.transactionId());
+            if (original == null || conflictedTransactions.contains(intent.transactionId())
+                    || conflictedSources.contains(original.source())
+                    || !intent.matchesOriginal(original)) {
+                // Never auto-close a transaction whose original has disappeared
+                // or whose review intent was forged, reordered or corrupted.
+                unknownClosureRecords = true;
+                continue;
+            }
+            SignatureBrewClosureIntent prior = closureIntents.putIfAbsent(
+                    intent.transactionId(), intent);
+            if (prior != null && !prior.equals(intent)) {
+                conflictedClosureIds.add(intent.transactionId());
+            }
+        }
     }
 
     /**
@@ -148,7 +198,7 @@ public final class SignatureBrewTransactionRegistry {
         if (source == null || ticket == null || ticket.isLegacyUnbound()) {
             return RegisterResult.UNBOUND_TICKET;
         }
-        if (unknownRecords) {
+        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
             return RegisterResult.UNTRUSTED_REGISTRY;
         }
         if (conflictedTransactions.contains(ticket.transactionId())) {
@@ -177,7 +227,7 @@ public final class SignatureBrewTransactionRegistry {
 
     /** Read-only and fail-closed: even PRESENT never authorizes a payout. */
     public LookupResult lookup(UUID transactionId) {
-        if (unknownRecords) {
+        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
             return LookupResult.UNTRUSTED_REGISTRY;
         }
         if (transactionId == null) {
@@ -202,7 +252,7 @@ public final class SignatureBrewTransactionRegistry {
      * that a player item was saved or a disk write was flushed successfully.
      */
     public Verification verify(Source expectedSource, SignatureBrewDeliveryTicket ticket) {
-        if (unknownRecords) {
+        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
             return Verification.UNTRUSTED_REGISTRY;
         }
         if (expectedSource == null || ticket == null || ticket.isLegacyUnbound()) {
@@ -226,6 +276,63 @@ public final class SignatureBrewTransactionRegistry {
                 ? Verification.EXACT_SNAPSHOT : Verification.ESCROW_PAYLOAD_MISMATCH;
     }
 
+    public enum ClosureResult {
+        REVIEW_REQUESTED, ALREADY_REQUESTED, NO_VERIFIED_ORIGINAL,
+        INVALID_SOURCE_OR_TICKET, UNTRUSTED_REGISTRY
+    }
+
+    public enum ClosureState {
+        NONE, REVIEW_REQUESTED, CONFLICT_OR_UNTRUSTED
+    }
+
+    /**
+     * Record an idempotent human-review intent against a canonical original.
+     *
+     * <p>IMPORTANT: This is NOT a delivery acknowledgment or a terminal
+     * tombstone. The original transaction and source lock remain held. Future
+     * code must require independent durable delivery proof and a separate
+     * finalization protocol before source reuse is ever allowed.</p>
+     */
+    public ClosureResult requestClosureReview(Source source, SignatureBrewDeliveryTicket ticket) {
+        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
+            return ClosureResult.UNTRUSTED_REGISTRY;
+        }
+        if (source == null || ticket == null || ticket.isLegacyUnbound()) {
+            return ClosureResult.INVALID_SOURCE_OR_TICKET;
+        }
+        if (verify(source, ticket) != Verification.EXACT_SNAPSHOT) {
+            return ClosureResult.NO_VERIFIED_ORIGINAL;
+        }
+        Entry original = byTransaction.get(ticket.transactionId());
+        SignatureBrewClosureIntent candidate = SignatureBrewClosureIntent.forOriginal(original);
+        SignatureBrewClosureIntent previous = closureIntents.get(ticket.transactionId());
+        if (previous != null) {
+            return previous.equals(candidate) ? ClosureResult.ALREADY_REQUESTED
+                    : ClosureResult.UNTRUSTED_REGISTRY;
+        }
+        closureIntents.put(ticket.transactionId(), candidate);
+        rawClosureIntents.add(candidate.encode());
+        return ClosureResult.REVIEW_REQUESTED;
+    }
+
+    public ClosureState closureState(UUID transactionId) {
+        if (unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()) {
+            return ClosureState.CONFLICT_OR_UNTRUSTED;
+        }
+        return transactionId != null && closureIntents.containsKey(transactionId)
+                ? ClosureState.REVIEW_REQUESTED : ClosureState.NONE;
+    }
+
+    /** Read-only record inspection, not authorization to settle or issue items. */
+    public Optional<SignatureBrewClosureIntent> inspectClosure(UUID transactionId) {
+        return closureState(transactionId) == ClosureState.REVIEW_REQUESTED
+                ? Optional.ofNullable(closureIntents.get(transactionId)) : Optional.empty();
+    }
+
+    public List<String> encodedClosureIntents() {
+        return rawClosureIntents.stream().sorted().toList();
+    }
+
     /** Original complete ticket can support human recovery after chunk loss. */
     public Optional<Entry> inspect(UUID transactionId) {
         return lookup(transactionId) == LookupResult.PRESENT
@@ -233,7 +340,8 @@ public final class SignatureBrewTransactionRegistry {
     }
 
     public boolean needsManualRecovery() {
-        return unknownRecords || !conflictedTransactions.isEmpty() || !conflictedSources.isEmpty();
+        return unknownRecords || unknownClosureRecords || !conflictedClosureIds.isEmpty()
+                || !conflictedTransactions.isEmpty() || !conflictedSources.isEmpty();
     }
 
     public List<String> encodedEntries() {
