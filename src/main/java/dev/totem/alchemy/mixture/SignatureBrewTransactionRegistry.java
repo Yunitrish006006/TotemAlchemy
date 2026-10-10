@@ -78,7 +78,11 @@ public final class SignatureBrewTransactionRegistry {
                 return SignatureBrewDeliveryTicket.decode(ticketPayload)
                         .filter(ticket -> !ticket.isLegacyUnbound())
                         .map(ticket -> new Entry(new Source(dimension, position), ticket));
-            } catch (IllegalArgumentException | NullPointerException error) {
+            } catch (RuntimeException error) {
+                // Identifier.parse throws Minecraft's IdentifierException (not
+                // necessarily IllegalArgumentException) for malformed IDs.
+                // Untrusted persisted records must be quarantined, never crash
+                // SavedData loading or disappear during a subsequent save.
                 return Optional.empty();
             }
         }
