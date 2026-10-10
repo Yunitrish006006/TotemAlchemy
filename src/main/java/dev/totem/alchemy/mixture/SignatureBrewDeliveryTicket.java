@@ -74,8 +74,7 @@ public record SignatureBrewDeliveryTicket(
 
     /** Stable codec persisted with the cauldron, separate from the remaining mixture. */
     public String encode() {
-        String suffix = String.join("|",
-                transactionId.toString(),
+        String payload = String.join("|",
                 token(signatureId.toString()),
                 result.type().name(),
                 token(result.itemId().toString()),
@@ -84,12 +83,10 @@ public record SignatureBrewDeliveryTicket(
                 token(result.potionId() == null ? "" : result.potionId().toString()),
                 token(dose.encode()));
         if (recipientId == null) {
-            // Preserve the original S1 wire representation without silently
-            // inventing a recipient while round-tripping an old world save.
-            return LEGACY_VERSION + "|" + suffix;
+            // Preserve S1 exactly; never invent a recipient for old world saves.
+            return LEGACY_VERSION + "|" + transactionId + "|" + payload;
         }
-        return RECIPIENT_VERSION + "|" + transactionId + "|" + recipientId
-                + "|" + suffix.substring(transactionId.toString().length() + 1);
+        return RECIPIENT_VERSION + "|" + transactionId + "|" + recipientId + "|" + payload;
     }
 
     /**
