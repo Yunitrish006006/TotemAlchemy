@@ -45,6 +45,23 @@ public final class SignatureBrewBottleOutput {
                 || AlchemyMixtureBottle.potionHolder(result.potionId().toString()) != null;
     }
 
+    /**
+     * Build a detached recipient-bound reward for future receipt reconciliation.
+     *
+     * <p>Not connected to the live player right-click route, and not permission
+     * to issue or retry the item. The ticket's unique ID travels with the
+     * prepared output only.</p>
+     */
+    public static ItemStack createWithReceipt(SignatureBrewDeliveryTicket ticket) {
+        var receipt = SignatureBrewRewardReceipt.fromTicket(ticket);
+        if (receipt.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack prepared = create(new AlchemyMixtureState.SignatureBottleClaim(
+                ticket.result(), ticket.dose()));
+        return receipt.get().stamp(prepared).orElse(ItemStack.EMPTY);
+    }
+
     /** Returns an empty stack on unsupported or unresolved recipe outputs. */
     public static ItemStack create(AlchemyMixtureState.SignatureBottleClaim claim) {
         if (claim == null) {
