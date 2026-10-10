@@ -9,6 +9,8 @@
 - Build #412: **259 JUnit, 44 failed**, 111/111 main server GameTests passed.
 - Build #418: liquid normalization fixed; **259 JUnit, 43 failed**, 111/111 main GameTests passed.
 - Build #419: **259 JUnit, 43 failed**. All remaining failures originate in `Holder.Reference.components()` with `NullPointerException: Components not bound yet`; Fabric Loader/Jupiter test runtime is now working but the vanilla 26.3 item components are not bound for tests.
+- Build #423: isolated diagnostic canary showed **4/4 failed**, including a test proving Jupiter did **not auto-discover** the global bootstrap extension (263 tests, 47 failed including four diagnostics).
+- Build #424: explicit `@ExtendWith(MinecraftRegistryBootstrapExtension.class)` produced **4/4 passing canary probes**, including vanilla GLASS_BOTTLE/POTION/HONEY_BOTTLE and Totem HOT_COCOA/LARGE_POTION_FLASK (263 tests, original 43 failures remain because the eight affected classes were not yet explicitly annotated).
 - Keep ALL tests enabled. Never hide failures through `ignoreFailures`, `@Disabled`, excluding test classes, or weakening assertions. The number of failing tests must strictly decrease or a task remains IN PROGRESS.
 
 ## Execution rules
@@ -42,8 +44,8 @@ The eight class-specific tasks account for all **43** currently failing tests (5
 
 - [x] Fabric Loader JUnit integration added; named classTweaker normalization applied to JUnit runtime (Build #418 verifies the worker can run).
 - [x] Global Jupiter `BeforeAllCallback` creates the vanilla registry lookup and requests deferred component initialization.
-- [ ] Add a **focused bootstrap canary** that verifies the component holders are actually bound, so a silent partial initialization fails immediately and clearly.
-- [ ] Correct the real init/binding gap using vanilla 26.3 APIs rather than allowing fabricated output items or bypassing component checks.
-- [ ] Confirm the canary and dependent adapter tests by CI; mark JR-01 DONE, then assess subsequent test classes.
+- [x] Add a **focused bootstrap canary** to verify the global callback ran and that vanilla and Totem `ItemStack` components are bound. Build #423 isolated the skipped callback; Build #424 validated 4/4 when explicitly registered.
+- [x] Correct the extension **registration** gap: added the `@WithMinecraftItemComponents` meta-annotation and applied it to the eight affected container/timing test classes and the canary. Fabric's Knot classloader did not pick up the global ServiceLoader-based Jupiter extension.
+- [ ] Confirm all previously failing adapter/timing tests by CI with no newly failing tests; then mark JR-01 DONE and record JR-02–JR-09 results individually.
 
 **Limitation:** even a green isolated canary is not proof of complete CI until JR-10. The broken baseline is in the JUnit JVM, not the server GameTest runtime.
