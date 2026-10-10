@@ -110,6 +110,38 @@ public final class SignatureBrewReceiptIndex {
         return recipient.equals(found.recipientId()) ? Lookup.OBSERVED : Lookup.WRONG_RECIPIENT;
     }
 
+    /**
+     * Stronger than lookup(recipient, transaction): compare every immutable
+     * receipt field with the specific escrow ticket. Neither MATCH nor ABSENT
+     * is proof that the recipient's inventory was durably saved.
+     */
+    public Evidence compareTicket(SignatureBrewDeliveryTicket ticket) {
+        if (unknownEntries) {
+            return Evidence.UNTRUSTED_LEDGER;
+        }
+        if (ticket == null || ticket.isLegacyUnbound()) {
+            return Evidence.UNBOUND_TICKET;
+        }
+        UUID transaction = ticket.transactionId();
+        if (conflictedTransactions.contains(transaction)) {
+            return Evidence.CONFLICT;
+        }
+        SignatureBrewRewardReceipt recorded = observedByTransaction.get(transaction);
+        if (recorded == null) {
+            return Evidence.NOT_OBSERVED;
+        }
+        if (!ticket.belongsTo(recorded.recipientId())) {
+            return Evidence.WRONG_RECIPIENT;
+        }
+        return recorded.matches(ticket) ? Evidence.MATCHING_OBSERVATION : Evidence.PAYLOAD_MISMATCH;
+    }
+
+    /** Audit evidence only: all values are non-authoritative for payout. */
+    public enum Evidence {
+        MATCHING_OBSERVATION, NOT_OBSERVED, WRONG_RECIPIENT,
+        PAYLOAD_MISMATCH, CONFLICT, UNTRUSTED_LEDGER, UNBOUND_TICKET
+    }
+
     public boolean hasUntrustedData() {
         return unknownEntries || !conflictedTransactions.isEmpty();
     }
