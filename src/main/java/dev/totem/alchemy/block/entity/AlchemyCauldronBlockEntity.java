@@ -171,7 +171,8 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
 
     private SignatureBrewProcess readySignatureBottle(ItemStack container) {
         if (!hasMixture() || recipeId != null || readyForExtraction
-                || !mixture.hasCommittedSignatureProcess()) {
+                || mixture.signatureProcesses().size() != 1
+                || !mixture.signatureGroups().isEmpty() || mixture.hasPendingReactions()) {
             return null;
         }
         for (SignatureBrewProcess process : mixture.signatureProcesses()) {
