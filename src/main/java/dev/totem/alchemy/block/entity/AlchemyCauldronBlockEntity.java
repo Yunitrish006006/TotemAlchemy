@@ -12,6 +12,7 @@ import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.AlchemyMixtureTiming;
 import dev.totem.alchemy.mixture.SignatureBrewBottleOutput;
 import dev.totem.alchemy.mixture.SignatureBrewDeliveryTicket;
+import dev.totem.alchemy.mixture.SignatureBrewDeliveryProgress;
 import dev.totem.alchemy.mixture.SignatureBrewProcess;
 import dev.totem.alchemy.migration.LegacyAlchemyIds;
 import net.minecraft.core.BlockPos;
@@ -64,6 +65,10 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
     private SignatureBrewDeliveryTicket pendingSignatureDelivery;
     /** Preserve unknown/corrupt ticket bytes and fail closed rather than losing a spent reward. */
     private String unreadableSignatureDelivery = "";
+    /** Record intent to issue before touching the player's separate inventory save. */
+    private SignatureBrewDeliveryProgress signatureDeliveryProgress;
+    /** Corrupt/contradictory progress must not become permission to reissue. */
+    private String unreadableSignatureDeliveryProgress = "";
     private int lastSyncedColor = -1;
     private int lastSyncedVolume = -1;
     private int lastSyncedTimingSignature = Integer.MIN_VALUE;
@@ -83,12 +88,42 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
 
     /** True for an escrowed reward OR a corrupt ticket requiring administrator recovery. */
     public boolean hasPendingSignatureDelivery() {
-        return pendingSignatureDelivery != null || !unreadableSignatureDelivery.isEmpty();
+        return pendingSignatureDelivery != null || !unreadableSignatureDelivery.isEmpty()
+                || !unreadableSignatureDeliveryProgress.isEmpty()
+                || signatureDeliveryProgress != null;
     }
 
     /** Read-only inspection; no item is granted by accessing a prepared ticket. */
     public Optional<SignatureBrewDeliveryTicket> pendingSignatureDelivery() {
         return Optional.ofNullable(pendingSignatureDelivery);
+    }
+
+    /** Read-only progress; this never grants, retries or confirms a player item. */
+    public Optional<SignatureBrewDeliveryProgress> signatureDeliveryProgress() {
+        return Optional.ofNullable(signatureDeliveryProgress);
+    }
+
+    /**
+     * Record a single delivery attempt before the future inventory handoff.
+     * The caller must durably save this record before item mutation, and may
+     * not retry an uncertain attempt without independent player receipt proof.
+     *
+     * <p>Not connected to the current live right-click path.</p>
+     */
+    public boolean markSignatureDeliveryAttempt(UUID transactionId, UUID recipientId) {
+        if (pendingSignatureDelivery == null || signatureDeliveryProgress == null
+                || !unreadableSignatureDelivery.isEmpty()
+                || !unreadableSignatureDeliveryProgress.isEmpty()
+                || !signatureDeliveryProgress.matches(pendingSignatureDelivery)) {
+            return false;
+        }
+        var next = signatureDeliveryProgress.beginIssuance(transactionId, recipientId);
+        if (next.isEmpty()) {
+            return false;
+        }
+        signatureDeliveryProgress = next.get();
+        setChanged();
+        return true;
     }
 
     /**
@@ -267,6 +302,7 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         // are saved together, including when the last dose empties the mixture.
         mixture = updated;
         pendingSignatureDelivery = ticket;
+        signatureDeliveryProgress = SignatureBrewDeliveryProgress.prepared(ticket);
         setChanged();
         return Optional.of(ticket);
     }
@@ -695,6 +731,11 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         } else if (!unreadableSignatureDelivery.isEmpty()) {
             output.putString("signature_delivery_ticket", unreadableSignatureDelivery);
         }
+        if (signatureDeliveryProgress != null) {
+            output.putString("signature_delivery_progress", signatureDeliveryProgress.encode());
+        } else if (!unreadableSignatureDeliveryProgress.isEmpty()) {
+            output.putString("signature_delivery_progress", unreadableSignatureDeliveryProgress);
+        }
         if (!pendingDiscoveries.isEmpty()) {
             output.putString("pending_discoveries", encodePendingDiscoveries());
         }
@@ -719,6 +760,22 @@ public class AlchemyCauldronBlockEntity extends BlockEntity {
         // original bytes on future saves and block all brewing interactions.
         unreadableSignatureDelivery = !encodedTicket.isBlank() && pendingSignatureDelivery == null
                 ? encodedTicket : "";
+        String encodedProgress = input.getStringOr("signature_delivery_progress", "");
+        signatureDeliveryProgress = SignatureBrewDeliveryProgress.decode(encodedProgress).orElse(null);
+        unreadableSignatureDeliveryProgress = "";
+        if (!encodedProgress.isBlank()) {
+            // Never silently discard a malformed progress or attach a foreign
+            // ticket's record; retain the raw value for administrator recovery.
+            if (signatureDeliveryProgress == null || pendingSignatureDelivery == null
+                    || !signatureDeliveryProgress.matches(pendingSignatureDelivery)) {
+                signatureDeliveryProgress = null;
+                unreadableSignatureDeliveryProgress = encodedProgress;
+            }
+        } else if (pendingSignatureDelivery != null && !pendingSignatureDelivery.isLegacyUnbound()) {
+            // An S2 ticket written by earlier code had no journal. It might
+            // already have been issued; quarantine it as uncertain, not prepared.
+            signatureDeliveryProgress = SignatureBrewDeliveryProgress.unresolved(pendingSignatureDelivery);
+        }
 
         if (hasMixture()) {
             recipeId = null;
