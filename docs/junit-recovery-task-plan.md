@@ -1,6 +1,6 @@
 # JUnit baseline recovery — small-task execution queue
 
-Status: **active — JUNIT-08 verified, JUNIT-09 final all-suite acceptance next**; keep M11 feature work paused until final regression gate is formally accepted.
+Status: **COMPLETE — JUNIT-00 through JUNIT-09 verified in Build #470**; full JUnit baseline restored. M11 feature work can resume at the next checkpoint; PR #120 remains Draft and unmerged.
 Branch: `feature/m11-t01-signature-brew-resolver`; PR #120 remains Draft.
 Original failure baseline: [Build #419](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38064177467) — **259 JUnit, 43 failed**; one floating-point normalization failure was already fixed in #418 (44 → 43).
 
@@ -22,12 +22,14 @@ Original failure baseline: [Build #419](https://github.com/Yunitrish006006/Totem
 
 **JUNIT-08 verified:** [Build #467](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38144649647) — dedicated `AlchemyMixtureTimingTest` Gradle filter **passed** (11 test methods / 0 failures), following JUNIT-00–07 focused passes. Verified pending reaction progress boundaries and slowest-stage selection, completed stability/overcook classifications, scaled Perfect Window and legacy migration, reaction dose and completed-stage codec round-trip, and bottling heat-lock/history/HUD state. **Full Gradle `build` passed with zero JUnit failures** (test method count unchanged from the previous 265-method baseline). Main GameTests **111/111** passed inside `build` and standalone, **OFF/OFF isolation 5/5**, each pack state OFF_OFF, ON_OFF, OFF_ON, ON_ON **3/3**. Overall Build #467: **success**. No production Java or test assertion changes; added only the focused CI filter in commit `541bc6c`. **JUNIT-09 remains unchecked** pending its separate final acceptance iteration.
 
+**JUNIT-09 FINAL ACCEPTANCE:** [Build #470](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38154552710) against commit `261096a` — independent unfiltered `./gradlew test --rerun-tasks` **passed 265/265 tests in 50 test classes, 0 failures, 0 errors and 0 skipped**. Results were parsed and gated using Gradle JUnit XML; this was not inferred solely from the overall build conclusion. JUNIT-00–08 dedicated tests all passed on the same run. `./gradlew build --continue` **passed**. Main GameTests **111/111 inside build** and **111/111 standalone**; OFF/OFF isolation **5/5**; each OFF_OFF, ON_OFF, OFF_ON, ON_ON optional datapack matrix **3/3**. Entire Build #470 workflow conclusion **success**. Original [Build #419](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38064177467) failed 43/259 JUnit tests; final failed count **43 → 0** with all 265 tests passing, and no test exclusions, disabled assertions or ignored failures. The last checkpoint added a full-suite explicit CI gate (`b8addd6`, `261096a`); **no additional production code or test assertion changes** were required for JUNIT-09. All ten JUNIT recovery tasks are completed. M11 recipient-owned durable grant work may resume as its own next task, not as part of this JUNIT-09 checkpoint. Keep the stacked PR #120 in Draft until the separate M11 feature, review and CI criteria are complete.
+
 ## Execution contract
 
 1. **Only one numbered task per development iteration**. Stop and report the exact changed files, commit, CI link, pass/fail counts and next task; do not silently complete the entire queue.
 2. Before a fix, run or inspect a **focused Gradle test filter** for the current class/group. After a fix, run the focused filter first, then all JUnit and the existing GameTest matrix; only check off the task after CI evidence. A CI failure must be diagnosed and corrected within that task, not waived.
 3. Preserve the existing test assertions and production behavior. **No `ignoreFailures`, disabled tests, skipped tasks, changed CI success criteria or unreviewed blanket fixture mocks**. If a test itself is incorrect, document the precise contract and add a regression case before changing it.
-4. Every task has a reproducible exit criterion; a green result from one test class does not imply other classes pass. Keep M11 source-generation / payout features paused until JUnit is green.
+4. Every task has a reproducible exit criterion; a green result from one test class does not imply other classes pass. The M11 source-generation / payout pause is lifted **after** Build #470 completed JUNIT-09; resume M11 in a separate checkpoint.
 5. Each entry's initial count below is the **observed failing test count in Build #419**, not an assertion that the entire class contains only those tests. Recheck totals after each task.
 
 ## Root-cause and implementation tasks (sequential)
@@ -41,7 +43,7 @@ Original failure baseline: [Build #419](https://github.com/Yunitrish006006/Totem
 - [x] **JUNIT-06 — Water bottle adapter (7 original failing tests; 5 after bootstrap).** `WaterBottleContainerAdapterTest`. Verified Build #463: **7 focused tests passed / 0 failed**. Fixed explicit pure-water composition, verified one-unit conversion, water-only rejection, generic potion fallback with lossless chemistry and delivery form, and invalid stack/transfer cases. Full `build` and GameTest matrix passed; JUNIT-07 is next for separate focused verification.
 - [x] **JUNIT-07 — Water bucket adapter (5 original failing tests; 1 after bootstrap).** `WaterBucketContainerAdapterTest`. Build #465 dedicated CI **5/5 passed**, covering three-unit conservation, pure-water bucket, mixed/stateful round-trip and invalid limits/stacks. No further product or test changes after JUNIT-06 fixed shared water state. Full build and GameTest matrix green; JUNIT-08 next.
 - [x] **JUNIT-08 — Mixture reaction timing (3 original failing tests).** `AlchemyMixtureTimingTest`. Verified in Build #467: **11 focused tests passed / 0 failed** for reaction progress, completion and overcook states, scaled Perfect Window, reaction dose and codec round-trips, and bottling heat-lock/history/HUD behavior. No production or test assertion changes; full build/GameTest matrix green. Next: JUNIT-09 final acceptance.
-- [ ] **JUNIT-09 — Final all-suite regression gate.** Full `./gradlew test` with **0 failed**, main GameTests **111/111 or more**, OFF/OFF, all four datapack states and build. Update this file with actual run, count and deviations, then resume M11 recipient-owned durable grant work. A failing build is **not** accepted as complete.
+- [x] **JUNIT-09 — Final all-suite regression gate.** Verified Build #470: **265/265 JUnit passed in 50 classes, 0 failed, 0 errors, 0 skipped** with explicit unfiltered `./gradlew test --rerun-tasks` and XML summary. JUNIT-00–08 focused checks, full `build`, main GameTests 111/111 (both inside build and standalone), OFF/OFF 5/5 and four pack states 3/3 all passed. Entire CI success. **Recovery plan 10/10 complete; resume M11 recipient-owned durable grant work only in a subsequent checkpoint.**
 
 ### Build #419 failure classification
 
@@ -171,7 +173,7 @@ All 43 failed with `java.lang.NullPointerException: Components not bound yet` fr
 | `AlchemyMixtureTimingTest` | 0 | JUNIT-08 **next — focused verification needed** |
 | **Total** | **0** | Full `build` green; 265 JUnit methods, 111/111 main GameTests |
 
-### Build #467 after JUNIT-08 focused acceptance (current baseline)
+### Build #467 after JUNIT-08 focused acceptance (historical baseline)
 
 | Test class | Failed in full suite | Assigned task |
 | --- | ---: | --- |
@@ -185,4 +187,22 @@ All 43 failed with `java.lang.NullPointerException: Components not bound yet` fr
 | `AlchemyMixtureTimingTest` | **0** | JUNIT-08 **done; 11 focused tests passed** |
 | **Total** | **0** | Full `build` green; unchanged 265 JUnit-method baseline; main GameTests 111/111 |
 
-**Work discipline:** Do not mark JUNIT-02–08 complete merely because some of their tests passed under the global run. Explicitly run their class filter at each task's checkpoint and record that CI result before advancing.
+### Build #470 after JUNIT-09 final all-suite acceptance (final baseline)
+
+| Test scope | Result | Evidence |
+| --- | --- | --- |
+| JUNIT-00–08 independent CI filters | All passed | Dedicated Gradle steps in Build #470 |
+| Full unfiltered JUnit suite | **265 passed / 0 failed / 0 errors / 0 skipped** | 50 JUnit XML `TEST-*.xml` suites, count checked in JUNIT-09 CI |
+| TotemAlchemy `build --continue` | **Success** | Build #470 |
+| Main GameTests inside `build` | **111/111** | Build #470 |
+| OFF/OFF isolation GameTests | **5/5** | Build #470 |
+| OFF_OFF pack state | **3/3** | Build #470 |
+| ON_OFF pack state | **3/3** | Build #470 |
+| OFF_ON pack state | **3/3** | Build #470 |
+| ON_ON pack state | **3/3** | Build #470 |
+| Standalone main GameTests | **111/111** | Build #470 |
+| Overall GitHub Actions workflow | **Success** | [Build #470](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38154552710) |
+
+**Recovery result:** 43 failed JUnit tests in Build #419 → 0 failed in Build #470, with full coverage retained and 265 total tests passing. This plan is closed. The original JR-numbered plan is historical; do not start a second recovery queue. Resume M11 in the next separate development iteration; PR #120 remains Draft until M11 itself passes review and its acceptance gates.
+
+**Work discipline:** Each JUNIT-00–08 task was checked off only after its dedicated focused Gradle test filter passed and CI evidence was recorded. JUNIT-09 independently re-ran the full test suite and verified the XML counts, the whole build and all GameTest modes.
