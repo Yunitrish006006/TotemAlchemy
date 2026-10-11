@@ -15,8 +15,10 @@ import java.util.Optional;
 public final class LiquidContainerAdapters {
     private static final List<LiquidContainerAdapter> BUILT_INS = List.of(
             WaterBottleContainerAdapter.INSTANCE,
-            WaterBucketContainerAdapter.INSTANCE,
+            // Plain milk must take precedence over the generic state-preserving water bucket.
+            // Non-plain mixtures fall through to that bucket without losing chemistry.
             MilkBucketContainerAdapter.INSTANCE,
+            WaterBucketContainerAdapter.INSTANCE,
             HoneyBottleContainerAdapter.INSTANCE,
             LargeFlaskContainerAdapter.INSTANCE,
             PotionContainerAdapter.INSTANCE
