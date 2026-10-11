@@ -177,7 +177,7 @@ jobs:
           print(summary)
           if os.getenv("GITHUB_STEP_SUMMARY"):
               with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
-                  report.write("### Final JUnit regression gate\\n\\n" + summary + "\\n")
+                  report.write("### Final JUnit regression gate\n\n" + summary + "\n")
           if totals["tests"] < 265 or any(totals[k] for k in ("failures", "errors", "skipped")):
               raise SystemExit("JUNIT-09 failed: baseline count or zero-failure/zero-skip gate not met")
           PY
