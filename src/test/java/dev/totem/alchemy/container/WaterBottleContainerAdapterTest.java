@@ -74,8 +74,20 @@ class WaterBottleContainerAdapterTest {
         ItemStack awkward = PotionContents.createItemStack(Items.POTION, Potions.AWKWARD);
         ItemStack splashWater = PotionContents.createItemStack(Items.SPLASH_POTION, Potions.WATER);
 
-        assertTrue(LiquidContainerAdapters.drain(awkward, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.drain(splashWater, 1).isEmpty());
+        // The water-only adapter rejects both; the dispatcher delegates
+        // to the generic potion adapter rather than dropping valid potions.
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.drain(awkward, 1).isEmpty());
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.drain(splashWater, 1).isEmpty());
+
+        AlchemyMixtureState importedAwkward =
+                LiquidContainerAdapters.drain(awkward, 1).orElseThrow().drained();
+        assertEquals("minecraft:awkward", importedAwkward.canonicalPotionId());
+
+        AlchemyMixtureState importedSplash =
+                LiquidContainerAdapters.drain(splashWater, 1).orElseThrow().drained();
+        assertEquals(AlchemyMixtureState.DeliveryForm.SPLASH, importedSplash.deliveryForm());
+        assertEquals(Map.of(AlchemyLiquids.WATER_ID, 1.0D),
+                importedSplash.liquidComposition().components());
     }
 
     @Test
@@ -84,7 +96,12 @@ class WaterBottleContainerAdapterTest {
         AlchemyMixtureBottle.writeState(stored, AlchemyMixtureBrewing.waterState(1));
 
         assertTrue(AlchemyMixtureBottle.hasStoredMixture(stored));
-        assertTrue(LiquidContainerAdapters.drain(stored, 1).isEmpty());
+        // A water-only adapter must not erase a stored chemistry snapshot.
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.drain(stored, 1).isEmpty());
+        assertEquals(
+                AlchemyMixtureBottle.storedMixture(stored).encode(),
+                LiquidContainerAdapters.drain(stored, 1).orElseThrow().drained().encode()
+        );
     }
 
     @Test
@@ -111,12 +128,30 @@ class WaterBottleContainerAdapterTest {
         splashWater.setDeliveryForm(AlchemyMixtureState.DeliveryForm.SPLASH);
 
         ItemStack glass = new ItemStack(Items.GLASS_BOTTLE);
-        assertTrue(LiquidContainerAdapters.fill(glass, activated, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, effectful, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, mixed, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, damaged, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, mundane, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, splashWater, 1).isEmpty());
+        // Plain vanilla water bottles cannot represent chemistry-bearing states.
+        // The generic potion adapter remains responsible for lossless fallback.
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.fill(glass, activated, 1).isEmpty());
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.fill(glass, effectful, 1).isEmpty());
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.fill(glass, mixed, 1).isEmpty());
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.fill(glass, damaged, 1).isEmpty());
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.fill(glass, mundane, 1).isEmpty());
+        assertTrue(WaterBottleContainerAdapter.INSTANCE.fill(glass, splashWater, 1).isEmpty());
+
+        ItemStack bottledEffect = LiquidContainerAdapters.fill(glass, effectful, 1)
+                .orElseThrow().filledContainer();
+        assertTrue(AlchemyMixtureBottle.hasStoredMixture(bottledEffect));
+        assertEquals(effectful.effects(),
+                AlchemyMixtureBottle.storedMixture(bottledEffect).effects());
+
+        ItemStack bottledMixed = LiquidContainerAdapters.fill(glass, mixed, 1)
+                .orElseThrow().filledContainer();
+        assertTrue(AlchemyMixtureBottle.hasStoredMixture(bottledMixed));
+        assertEquals(mixed.liquidComposition(),
+                AlchemyMixtureBottle.storedMixture(bottledMixed).liquidComposition());
+
+        ItemStack bottledSplash = LiquidContainerAdapters.fill(glass, splashWater, 1)
+                .orElseThrow().filledContainer();
+        assertTrue(bottledSplash.is(Items.SPLASH_POTION));
     }
 
     @Test
