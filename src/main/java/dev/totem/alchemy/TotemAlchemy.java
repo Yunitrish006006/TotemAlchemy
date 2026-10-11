@@ -18,6 +18,7 @@ import dev.totem.alchemy.manual.AlchemyManual;
 import dev.totem.alchemy.migration.LegacyAlchemyNbtMigration;
 import dev.totem.alchemy.recipe.AlchemyRecipes;
 import dev.totem.alchemy.reaction.AlchemyReactionDataLoader;
+import dev.totem.alchemy.mixture.SignatureBrewDataLoader;
 import dev.totem.alchemy.registry.AlchemyCriteria;
 import dev.totem.alchemy.registry.AlchemyGameRules;
 import dev.totem.alchemy.registry.AlchemyItemGroups;
@@ -37,6 +38,7 @@ public final class TotemAlchemy implements ModInitializer {
         AlchemyBuiltinPacks.register();
         AlchemyContentPackState.register();
         AlchemyReactionDataLoader.register();
+        SignatureBrewDataLoader.register();
         LegacyAlchemyNbtMigration.register();
         AlchemyBlocks.register();
         AlchemyBlockEntities.register();

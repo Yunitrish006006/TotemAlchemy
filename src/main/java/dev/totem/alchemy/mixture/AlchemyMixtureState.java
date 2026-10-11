@@ -57,6 +57,10 @@ public final class AlchemyMixtureState {
     private String canonicalPotionId;
     private final Map<String, EffectDose> effects = new LinkedHashMap<>();
     private final Map<String, Reaction> reactions = new LinkedHashMap<>();
+    /** M11: reserved reaction ownership only; signature outcomes are not active yet. */
+    private final Map<Identifier, SignatureBrewResolver.ReactionGroup> signatureGroups = new LinkedHashMap<>();
+    /** Committed groups intercept ordinary completion; outputs are claimable only when ready. */
+    private final Map<Identifier, SignatureBrewProcess> signatureProcesses = new LinkedHashMap<>();
     private final Map<String, CompletedStage> completedStages = new LinkedHashMap<>();
     private final Set<String> provenance = new LinkedHashSet<>();
 
@@ -93,6 +97,8 @@ public final class AlchemyMixtureState {
         copy.canonicalPotionId = canonicalPotionId;
         copy.effects.putAll(effects);
         copy.reactions.putAll(reactions);
+        copy.signatureGroups.putAll(signatureGroups);
+        copy.signatureProcesses.putAll(signatureProcesses);
         copy.completedStages.putAll(completedStages);
         copy.provenance.addAll(provenance);
         return copy;
@@ -222,6 +228,8 @@ public final class AlchemyMixtureState {
         if (!isEmpty() && !hasPendingReactions()) {
             heatLockedAfterBottling = true;
             completedStages.clear();
+            signatureGroups.clear();
+            // Committed signature results must survive until claimed, including finished groups.
             overcookTicks = 0;
             perfectWindowTicks = 0;
             provenance.removeIf(AlchemyMixtureState::isFinishedCookingHistory);
@@ -261,6 +269,160 @@ public final class AlchemyMixtureState {
 
     public Collection<Reaction> reactions() {
         return List.copyOf(reactions.values());
+    }
+
+    public Collection<SignatureBrewProcess> signatureProcesses() {
+        return List.copyOf(signatureProcesses.values());
+    }
+
+    /** A committed signature owns a whole brewing batch until its result is redeemed. */
+    public boolean hasCommittedSignatureProcess() {
+        return !signatureProcesses.isEmpty();
+    }
+
+    /** True for both completed and currently pending members of any committed group. */
+    public boolean isCommittedSignatureMember(String reactionId) {
+        return reactionId != null && signatureProcesses.values().stream()
+                .anyMatch(process -> process.owns(reactionId));
+    }
+
+    /**
+     * Commit one previously reserved group before its first member finishes.
+     * This is the only transition that authorizes suppression of ordinary outputs.
+     */
+    public boolean commitSignatureGroup(Identifier signatureId, SignatureBrewDefinition.Result result) {
+        if (signatureId == null || result == null || signatureProcesses.containsKey(signatureId)) {
+            return false;
+        }
+        SignatureBrewResolver.ReactionGroup planned = signatureGroups.get(signatureId);
+        if (planned == null) {
+            return false;
+        }
+        for (String id : planned.memberReactionIds()) {
+            Reaction pending = reactions.get(id);
+            if (pending == null || pending.complete() || signatureProcesses.values().stream()
+                    .anyMatch(group -> group.owns(id))) {
+                return false;
+            }
+        }
+        signatureProcesses.put(signatureId, SignatureBrewProcess.begin(planned, result));
+        signatureGroups.remove(signatureId);
+        return true;
+    }
+
+    /**
+     * Claim a ready solid-result batch, consuming its entire liquid volume once.
+     *
+     * <p>Bottled signatures are deliberately excluded: their output quota is
+     * determined by liquid units and must use {@link #claimSignatureBottle}.</p>
+     */
+    public java.util.Optional<SignatureBrewDefinition.Result> claimSignatureResult(Identifier signatureId) {
+        SignatureBrewProcess process = signatureProcesses.get(signatureId);
+        if (process == null || !process.ready() || process.result().type() != SignatureBrewDefinition.Type.DROP_ITEM
+                || signatureProcesses.size() != 1 || !signatureGroups.isEmpty() || hasPendingReactions()) {
+            return java.util.Optional.empty();
+        }
+        SignatureBrewDefinition.Result result = process.result();
+        resetEmpty();
+        return java.util.Optional.of(result);
+    }
+
+    /**
+     * Redeem exactly one liquid unit from a ready bottled signature process.
+     *
+     * <p>The returned one-unit snapshot is detached and carries no process or
+     * outstanding claim. Remaining units retain the ready process, allowing
+     * repeated one-unit redemption up to the original volume. The final claim
+     * empties the mixture. This is an internal at-most-once claim transition,
+     * NOT yet a crash-atomic player inventory hand-off.</p>
+     */
+    public java.util.Optional<SignatureBottleClaim> claimSignatureBottle(Identifier signatureId) {
+        SignatureBrewProcess process = signatureProcesses.get(signatureId);
+        if (process == null || !process.ready() || process.result().type() != SignatureBrewDefinition.Type.BOTTLED_ITEM
+                || signatureProcesses.size() != 1 || !signatureGroups.isEmpty()
+                || hasPendingReactions() || volumeUnits <= 0) {
+            return java.util.Optional.empty();
+        }
+        int previousVolume = volumeUnits;
+        AlchemyMixtureState portion = scaledCopy(1.0D / previousVolume, 1);
+        // Never copy an outstanding claim into a filled bottle. Otherwise the
+        // same signature could be redeemed again after pouring that bottle back.
+        portion.signatureGroups.clear();
+        portion.signatureProcesses.clear();
+        portion.reactions.clear();
+        portion.completedStages.clear();
+        portion.canonicalPotionId = null;
+        // A redeemed signature is a new finished product, not an active or
+        // ready legacy named recipe. Keeping old compound markers here would
+        // allow legacy bottling to reinterpret and duplicate the output.
+        portion.provenance.removeIf(marker -> marker.startsWith("compound:"));
+        portion.addProvenance("signature:result:" + process.signatureId());
+        portion.lockHeatIfFinished();
+
+        if (previousVolume == 1) {
+            resetEmpty();
+        } else {
+            int remaining = previousVolume - 1;
+            scaleInPlace(remaining / (double) previousVolume, remaining);
+            volumeUnits = remaining;
+        }
+        return java.util.Optional.of(new SignatureBottleClaim(process.result(), portion));
+    }
+
+    /** Detached one-dose chemistry with its immutable bottled item descriptor. */
+    public record SignatureBottleClaim(
+            SignatureBrewDefinition.Result result,
+            AlchemyMixtureState mixture
+    ) {
+        public SignatureBottleClaim {
+            java.util.Objects.requireNonNull(result, "result");
+            java.util.Objects.requireNonNull(mixture, "mixture");
+            if (result.type() != SignatureBrewDefinition.Type.BOTTLED_ITEM
+                    || mixture.volumeUnits() != 1 || mixture.hasCommittedSignatureProcess()) {
+                throw new IllegalArgumentException("Invalid signature bottle claim");
+            }
+        }
+    }
+
+    public Collection<SignatureBrewResolver.ReactionGroup> signatureGroups() {
+        return List.copyOf(signatureGroups.values());
+    }
+
+    /**
+     * Atomically replace in-flight group reservations without changing individual reaction timers.
+     *
+     * <p>Each owned reaction must still be pending, and no reaction may be owned twice.
+     * A reservation is a planning marker, not permission to settle signature outcomes:
+     * ordinary completion remains authoritative until M11 group settlement is implemented.</p>
+     */
+    public boolean replaceSignatureGroups(Collection<SignatureBrewResolver.ReactionGroup> proposedGroups) {
+        if (proposedGroups == null || isEmpty() || !signatureProcesses.isEmpty()) {
+            return false;
+        }
+        for (SignatureBrewResolver.ReactionGroup previous : signatureGroups.values()) {
+            if (previous.memberReactionIds().stream().anyMatch(id -> {
+                Reaction reaction = reactions.get(id);
+                return reaction == null || reaction.complete();
+            })) {
+                return false;
+            }
+        }
+        Map<Identifier, SignatureBrewResolver.ReactionGroup> proposed = new LinkedHashMap<>();
+        Set<String> reserved = new LinkedHashSet<>();
+        for (SignatureBrewResolver.ReactionGroup group : proposedGroups) {
+            if (group == null || proposed.putIfAbsent(group.signatureId(), group) != null) {
+                return false;
+            }
+            for (String id : group.memberReactionIds()) {
+                Reaction reaction = reactions.get(id);
+                if (reaction == null || reaction.complete() || !reserved.add(id)) {
+                    return false;
+                }
+            }
+        }
+        signatureGroups.clear();
+        signatureGroups.putAll(proposed);
+        return true;
     }
 
     public Collection<CompletedStage> completedStages() {
@@ -320,7 +482,9 @@ public final class AlchemyMixtureState {
     }
 
     public boolean canOvercook() {
-        return !heatLockedAfterBottling && !isEmpty() && !hasPendingReactions() && !hasCompletedStages()
+        // A pending signature claim must remain stable until it is redeemed.
+        return !heatLockedAfterBottling && !isEmpty() && !hasCommittedSignatureProcess()
+                && !hasPendingReactions() && !hasCompletedStages()
                 && (baseActivated() || !effects.isEmpty());
     }
 
@@ -410,15 +574,33 @@ public final class AlchemyMixtureState {
                 completed.add(advanced);
             }
         }
+        // M11 staging: invalidate reservations touching a completed member until
+        // atomic group settlement exists. The legacy individual outcome remains unchanged.
+        if (!completed.isEmpty()) {
+            Set<String> finishedIds = new LinkedHashSet<>();
+            completed.forEach(reaction -> finishedIds.add(reaction.id()));
+            signatureGroups.values().removeIf(group ->
+                    group.memberReactionIds().stream().anyMatch(finishedIds::contains));
+        }
         for (Reaction reaction : completed) {
-            applyReaction(reaction);
+            SignatureBrewProcess committed = signatureProcesses.values().stream()
+                    .filter(group -> group.owns(reaction.id()))
+                    .findFirst()
+                    .orElse(null);
+            if (committed == null) {
+                applyReaction(reaction);
+                completedStages.put(reaction.id(), new CompletedStage(
+                        reaction.id(),
+                        reaction.ingredientId(),
+                        0,
+                        perfectWindowTicksForProcessing(reaction.requiredTicks())
+                ));
+            } else {
+                // An owned reaction advances on its original timer, but never
+                // pays out its ordinary result or its ordinary completed stage.
+                signatureProcesses.put(committed.signatureId(), committed.completeMember(reaction.id()));
+            }
             reactions.remove(reaction.id());
-            completedStages.put(reaction.id(), new CompletedStage(
-                    reaction.id(),
-                    reaction.ingredientId(),
-                    0,
-                    perfectWindowTicksForProcessing(reaction.requiredTicks())
-            ));
         }
         if (!completed.isEmpty() && stability > 0) {
             stability = Math.min(STABILITY_MAX, stability + completed.size() * 5);
@@ -684,6 +866,11 @@ public final class AlchemyMixtureState {
         if (other == null || other.isEmpty() || volumeUnits + other.volumeUnits > capacity) {
             return false;
         }
+        // Until replan-after-merge is implemented, never silently lose group ownership.
+        if (!signatureGroups.isEmpty() || !other.signatureGroups.isEmpty()
+                || !signatureProcesses.isEmpty() || !other.signatureProcesses.isEmpty()) {
+            return false;
+        }
         boolean activeHeat = canAdvanceUnderHeat() || other.canAdvanceUnderHeat();
         int oldVolume = volumeUnits;
         int incomingVolume = other.volumeUnits;
@@ -804,6 +991,11 @@ public final class AlchemyMixtureState {
 
     /** Remove up to the requested number of bottle-volume units without changing concentration. */
     public AlchemyMixtureState extractUnits(int requestedUnits) {
+        // A committed group owns one physical batch: splitting the batch
+        // before its result is claimed could duplicate the final output.
+        if (!signatureProcesses.isEmpty() && requestedUnits < volumeUnits) {
+            return empty();
+        }
         if (volumeUnits <= 0 || requestedUnits <= 0) {
             return empty();
         }
@@ -829,6 +1021,8 @@ public final class AlchemyMixtureState {
         activatedBaseComposition = ActivatedBaseComposition.empty();
         effects.clear();
         reactions.clear();
+        signatureGroups.clear();
+        signatureProcesses.clear();
         completedStages.clear();
         provenance.clear();
         canonicalPotionId = null;
@@ -853,6 +1047,8 @@ public final class AlchemyMixtureState {
         result.canonicalPotionId = canonicalPotionId;
         effects.forEach((id, dose) -> result.effects.put(id, dose.scale(factor)));
         reactions.forEach((id, reaction) -> result.reactions.put(id, reaction.scale(factor, newVolume)));
+        result.signatureGroups.putAll(signatureGroups);
+        result.signatureProcesses.putAll(signatureProcesses);
         result.completedStages.putAll(completedStages);
         result.provenance.addAll(provenance);
         return result;
@@ -1011,6 +1207,27 @@ public final class AlchemyMixtureState {
                         .append(enc(encodeEffects(reaction.sourceEffects()))).append('|')
                         .append(enc(encodeEffects(reaction.targetEffects()))).append('|')
                         .append(reaction.dose()).append('\n'));
+        signatureGroups.values().stream()
+                .sorted(Comparator.comparing(group -> group.signatureId().toString()))
+                .forEach(group -> {
+                    out.append("G|").append(enc(group.signatureId().toString()));
+                    group.memberReactionIds().forEach(id -> out.append('|').append(enc(id)));
+                    out.append('\n');
+                });
+        signatureProcesses.values().stream()
+                .sorted(Comparator.comparing(process -> process.signatureId().toString()))
+                .forEach(process -> {
+                    SignatureBrewDefinition.Result result = process.result();
+                    out.append("Q|").append(enc(process.signatureId().toString())).append('|')
+                            .append(result.type().name()).append('|')
+                            .append(enc(result.itemId().toString())).append('|')
+                            .append(result.count()).append('|')
+                            .append(enc(result.containerItemId() == null ? "" : result.containerItemId().toString())).append('|')
+                            .append(enc(result.potionId() == null ? "" : result.potionId().toString())).append('|')
+                            .append(encodeMemberIds(process.memberReactionIds())).append('|')
+                            .append(encodeMemberIds(process.completedReactionIds().stream().sorted().toList()))
+                            .append('\n');
+                });
         completedStages.values().stream().sorted(Comparator.comparing(CompletedStage::id)).forEach(stage ->
                 out.append("T|").append(enc(stage.id())).append('|')
                         .append(enc(stage.ingredientId())).append('|')
@@ -1018,6 +1235,24 @@ public final class AlchemyMixtureState {
                         .append(stage.perfectWindowTicks()).append('\n'));
         provenance.stream().sorted().forEach(value -> out.append("P|").append(enc(value)).append('\n'));
         return out.toString();
+    }
+
+    private static String encodeMemberIds(Collection<String> ids) {
+        return String.join(",", ids.stream().map(AlchemyMixtureState::enc).toList());
+    }
+
+    private static List<String> decodeMemberIds(String encoded) {
+        if (encoded == null || encoded.isEmpty()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String part : encoded.split(",", -1)) {
+            if (part.isEmpty()) {
+                throw new IllegalArgumentException("Malformed signature member list");
+            }
+            result.add(dec(part));
+        }
+        return List.copyOf(result);
     }
 
     public static AlchemyMixtureState decode(String encoded) {
@@ -1095,6 +1330,38 @@ public final class AlchemyMixtureState {
                             Integer.parseInt(part[5]), part.length >= 11 ? Integer.parseInt(part[10]) : 1,
                             blankToNull(dec(part[6])), blankToNull(dec(part[7])),
                             decodeEffects(dec(part[8])), decodeEffects(dec(part[9]))));
+                    case "G" -> {
+                        if (part.length < 3) throw new IllegalArgumentException("Incomplete signature group");
+                        Identifier id = Identifier.tryParse(dec(part[1]));
+                        if (id == null) throw new IllegalArgumentException("Invalid signature group ID");
+                        List<String> members = new ArrayList<>();
+                        for (int i = 2; i < part.length; i++) {
+                            members.add(dec(part[i]));
+                        }
+                        SignatureBrewResolver.ReactionGroup group =
+                                new SignatureBrewResolver.ReactionGroup(id, members);
+                        state.signatureGroups.putIfAbsent(id, group);
+                    }
+                    case "Q" -> {
+                        if (part.length != 9) {
+                            throw new IllegalArgumentException("Malformed committed signature record");
+                        }
+                        Identifier id = Identifier.parse(dec(part[1]));
+                        SignatureBrewDefinition.Type type =
+                                SignatureBrewDefinition.Type.valueOf(part[2]);
+                        Identifier itemId = Identifier.parse(dec(part[3]));
+                        int count = Integer.parseInt(part[4]);
+                        String containerId = dec(part[5]);
+                        String potionId = dec(part[6]);
+                        SignatureBrewDefinition.Result result = new SignatureBrewDefinition.Result(
+                                type, itemId, count,
+                                containerId.isEmpty() ? null : Identifier.parse(containerId),
+                                potionId.isEmpty() ? null : Identifier.parse(potionId));
+                        SignatureBrewProcess process = new SignatureBrewProcess(
+                                id, result, decodeMemberIds(part[7]),
+                                new LinkedHashSet<>(decodeMemberIds(part[8])));
+                        state.signatureProcesses.putIfAbsent(id, process);
+                    }
                     case "T" -> state.completedStages.put(dec(part[1]), new CompletedStage(
                             dec(part[1]), dec(part[2]), Integer.parseInt(part[3]), Integer.parseInt(part[4])));
                     case "P" -> state.provenance.add(dec(part[1]));
@@ -1124,6 +1391,34 @@ public final class AlchemyMixtureState {
                     ActivatedBaseComposition.single(LEGACY_ACTIVATED_BASE_ID, state.volumeUnits);
         }
         rewriteLegacyIds(state);
+        // Validate committed groups before uncommitted reservations so active
+        // ownership wins in any malformed/contradictory input.
+        Set<String> committedMembers = new LinkedHashSet<>();
+        state.signatureProcesses.values().removeIf(process -> {
+            boolean invalid = process.memberReactionIds().stream().anyMatch(id -> {
+                Reaction reaction = state.reactions.get(id);
+                if (committedMembers.contains(id)) return true;
+                return process.completedReactionIds().contains(id)
+                        ? reaction != null
+                        : reaction == null || reaction.complete();
+            });
+            if (!invalid) {
+                committedMembers.addAll(process.memberReactionIds());
+            }
+            return invalid;
+        });
+        // Corrupt, overlapping or no-longer-pending reservations must not survive reload.
+        Set<String> decodedReserved = new LinkedHashSet<>(committedMembers);
+        state.signatureGroups.values().removeIf(group -> {
+            boolean invalid = group.memberReactionIds().stream().anyMatch(id -> {
+                Reaction reaction = state.reactions.get(id);
+                return reaction == null || reaction.complete() || decodedReserved.contains(id);
+            });
+            if (!invalid) {
+                decodedReserved.addAll(group.memberReactionIds());
+            }
+            return invalid;
+        });
         // Migrate mixtures created by builds that intentionally preserved opposing rolled outcomes.
         state.provenance.remove(PRESERVE_INDEPENDENT_OUTCOMES);
         state.neutralizeOpposites();

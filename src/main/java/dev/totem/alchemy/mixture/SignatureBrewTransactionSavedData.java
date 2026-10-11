@@ -1,0 +1,167 @@
+package dev.totem.alchemy.mixture;
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Experimental single-world escrow index, persisted independently of cauldron
+ * chunks and player.dat; it is not connected to live bottle interactions.
+ *
+ * <p>Until a durable write/rollback protocol exists, the entry is only an
+ * immutable candidate authority for transaction identity and origin, NOT
+ * permission to issue, retry, or acknowledge a drink.</p>
+ */
+public final class SignatureBrewTransactionSavedData extends SavedData {
+    public static final Codec<SignatureBrewTransactionSavedData> CODEC =
+            RecordCodecBuilder.create(instance -> instance.group(
+                    Codec.STRING.listOf().optionalFieldOf("transactions", List.of())
+                            .forGetter(SignatureBrewTransactionSavedData::encodedTransactions),
+                    Codec.STRING.listOf().optionalFieldOf("closure_reviews", List.of())
+                            .forGetter(SignatureBrewTransactionSavedData::encodedClosureReviews),
+                    Codec.STRING.listOf().optionalFieldOf("source_fences", List.of())
+                            .forGetter(SignatureBrewTransactionSavedData::encodedSourceFences)
+            ).apply(instance, SignatureBrewTransactionSavedData::new));
+
+    public static final SavedDataType<SignatureBrewTransactionSavedData> TYPE =
+            new SavedDataType<>(
+                    Identifier.fromNamespaceAndPath("totem", "alchemy/signature_transactions"),
+                    SignatureBrewTransactionSavedData::new,
+                    CODEC,
+                    DataFixTypes.SAVED_DATA_COMMAND_STORAGE);
+
+    private final SignatureBrewTransactionRegistry registry;
+
+    public SignatureBrewTransactionSavedData() {
+        registry = new SignatureBrewTransactionRegistry();
+    }
+
+    private SignatureBrewTransactionSavedData(
+            List<String> raw, List<String> closureReviews,
+            List<String> sourceFences
+    ) {
+        registry = new SignatureBrewTransactionRegistry(raw, closureReviews, sourceFences);
+    }
+
+    public static SignatureBrewTransactionSavedData get(MinecraftServer server) {
+        return server.overworld().getDataStorage().computeIfAbsent(TYPE);
+    }
+
+    /**
+     * Explicit registration only; never invoked automatically from the live
+     * cauldron code at this checkpoint. This call does NOT force a disk flush.
+     */
+    public SignatureBrewTransactionRegistry.RegisterResult register(
+            Identifier dimensionId, BlockPos pos, SignatureBrewDeliveryTicket ticket
+    ) {
+        if (dimensionId == null || pos == null) {
+            return SignatureBrewTransactionRegistry.RegisterResult.UNTRUSTED_REGISTRY;
+        }
+        var result = registry.register(
+                new SignatureBrewTransactionRegistry.Source(dimensionId, pos.asLong()), ticket);
+        if (result == SignatureBrewTransactionRegistry.RegisterResult.REGISTERED) {
+            setDirty();
+        }
+        return result;
+    }
+
+    public SignatureBrewTransactionRegistry.LookupResult lookup(UUID transactionId) {
+        return registry.lookup(transactionId);
+    }
+
+    public Optional<SignatureBrewTransactionRegistry.Entry> inspect(UUID transactionId) {
+        return registry.inspect(transactionId);
+    }
+
+    /** Audit only; never authorizes an inventory reward. */
+    public SignatureBrewTransactionRegistry.Verification verify(
+            Identifier dimensionId, BlockPos sourcePos, SignatureBrewDeliveryTicket ticket
+    ) {
+        return registry.verify(
+                dimensionId == null || sourcePos == null ? null
+                        : new SignatureBrewTransactionRegistry.Source(dimensionId, sourcePos.asLong()),
+                ticket);
+    }
+
+    /**
+     * Durable-intent metadata only. Does not release this cauldron origin,
+     * acknowledge recipient payout or authorize an automatic retry.
+     */
+    public SignatureBrewTransactionRegistry.ClosureResult requestClosureReview(
+            Identifier dimensionId, BlockPos sourcePos, SignatureBrewDeliveryTicket ticket
+    ) {
+        if (dimensionId == null || sourcePos == null) {
+            return SignatureBrewTransactionRegistry.ClosureResult.INVALID_SOURCE_OR_TICKET;
+        }
+        var result = registry.requestClosureReview(
+                new SignatureBrewTransactionRegistry.Source(dimensionId, sourcePos.asLong()), ticket);
+        if (result == SignatureBrewTransactionRegistry.ClosureResult.REVIEW_REQUESTED) {
+            setDirty();
+        }
+        return result;
+    }
+
+    public SignatureBrewTransactionRegistry.ClosureState closureState(UUID transactionId) {
+        return registry.closureState(transactionId);
+    }
+
+    /** Identity fence only. GENESIS_MATCH never authorizes a grant or source reuse. */
+    public SignatureBrewTransactionRegistry.FenceState inspectFence(
+            Identifier dimensionId, BlockPos sourcePos, UUID transactionId
+    ) {
+        return registry.inspectFence(
+                dimensionId == null || sourcePos == null ? null
+                        : new SignatureBrewTransactionRegistry.Source(
+                                dimensionId, sourcePos.asLong()),
+                transactionId);
+    }
+
+    /**
+     * Audit the A1/C1/J1/R1 records from their independently persisted
+     * owners. No returned decision grants an item, clears an escrow or
+     * releases a source; player.dat durability remains unproven.
+     */
+    public SignatureBrewClosurePreflight.Decision assessClosure(
+            Identifier dimensionId,
+            BlockPos sourcePos,
+            UUID transactionId,
+            SignatureBrewDeliveryProgress journal,
+            SignatureBrewPlayerReceiptSavedData playerObservations
+    ) {
+        var original = registry.inspect(transactionId).orElse(null);
+        SignatureBrewReceiptIndex.Evidence evidence = playerObservations == null
+                ? null : playerObservations.compareTicket(
+                        original == null ? null : original.ticket());
+        return SignatureBrewClosurePreflight.assessEvidence(
+                registry,
+                dimensionId == null || sourcePos == null ? null
+                        : new SignatureBrewTransactionRegistry.Source(
+                                dimensionId, sourcePos.asLong()),
+                transactionId, journal, evidence);
+    }
+
+    public boolean needsManualRecovery() {
+        return registry.needsManualRecovery();
+    }
+
+    private List<String> encodedTransactions() {
+        return registry.encodedEntries();
+    }
+
+    private List<String> encodedClosureReviews() {
+        return registry.encodedClosureIntents();
+    }
+
+    private List<String> encodedSourceFences() {
+        return registry.encodedSourceFences();
+    }
+}

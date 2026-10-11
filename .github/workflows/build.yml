@@ -55,6 +55,133 @@ jobs:
           test "$core_version" = '0.7.23'
           test -f ".lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
 
+      - name: JUNIT-00 focused registry bootstrap smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.testing.MinecraftRegistryBootstrapTest' \
+            --tests 'dev.totem.alchemy.testing.MinecraftRegistryBootstrapSmokeTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-01 focused honey adapter tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.container.HoneyBottleContainerAdapterTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-02 focused large flask adapter tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.container.LargeFlaskContainerAdapterTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-03 focused adapter dispatcher tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.container.LiquidContainerAdaptersTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-04 focused milk bucket adapter tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.container.MilkBucketContainerAdapterTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-05 focused potion adapter tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.container.PotionContainerAdapterTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-06 focused water bottle adapter tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.container.WaterBottleContainerAdapterTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-07 focused water bucket adapter tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.container.WaterBucketContainerAdapterTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-08 focused mixture timing tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.mixture.AlchemyMixtureTimingTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
+      - name: JUNIT-09 full-suite regression acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test --rerun-tasks \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import xml.etree.ElementTree as ET
+
+          results = sorted(Path("build/test-results/test").glob("TEST-*.xml"))
+          if not results:
+              raise SystemExit("JUNIT-09 failed: no JUnit XML result files found")
+
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          for result in results:
+              root = ET.parse(result).getroot()
+              for field in totals:
+                  totals[field] += int(root.get(field, "0"))
+          passed = totals["tests"] - totals["failures"] - totals["errors"] - totals["skipped"]
+          summary = (
+              f"JUNIT-09 full suite: {totals['tests']} tests, {passed} passed, "
+              f"{totals['failures']} failed, {totals['errors']} errors, "
+              f"{totals['skipped']} skipped across {len(results)} test classes"
+          )
+          print(summary)
+          if os.getenv("GITHUB_STEP_SUMMARY"):
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
+                  report.write("### Final JUnit regression gate\n\n" + summary + "\n")
+          if totals["tests"] < 265 or any(totals[k] for k in ("failures", "errors", "skipped")):
+              raise SystemExit("JUNIT-09 failed: baseline count or zero-failure/zero-skip gate not met")
+          PY
+
       - name: Build TotemAlchemy
         shell: bash
         run: |

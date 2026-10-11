@@ -1,7 +1,10 @@
 package dev.totem.alchemy.container;
 
+import dev.totem.alchemy.testing.WithMinecraftItemComponents;
+
 import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
+import dev.totem.alchemy.mixture.AlchemyMixtureBottle;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
 import dev.totem.alchemy.mixture.LiquidComposition;
 import net.minecraft.world.item.ItemStack;
@@ -14,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithMinecraftItemComponents
 class MilkBucketContainerAdapterTest {
     @Test
     void milkBucketDrainsToThreeMilkUnitsAndEmptyBucket() {
@@ -88,12 +92,46 @@ class MilkBucketContainerAdapterTest {
         AlchemyMixtureState damagedMilk = MilkBucketContainerAdapter.milkState(3);
         damagedMilk.setStability(90);
 
+        // The milk adapter rejects non-plain milk. The dispatcher itself may still
+        // accept these mixtures through its state-preserving water-bucket fallback.
         ItemStack bucket = new ItemStack(Items.BUCKET);
-        assertTrue(LiquidContainerAdapters.fill(bucket, water, 3).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(bucket, mixed, 3).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(bucket, activatedMilk, 3).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(bucket, effectfulMilk, 3).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(bucket, damagedMilk, 3).isEmpty());
+        assertTrue(MilkBucketContainerAdapter.INSTANCE.fill(bucket, water, 3).isEmpty());
+        assertTrue(MilkBucketContainerAdapter.INSTANCE.fill(bucket, mixed, 3).isEmpty());
+        assertTrue(MilkBucketContainerAdapter.INSTANCE.fill(bucket, activatedMilk, 3).isEmpty());
+        assertTrue(MilkBucketContainerAdapter.INSTANCE.fill(bucket, effectfulMilk, 3).isEmpty());
+        assertTrue(MilkBucketContainerAdapter.INSTANCE.fill(bucket, damagedMilk, 3).isEmpty());
+    }
+
+    @Test
+    void dispatcherPrefersPlainMilkButPreservesMixedMilkViaStoredBucket() {
+        ItemStack bucket = new ItemStack(Items.BUCKET);
+        AlchemyMixtureState plainMilk = MilkBucketContainerAdapter.milkState(3);
+        LiquidContainerAdapter.FillResult milkFilled =
+                LiquidContainerAdapters.fill(bucket, plainMilk, 3).orElseThrow();
+
+        assertTrue(milkFilled.filledContainer().is(Items.MILK_BUCKET));
+        assertEquals(3, milkFilled.transferredUnits());
+        assertTrue(milkFilled.sourceRemainder().isEmpty());
+        assertEquals(3, plainMilk.volumeUnits());
+
+        AlchemyMixtureState mixed = new AlchemyMixtureState(3);
+        mixed.setLiquidComposition(LiquidComposition.of(Map.of(
+                AlchemyLiquids.MILK_ID, 0.5D,
+                AlchemyLiquids.WATER_ID, 0.5D
+        )));
+        mixed.putEffect("minecraft:speed", 600.0D, 0);
+        // Bottling seals finished chemistry. Match the existing stored-bucket contract
+        // so round-trip equality compares equivalent, already-finished states.
+        mixed.lockHeatIfFinished();
+        String before = mixed.encode();
+
+        LiquidContainerAdapter.FillResult fallback =
+                LiquidContainerAdapters.fill(bucket, mixed, 3).orElseThrow();
+        assertTrue(fallback.filledContainer().is(Items.WATER_BUCKET));
+        assertTrue(AlchemyMixtureBottle.hasStoredMixture(fallback.filledContainer()));
+        assertEquals(before, AlchemyMixtureBottle.storedMixture(fallback.filledContainer()).encode());
+        assertTrue(fallback.sourceRemainder().isEmpty());
+        assertEquals(before, mixed.encode());
     }
 
     @Test

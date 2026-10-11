@@ -1,5 +1,7 @@
 package dev.totem.alchemy.container;
 
+import dev.totem.alchemy.testing.WithMinecraftItemComponents;
+
 import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.mixture.AlchemyMixtureBrewing;
 import dev.totem.alchemy.mixture.AlchemyMixtureState;
@@ -17,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithMinecraftItemComponents
 class HoneyBottleContainerAdapterTest {
     @BeforeAll
     static void bootstrapMinecraftRegistries() {
@@ -70,7 +73,7 @@ class HoneyBottleContainerAdapterTest {
     }
 
     @Test
-    void fillRejectsWaterMilkMixedOrStatefulHoney() {
+    void honeyAdapterRejectsWaterMilkMixedOrStatefulHoney() {
         AlchemyMixtureState water = AlchemyMixtureBrewing.waterState(1);
         AlchemyMixtureState milk = MilkBucketContainerAdapter.milkState(1);
 
@@ -90,12 +93,21 @@ class HoneyBottleContainerAdapterTest {
         damagedHoney.setStability(90);
 
         ItemStack glass = new ItemStack(Items.GLASS_BOTTLE);
-        assertTrue(LiquidContainerAdapters.fill(glass, water, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, milk, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, mixed, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, activatedHoney, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, effectfulHoney, 1).isEmpty());
-        assertTrue(LiquidContainerAdapters.fill(glass, damagedHoney, 1).isEmpty());
+        // This test checks the honey adapter specifically. The dispatcher
+        // legitimately accepts water via WaterBottleContainerAdapter, so it
+        // must not be used to assert that water is rejected by Honey.
+        HoneyBottleContainerAdapter honey = HoneyBottleContainerAdapter.INSTANCE;
+        assertTrue(honey.fill(glass, water, 1).isEmpty());
+        assertTrue(honey.fill(glass, milk, 1).isEmpty());
+        assertTrue(honey.fill(glass, mixed, 1).isEmpty());
+        assertTrue(honey.fill(glass, activatedHoney, 1).isEmpty());
+        assertTrue(honey.fill(glass, effectfulHoney, 1).isEmpty());
+        assertTrue(honey.fill(glass, damagedHoney, 1).isEmpty());
+
+        // Regression: rejecting a non-honey source here must not prevent
+        // another adapter from correctly filling a normal water bottle.
+        assertTrue(LiquidContainerAdapters.fill(glass, water, 1)
+                .orElseThrow().filledContainer().is(Items.POTION));
     }
 
     @Test

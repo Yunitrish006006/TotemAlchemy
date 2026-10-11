@@ -73,10 +73,23 @@ dependencies {
     runtimeOnly "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     modImplementation files(totemCoreJar)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    // Fabric Loader's JUnit integration supplies the Minecraft/mod loader
+    // environment required by ItemStack and registry-dependent tests.
+    testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.withType(Test).configureEach { useJUnitPlatform() }
+// Diagnose the JVM-only Minecraft registry failures in CI. Gradle's default
+// brief test output hides the NPE's actual registry/bootstrap frame.
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    testLogging {
+        events 'failed'
+        exceptionFormat 'full'
+        showStackTraces true
+        showCauses true
+    }
+}
 
 tasks.register('verifyOptionalAlchemyPackIsolation') {
     group = 'verification'
@@ -160,6 +173,25 @@ afterEvaluate {
     tasks.withType(net.fabricmc.loom.task.RunGameTask).all { runTask ->
         dependsOn('normalizeFabricApiTweakersForNamedDevRuntime')
         def classpathProducers = classpath.buildDependencies.getDependencies(runTask).toList()
+        dependsOn(classpathProducers)
+        def originals = classpath.files.toList()
+        def copies = originals.collect { file ->
+            if (file.absolutePath.contains('/net.fabricmc.fabric-api/') && file.name.endsWith('.jar')) {
+                namedRuntimeSources.add(file)
+                return namedRuntimeCopyFor(file)
+            }
+            return file
+        }
+        setClasspath(files(copies))
+    }
+
+    // Fabric Loader JUnit launches Knot in the same named development
+    // namespace as runGameTest. Without these normalized runtime copies,
+    // its launcher fails before discovering any tests because Fabric API's
+    // bundled classTweakers still declare the official namespace.
+    tasks.withType(Test).all { testTask ->
+        dependsOn('normalizeFabricApiTweakersForNamedDevRuntime')
+        def classpathProducers = classpath.buildDependencies.getDependencies(testTask).toList()
         dependsOn(classpathProducers)
         def originals = classpath.files.toList()
         def copies = originals.collect { file ->
