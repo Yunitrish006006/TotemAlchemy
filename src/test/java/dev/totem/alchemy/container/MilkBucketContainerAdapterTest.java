@@ -120,6 +120,9 @@ class MilkBucketContainerAdapterTest {
                 AlchemyLiquids.WATER_ID, 0.5D
         )));
         mixed.putEffect("minecraft:speed", 600.0D, 0);
+        // Bottling seals finished chemistry. Match the existing stored-bucket contract
+        // so round-trip equality compares equivalent, already-finished states.
+        mixed.lockHeatIfFinished();
         String before = mixed.encode();
 
         LiquidContainerAdapter.FillResult fallback =
