@@ -1,5 +1,7 @@
 # TotemAlchemy — JUnit failure recovery (one task per checkpoint)
 
+> **Canonical active plan:** [junit-recovery-task-plan.md](junit-recovery-task-plan.md). This original JR-numbered plan remains as historical context: **JR-01 = JUNIT-00**, JR-02 through JR-09 map to JUNIT-01 through JUNIT-08, and JR-10 = JUNIT-09. Track future progress in the canonical plan to avoid parallel task queues.
+
 **Branch:** `feature/m11-t01-signature-brew-resolver`  
 **PR:** #120 (Draft).  
 **Paused feature work:** M11 transaction finalization / mailbox; no further functionality until the JUnit baseline is green.
@@ -11,6 +13,7 @@
 - Build #419: **259 JUnit, 43 failed**. All remaining failures originate in `Holder.Reference.components()` with `NullPointerException: Components not bound yet`; Fabric Loader/Jupiter test runtime is now working but the vanilla 26.3 item components are not bound for tests.
 - Build #423: isolated diagnostic canary showed **4/4 failed**, including a test proving Jupiter did **not auto-discover** the global bootstrap extension (263 tests, 47 failed including four diagnostics).
 - Build #424: explicit `@ExtendWith(MinecraftRegistryBootstrapExtension.class)` produced **4/4 passing canary probes**, including vanilla GLASS_BOTTLE/POTION/HONEY_BOTTLE and Totem HOT_COCOA/LARGE_POTION_FLASK (263 tests, original 43 failures remain because the eight affected classes were not yet explicitly annotated).
+- **Build #443:** both explicit JUNIT-00/JR-01 smoke classes green; **264 JUnit, 9 behavior assertion failures**, and **111/111 GameTests** with OFF/OFF and four optional-pack states green. `Components not bound yet` failure class eliminated.
 - Keep ALL tests enabled. Never hide failures through `ignoreFailures`, `@Disabled`, excluding test classes, or weakening assertions. The number of failing tests must strictly decrease or a task remains IN PROGRESS.
 
 ## Execution rules
@@ -27,7 +30,7 @@
 | ID | Status | Independent scope | Baseline failed tests | Acceptance |
 | --- | --- | --- | ---: | --- |
 | JR-00 | DONE | Diagnose JUnit failures and fix `LiquidComposition.normalized()` floating-point idempotence | 1 (resolved) | Build #418 and #419: that test passed |
-| **JR-01** | **IN PROGRESS** | **Minecraft 26.3 JUnit bootstrap:** ensure Fabric Loader and actual vanilla deferred item components are bound in the JUnit test worker | Shared root cause of 43 | Focused canary creates vanilla + Totem `ItemStack` without `Components not bound yet`; no registry fallback hacks in production |
+| **JR-01** | **DONE — Build #443** | **Minecraft 26.3 JUnit bootstrap:** ensure Fabric Loader and actual vanilla deferred item components are bound in the JUnit test worker | Shared root cause of 43 | Focused canary creates vanilla + Totem `ItemStack` without `Components not bound yet`; no registry fallback hacks in production |
 | JR-02 | TODO | `HoneyBottleContainerAdapterTest` | 5 | 5/5 pass |
 | JR-03 | TODO | `LargeFlaskContainerAdapterTest` | 5 | 5/5 pass |
 | JR-04 | TODO | `LiquidContainerAdaptersTest` | 6 | 6/6 pass |
@@ -46,6 +49,6 @@ The eight class-specific tasks account for all **43** currently failing tests (5
 - [x] Global Jupiter `BeforeAllCallback` creates the vanilla registry lookup and requests deferred component initialization.
 - [x] Add a **focused bootstrap canary** to verify the global callback ran and that vanilla and Totem `ItemStack` components are bound. Build #423 isolated the skipped callback; Build #424 validated 4/4 when explicitly registered.
 - [x] Correct the extension **registration** gap: added the `@WithMinecraftItemComponents` meta-annotation and applied it to the eight affected container/timing test classes and the canary. Fabric's Knot classloader did not pick up the global ServiceLoader-based Jupiter extension.
-- [ ] Confirm all previously failing adapter/timing tests by CI with no newly failing tests; then mark JR-01 DONE and record JR-02–JR-09 results individually.
+- [x] Build #443 full suite confirmed no additional bootstrap failures: 264 JUnit, 9 behavioral assertion failures, 111/111 GameTests and datapack variants passed. The remaining class-specific tests are separate follow-ups in the canonical JUNIT plan; JR-01 is DONE.
 
-**Limitation:** even a green isolated canary is not proof of complete CI until JR-10. The broken baseline is in the JUnit JVM, not the server GameTest runtime.
+**Limitation:** JR-01 eliminated the shared bootstrap error but **9 independent assertions still fail** (honey 1, milk 2, water bottle 5, water bucket 1). This is not full CI acceptance until JR-10/JUNIT-09.
