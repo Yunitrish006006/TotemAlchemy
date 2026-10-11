@@ -3,6 +3,7 @@ package dev.totem.alchemy.mixture;
 import dev.totem.alchemy.alchemy.BrewingMaterialSettings;
 import dev.totem.alchemy.alchemy.BrewingModifierPolicy;
 import dev.totem.alchemy.alchemy.AlchemyBrewing;
+import dev.totem.alchemy.liquid.AlchemyLiquids;
 import dev.totem.alchemy.liquid.LiquidPropertyResolver;
 import dev.totem.alchemy.liquid.LiquidReactionSpeedPolicy;
 import dev.totem.alchemy.reaction.AlchemyReactionResolver;
@@ -417,6 +418,9 @@ public final class AlchemyMixtureBrewing {
 
     public static AlchemyMixtureState waterState(int volumeUnits) {
         AlchemyMixtureState state = new AlchemyMixtureState(volumeUnits);
+        if (!state.isEmpty()) {
+            state.setLiquidComposition(LiquidComposition.single(AlchemyLiquids.WATER_ID, 1.0D));
+        }
         state.setCanonicalPotionId("minecraft:water");
         state.setBaseActivated(false);
         state.addProvenance("cauldron:minecraft:water");
