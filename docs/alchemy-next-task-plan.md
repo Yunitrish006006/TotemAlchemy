@@ -1,6 +1,6 @@
 ## JUnit baseline recovery (priority override)
 
-The 43 remaining JUnit failures are tracked in [junit-recovery-task-plan.md](junit-recovery-task-plan.md) as **JUNIT-00 through JUNIT-09**, with a single focused stage per turn. Build #419 confirmed 259 JUnit / 43 failures from unbound item components, while 111 main server GameTests, OFF/OFF and all four pack states passed. **Pause new M11 delivery features until JUNIT-09 is green.** JUNIT-00 smoke fixture has been added; bootstrap repair and focused CI validation are pending.
+The JUnit recovery queue is tracked in [junit-recovery-task-plan.md](junit-recovery-task-plan.md) as **JUNIT-00 through JUNIT-09**, with only one stage per development turn. **JUNIT-00 complete** (Build #443): both focused registry/bootstrap test classes passed, full JUnit failures dropped **43 → 9** (264 run), **111/111 GameTests**, OFF/OFF and four pack states passed. The remaining 9 failures are behavioral assertions: honey 1, milk 2, water bottle 5, water bucket 1. **JUNIT-01 honey** is next; keep M11 delivery development paused until JUNIT-09 is green.
 
 # TotemAlchemy Next — GPT Implementation Task Plan
 
