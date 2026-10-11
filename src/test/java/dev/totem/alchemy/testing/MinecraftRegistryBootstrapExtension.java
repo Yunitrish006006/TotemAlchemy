@@ -36,12 +36,16 @@ public final class MinecraftRegistryBootstrapExtension implements BeforeAllCallb
             if (!bootstrapped) {
                 SharedConstants.tryDetectVersion();
 
-                // 26.3 vanilla Bootstrap freezes creation of intrusive item
-                // holders. Fabric Loader JUnit does not run the mod entrypoint,
-                // so initialize our static items before Bootstrap freezes the
-                // registry; otherwise Item.<init> throws "can't create intrusive
-                // holders" and poisons AlchemyItems for every later test.
-                AlchemyItems.register();
+                // The JUnit loader does not invoke mod entrypoints. Modded
+                // Item instances must exist before the registry freezes, but
+                // calling AlchemyItems.register() before vanilla Bootstrap
+                // triggers "Not bootstrapped" from BuiltInRegistries.<clinit>.
+                //
+                // Open the registration window in this TEST-ONLY bootstrap
+                // fixture, restore the vanilla guard in all cases, then run
+                // the real Bootstrap (including registry validation/freeze).
+                // Never install this workaround in main mod code or GameTests.
+                registerModItemsBeforeVanillaFreeze();
                 Bootstrap.bootStrap();
 
                 // Resolve the delayed component maps only after *both*
@@ -57,6 +61,28 @@ public final class MinecraftRegistryBootstrapExtension implements BeforeAllCallb
                         DataComponentInitializers.PendingComponents::apply);
                 bootstrapped = true;
             }
+        }
+    }
+
+    private static void registerModItemsBeforeVanillaFreeze() {
+        try {
+            var guard = Bootstrap.class.getDeclaredField("isBootstrapped");
+            guard.setAccessible(true);
+            if (guard.getBoolean(null)) {
+                throw new IllegalStateException(
+                        "JUNIT-00 fixture must run before the first vanilla Bootstrap");
+            }
+            guard.setBoolean(null, true);
+            try {
+                AlchemyItems.register();
+            } finally {
+                // Do not allow the test harness to leave Bootstrap skipped.
+                guard.setBoolean(null, false);
+            }
+        } catch (ReflectiveOperationException reflectiveFailure) {
+            throw new IllegalStateException(
+                    "Minecraft 26.3 bootstrap guard changed; rework JUNIT-00 fixture",
+                    reflectiveFailure);
         }
     }
 
