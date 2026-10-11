@@ -1,6 +1,6 @@
 # JUnit baseline recovery — small-task execution queue
 
-Status: **active — JUNIT-02 verified, JUNIT-03 next**, supersedes feature work until the baseline test suite is green.
+Status: **active — JUNIT-03 verified, JUNIT-04 next**, supersedes feature work until the baseline test suite is green.
 Branch: `feature/m11-t01-signature-brew-resolver`; PR #120 remains Draft.
 Original failure baseline: [Build #419](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38064177467) — **259 JUnit, 43 failed**; one floating-point normalization failure was already fixed in #418 (44 → 43).
 
@@ -9,6 +9,8 @@ Original failure baseline: [Build #419](https://github.com/Yunitrish006006/Totem
 **JUNIT-01 verified:** [Build #448](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38123683084) — JUNIT-00 and **JUNIT-01 honey adapter focused Gradle steps both passed**, full JUnit **264 executed / 256 passed / 8 failed**; **111/111 main GameTests**, OFF/OFF and all four datapack combinations passed. Overall workflow is still red due to the other eight JUnit failures, not the honey adapter.
 
 **JUNIT-02 verified:** [Build #450](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38135977520) — dedicated `LargeFlaskContainerAdapterTest` Gradle filter **passed** (5 test methods; zero failures) following JUNIT-00 and JUNIT-01 focused passes. Full suite **264 JUnit / 256 passed / 8 failed**, with failures solely in milk bucket (2), water bottle (5), and water bucket (1). Main GameTests **111/111 passed within `build --continue`**; OFF/OFF and each of OFF_OFF, ON_OFF, OFF_ON, ON_ON pack matrix passed. Overall workflow remains **failed** because the remaining 8 JUnit assertions are still red; the standalone “Run server GameTests” step was skipped after the build failure. JUNIT-02 required no production-code or test-assertion changes; CI now runs the focused filter explicitly.
+
+**JUNIT-03 verified:** [Build #452](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38136581606) — dedicated `LiquidContainerAdaptersTest` Gradle filter **passed** (6 test methods, zero failures). Full suite **264 JUnit / 256 passed / 8 failed**: milk bucket (2), water bottle (5), water bucket (1), with no dispatcher regressions. Main GameTests **111/111 passed within `build --continue`**, OFF/OFF isolation **5/5**, and each OFF_OFF, ON_OFF, OFF_ON, ON_ON pack-matrix **3/3**. Overall workflow remains **failed** on the eight unrelated JUnit tests; the later standalone “Run server GameTests” step was skipped. No production or test-assertion changes were needed; focused CI was added in commit `32b6d16`.
 
 ## Execution contract
 
@@ -23,7 +25,7 @@ Original failure baseline: [Build #419](https://github.com/Yunitrish006006/Totem
 - [x] **JUNIT-00 — Registry / deferred data component fixture.** Verified in Build #443. Explicit Jupiter `@WithMinecraftItemComponents` applied to the standalone smoke test, test-only bootstrap ordering permits mod item registration before vanilla registry freeze, and deferred vanilla/custom item component prototypes are initialized. Both focused bootstrap test classes passed; full suite: **264 JUnit, 9 failures**, down from 43, with no remaining `Components not bound yet` exceptions. Production registration behavior is unchanged.
 - [x] **JUNIT-01 — Honey bottle adapter (5 original, 1 remaining after JUNIT-00).** `HoneyBottleContainerAdapterTest` — all tests green in Build #448 focused run and full suite. Fixed a misplaced assertion: the **honey adapter** must reject water, while the **dispatcher** must accept water via its water-bottle adapter. The test now exercises both branches; production behavior unchanged. One remaining failed test removed from the baseline (9 → 8).
 - [x] **JUNIT-02 — Large flask adapter (5 original failing tests).** `LargeFlaskContainerAdapterTest`. Verified in Build #450: **5 focused test methods passed, 0 failed**, covering 3-unit capacity, partial top-up/drain, full pending-mixture state copy, and empty/stacked invalid cases. No product or test assertion changes. Full suite still has 8 unrelated JUnit failures.
-- [ ] **JUNIT-03 — Adapter dispatcher (6 failing tests).** `LiquidContainerAdaptersTest`. Verify defensive copies, invalid transfers, adapter precedence and fallback. Exit: focused class green.
+- [x] **JUNIT-03 — Adapter dispatcher (6 original failing tests).** `LiquidContainerAdaptersTest`. Verified in Build #452: **6 focused test methods passed, 0 failed**, covering defensive copies, invalid transfers, adapter precedence, and fallback for unsupported containers. Production behavior and assertions unchanged. Full suite still has 8 unrelated JUnit failures.
 - [ ] **JUNIT-04 — Milk bucket adapter (5 failing tests).** `MilkBucketContainerAdapterTest`. Verify exact 3-unit conversion and pure-milk constraints. Exit: focused class green.
 - [ ] **JUNIT-05 — Potion adapter (7 failing tests).** `PotionContainerAdapterTest`. Verify generic potion forms, effect conservation, pending state and signature drink exclusion. Exit: focused class green.
 - [ ] **JUNIT-06 — Water bottle adapter (7 failing tests).** `WaterBottleContainerAdapterTest`. Verify 1-unit conversion and rejection of stateful water that cannot round-trip. Exit: focused class green.
@@ -75,7 +77,7 @@ All 43 failed with `java.lang.NullPointerException: Components not bound yet` fr
 | `AlchemyMixtureTimingTest` | 0 | JUNIT-08 focused verification pending |
 | **Total** | **8** | Build #448: 264 JUnit / 8 failed |
 
-### Build #450 after JUNIT-02 focused acceptance (current baseline)
+### Build #450 after JUNIT-02 focused acceptance (historical baseline)
 
 | Test class | Failed | Assigned task |
 | --- | ---: | --- |
@@ -88,5 +90,19 @@ All 43 failed with `java.lang.NullPointerException: Components not bound yet` fr
 | `WaterBucketContainerAdapterTest` | 1 | JUNIT-07 repair pending |
 | `AlchemyMixtureTimingTest` | 0 | JUNIT-08 focused verification pending |
 | **Total** | **8** | 264 JUnit / 8 failed; JUNIT-02 focused passed |
+
+### Build #452 after JUNIT-03 focused acceptance (current baseline)
+
+| Test class | Failed | Assigned task |
+| --- | ---: | --- |
+| `HoneyBottleContainerAdapterTest` | 0 | JUNIT-01 done |
+| `LargeFlaskContainerAdapterTest` | 0 | JUNIT-02 done |
+| `LiquidContainerAdaptersTest` | **0** | JUNIT-03 **done; focused class passed** |
+| `MilkBucketContainerAdapterTest` | 2 | JUNIT-04 **next — repair needed** |
+| `PotionContainerAdapterTest` | 0 | JUNIT-05 focused verification pending |
+| `WaterBottleContainerAdapterTest` | 5 | JUNIT-06 repair pending |
+| `WaterBucketContainerAdapterTest` | 1 | JUNIT-07 repair pending |
+| `AlchemyMixtureTimingTest` | 0 | JUNIT-08 focused verification pending |
+| **Total** | **8** | 264 JUnit / 8 failed; JUNIT-03 focused passed |
 
 **Work discipline:** Do not mark JUNIT-02–08 complete merely because some of their tests passed under the global run. Explicitly run their class filter at each task's checkpoint and record that CI result before advancing.
