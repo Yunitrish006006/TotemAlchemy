@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * extension and the same Fabric Loader JUnit environment as production tests.
  * Do not mock item holders or bypass their deferred default components.
  */
+@WithMinecraftItemComponents
 class MinecraftRegistryBootstrapSmokeTest {
     @Test
     void vanillaItemStackHasBoundDefaultComponents() {
