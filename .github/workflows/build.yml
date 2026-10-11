@@ -55,6 +55,17 @@ jobs:
           test "$core_version" = '0.7.23'
           test -f ".lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
 
+      - name: JUNIT-00 focused registry bootstrap smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          ./gradlew -PtotemCoreJar="$core_jar" test \
+            --tests 'dev.totem.alchemy.testing.MinecraftRegistryBootstrapTest' \
+            --tests 'dev.totem.alchemy.testing.MinecraftRegistryBootstrapSmokeTest' \
+            --init-script "${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle" --no-daemon --stacktrace
+
       - name: Build TotemAlchemy
         shell: bash
         run: |
