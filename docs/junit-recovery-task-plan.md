@@ -2,7 +2,9 @@
 
 Status: **active**, supersedes feature work until the baseline test suite is green.
 Branch: `feature/m11-t01-signature-brew-resolver`; PR #120 remains Draft.
-Last verified baseline: [Build #419](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38064177467) — **259 JUnit, 43 failed**, **111/111 main GameTests**, OFF/OFF and four optional datapack combinations passed. Build workflow red because of JUnit. One `LiquidCompositionTest` normalization regression was fixed in #418 (44 → 43 failures).
+Original failure baseline: [Build #419](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38064177467) — **259 JUnit, 43 failed**; one floating-point normalization failure was already fixed in #418 (44 → 43).
+
+**JUNIT-00 verified:** [Build #443](https://github.com/Yunitrish006006/TotemAlchemy/actions/runs/38113063682) — both focused bootstrap test classes green; **264 JUnit executed, 255 passed, 9 failed** (all are behavioral assertion failures, none are `Components not bound yet`); **111/111 main GameTests**, OFF/OFF and all four optional datapack combinations passed. Overall workflow remains red solely because 9 JUnit tests still fail. This is the new recovery baseline, not a release-ready build.
 
 ## Execution contract
 
@@ -14,7 +16,7 @@ Last verified baseline: [Build #419](https://github.com/Yunitrish006006/TotemAlc
 
 ## Root-cause and implementation tasks (sequential)
 
-- [ ] **JUNIT-00 — Registry / deferred data component fixture (43 failures share this dependency).** Repair the JVM-only Fabric Loader JUnit bootstrap so `new ItemStack(Items.GLASS_BOTTLE)` and `new ItemStack(Items.POTION)` work after real vanilla deferred component binding. Diagnose why the current `MinecraftRegistryBootstrapExtension` and `DataComponentInitializers` invocation still leave `Holder.Reference.components()` unbound. Add one minimal fixture smoke test (vanilla item and custom item) and run only that test first. Ensure registry lookups, reloadable providers and the actual `PendingComponents.apply()` target match Minecraft 26.3. Exit: fixture smoke test green, no `Components not bound yet`; full JUnit baseline recorded. Do **not** claim all 43 failures are fixed without re-running them.
+- [x] **JUNIT-00 — Registry / deferred data component fixture.** Verified in Build #443. Explicit Jupiter `@WithMinecraftItemComponents` applied to the standalone smoke test, test-only bootstrap ordering permits mod item registration before vanilla registry freeze, and deferred vanilla/custom item component prototypes are initialized. Both focused bootstrap test classes passed; full suite: **264 JUnit, 9 failures**, down from 43, with no remaining `Components not bound yet` exceptions. Production registration behavior is unchanged.
 - [ ] **JUNIT-01 — Honey bottle adapter (5 failing tests).** `HoneyBottleContainerAdapterTest`. Verify glass-bottle fill, drain, pure honey restrictions, source remainder and stack-size constraints. Exit: focused class green.
 - [ ] **JUNIT-02 — Large flask adapter (5 failing tests).** `LargeFlaskContainerAdapterTest`. Verify 3-unit capacity, partial top-up/drain, state copy and empty/stacked invalid cases. Exit: focused class green.
 - [ ] **JUNIT-03 — Adapter dispatcher (6 failing tests).** `LiquidContainerAdaptersTest`. Verify defensive copies, invalid transfers, adapter precedence and fallback. Exit: focused class green.
@@ -40,3 +42,19 @@ Last verified baseline: [Build #419](https://github.com/Yunitrish006006/TotemAlc
 | **Total** | **43** |
 
 All 43 failed with `java.lang.NullPointerException: Components not bound yet` from `Holder.Reference.components()` when constructing an `ItemStack`. Therefore **JUNIT-00 is a shared blocker**, not 43 independent product defects. Keep per-class follow-up tasks even if the common fixture repair makes them pass, so that each behavior group is independently verified.
+
+### Build #443 post-bootstrap failure classification (next queue)
+
+| Test class | Remaining JUnit failures | Interpretation |
+| --- | ---: | --- |
+| `HoneyBottleContainerAdapterTest` | **1** | Liquid/recipe rejection assertion; **JUNIT-01 next** |
+| `LargeFlaskContainerAdapterTest` | 0 | Behavior class now green; perform focused verification during JUNIT-02 |
+| `LiquidContainerAdaptersTest` | 0 | Behavior class now green; perform focused verification during JUNIT-03 |
+| `MilkBucketContainerAdapterTest` | **2** | Plain milk conversions/restrictions; JUNIT-04 |
+| `PotionContainerAdapterTest` | 0 | Behavior class now green; perform focused verification during JUNIT-05 |
+| `WaterBottleContainerAdapterTest` | **5** | Water composition and stateful-water handling; JUNIT-06 |
+| `WaterBucketContainerAdapterTest` | **1** | Water composition; JUNIT-07 |
+| `AlchemyMixtureTimingTest` | 0 | Behavior class now green; perform focused verification during JUNIT-08 |
+| **Total** | **9** | All are assertions; no JVM bootstrap errors |
+
+**Work discipline:** Do not mark JUNIT-01–08 complete merely because some of their tests passed under the global run. Explicitly run their class filter at each task's checkpoint and record that CI result before advancing.
